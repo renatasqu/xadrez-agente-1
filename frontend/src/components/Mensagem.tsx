@@ -1,6 +1,7 @@
 // Uma mensagem do chat: pergunta do usuário ou resposta de um agente (nome, confiança,
 // texto e fontes).
 
+import { textoDaAnalise } from "../idioma";
 import type { ReactNode } from "react";
 import type { Demonstracao, NomeAgente, Resposta } from "../types";
 import { Sprite } from "../pixel/Sprite";
@@ -65,7 +66,7 @@ export function RespostaDoAgente({ resposta, erro = false, onVerNoTabuleiro, onP
           <span className="text-xs opacity-70">{erro ? "erro" : recomendacao ? "recomendação de leitura" : "sem fonte"}</span>
         )}
       </header>
-      <div className="answer-explanation text-sm leading-relaxed whitespace-pre-wrap">{formatar(resposta.resposta)}</div>
+      <div className="answer-explanation text-sm leading-relaxed whitespace-pre-wrap">{formatar(resposta.agente === "analista" ? textoDaAnalise(resposta.resposta) : resposta.resposta)}</div>
       {resposta.demonstracao && onVerNoTabuleiro && (
         <button type="button" className="botao-pixel mt-3 bg-gelo text-slate-900"
           onClick={() => onVerNoTabuleiro(resposta.demonstracao!)}>

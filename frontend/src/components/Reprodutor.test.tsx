@@ -28,6 +28,7 @@ function servidor(chat: unknown) {
 async function abrirDemo(chat: unknown) {
   servidor(chat);
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "roque?" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   fireEvent.click(await screen.findByRole("button", { name: "Ver no tabuleiro" }));

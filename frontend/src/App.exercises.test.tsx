@@ -21,7 +21,7 @@ vi.mock("./components/Board", () => ({ Board: (props: BoardProps) => {
 vi.mock("./exercises/useExercise", () => ({ useExercise: () => capture.session }));
 beforeEach(() => {
   apagarUsuarioId(); capture.items = []; capture.board = null;
-  capture.session = { exercise: null, loading: false, validationResult: null, resulting_fen: null,
+  capture.session = { hint: null, currentHintLevel: 0, lastAction: null, pedirDica: vi.fn(), exercise: null, loading: false, validationResult: null, resulting_fen: null,
     history: [], operationalError: null, concluido: false, visual: factsParaVisual([]),
     carregar: vi.fn(), tentar: vi.fn(), fechar: vi.fn() };
 });
@@ -37,6 +37,7 @@ it("associações só no envelope da lição chegam ao objeto do chat", async ()
     conteudo: { resposta: "Cavalo", fontes: [], agente: "arbitro", confianca: 0 },
     concept_ids: ["movimento_cavalo"], related_exercise_ids: [A1.id] });
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
   expect(capture.items[0]).toMatchObject({ resposta: {
@@ -47,6 +48,7 @@ it("lição/cache antigo recebe listas vazias", async () => {
   servidor({ usuario_id: "id", concluido: false, licao: null,
     conteudo: { resposta: "Antiga", fontes: [], agente: "arbitro", confianca: 0 } });
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
   expect(capture.items[0]).toMatchObject({ resposta: { concept_ids: [], related_exercise_ids: [] } });
@@ -71,5 +73,5 @@ it("exercício preserva histórico normal já jogado ao entrar e sair", async ()
   expect(capture.board?.modo).toBe("normal");
   expect(capture.board?.fen).toBe(fenDaPartida);
   expect(capture.board?.podeDesfazer).toBe(true);
-  await waitFor(() => expect(screen.getByText("Servidor ok")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Servidor disponível")).toBeTruthy());
 });

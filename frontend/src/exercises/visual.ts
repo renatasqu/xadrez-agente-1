@@ -1,6 +1,8 @@
 import type { ExerciseFact, ExerciseSquare } from "../types";
 
 export interface ExerciseVisual {
+  hintSquares?: ExerciseSquare[];
+  errorSquares?: ExerciseSquare[];
   sourceSquare: ExerciseSquare | null;
   destinationSquare: ExerciseSquare | null;
   highlightedSquares: ExerciseSquare[];

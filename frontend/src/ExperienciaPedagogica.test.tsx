@@ -1,3 +1,4 @@
+import { textoPedagogico } from "./idioma";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -39,10 +40,11 @@ function servidor(key: string, respostas: string[], operational = false, withDem
 async function abrirChat(key: string, respostas: string[], operational = false) {
   const state = servidor(key, respostas, operational);
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Explique este conceito." } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   fireEvent.click(await screen.findByRole("button", { name: /Praticar este conceito/ }));
-  await screen.findByText(state.exercise.prompt, {}, { timeout: 3000 });
+  await screen.findByText(textoPedagogico(state.exercise.prompt), {}, { timeout: 3000 });
   if (key !== "a2") await waitFor(() => expect(casa("e7").querySelector('[aria-label="peão preto"]')).toBeNull(), { timeout: 3000 });
   return state;
 }
@@ -67,7 +69,9 @@ it("A1: CTA, tentativa ilegal, feedback, nova tentativa e conclusão", async () 
   await screen.findByText("Exercício concluído.", {}, { timeout: 3000 });
   await waitFor(() => expect(casa("c3").querySelector('[aria-label="cavalo branco"]')).toBeTruthy());
   expect(payloads).toHaveLength(2);
-  expect(screen.getByText("Explicação do conceito preservada.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
+  expect(within(screen.getByRole("dialog", { name: "SEU TUTOR" })).getByText("Explicação do conceito preservada.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Fechar seu tutor" }));
   fireEvent.click(screen.getByRole("button", { name: "Fechar exercício e voltar à minha posição" }));
   await waitFor(() => expect(casa("e2").querySelector('[aria-label="peão branco"]')).toBeTruthy());
 });
@@ -97,7 +101,7 @@ it("E1: lance seguro conclui com posição do servidor", async () => {
 it("E1: perda material preserva posição e permite visualizar a refutação", async () => {
   await abrirChat("e1", ["incorrect"]);
   mover("e1", "f2"); await screen.findByText("Tente novamente.", {}, { timeout: 3000 });
-  expect(screen.getByText("Esse lance permite uma perda material.")).toBeTruthy();
+  expect(screen.getByText("Esse lance permite uma perda de material.")).toBeTruthy();
   expect(screen.getByText("Variação material da linha: -3.")).toBeTruthy();
   await waitFor(() => expect(casa("e1").querySelector('[aria-label="rei branco"]')).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Ver sequência de refutação" }));
@@ -112,14 +116,14 @@ it("E1: perda material preserva posição e permite visualizar a refutação", a
 it("E1: allows_mate anuncia risco, destaca rei e mostra linha recebida", async () => {
   await abrirChat("mate", ["incorrect"]);
   mover("g2", "g4"); await screen.findByText("Tente novamente.", {}, { timeout: 3000 });
-  expect(screen.getByText("Esse lance permite mate imediato.")).toBeTruthy();
-  expect(screen.getByText("Rei em mate na refutação: e1.")).toBeTruthy();
+  expect(screen.getByText("Esse lance permite xeque-mate imediato.")).toBeTruthy();
+  expect(screen.getByText("Rei em xeque-mate na refutação: e1.")).toBeTruthy();
   await waitFor(() => expect(casa("g2").querySelector('[aria-label="peão branco"]')).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Ver sequência de refutação" }));
   fireEvent.click(screen.getByRole("button", { name: "Próximo na refutação" }));
   fireEvent.click(screen.getByRole("button", { name: "Próximo na refutação" }));
   await waitFor(() => expect(casa("h4").querySelector('[aria-label="dama preta"]')).toBeTruthy());
-});
+}, 10_000); // Sequência completa de refutação com sprites SVG e modais persistentes.
 it("erro operacional mostra mensagem de API sem feedback incorrect", async () => {
   await abrirChat("a1", [], true);
   mover("b1", "c3"); await screen.findByText("Versão incompatível: recarregue o exercício.");
@@ -130,6 +134,7 @@ it("erro operacional mostra mensagem de API sem feedback incorrect", async () =>
 it("CTA da lição preserva lição/conversa e consulta progresso sem POST adicional", async () => {
   const { payloads, urls } = servidor("a1", ["correct"]);
   gravarUsuarioId(ID); render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   const lessons = screen.getByRole("region", { name: "Lições" });
   fireEvent.click(await within(lessons).findByRole("button", { name: /Praticar este conceito/ }));
   await screen.findByText(CENARIOS.a1.exercise.prompt);
@@ -141,7 +146,8 @@ it("CTA da lição preserva lição/conversa e consulta progresso sem POST adici
   expect(urls.filter((url) => url.includes("/progresso/exercicios")).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole("button", { name: "Fechar exercício e voltar à minha posição" }));
   await waitFor(() => expect(screen.queryByRole("region", { name: "Exercício" })).toBeNull());
-  expect(screen.getByText("Explicação do conceito preservada.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  expect(within(screen.getByRole("dialog", { name: "LIÇÕES" })).getByText("Explicação do conceito preservada.")).toBeTruthy();
 });
 
 
@@ -150,10 +156,12 @@ it("abrir prática encerra demo e fechar restaura exatamente a partida já jogad
   render(<App />);
   mover("e2", "e4");
   await waitFor(() => expect(casa("e4").querySelector('[aria-label="peão branco"]')).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Como funciona o cavalo?" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   fireEvent.click(await screen.findByRole("button", { name: "Ver no tabuleiro" }));
   expect(screen.getByRole("region", { name: "Demonstração no tabuleiro" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.click(screen.getByRole("button", { name: /Praticar este conceito/ }));
   await screen.findByText(CENARIOS.a1.exercise.prompt);
   expect(screen.queryByRole("region", { name: "Demonstração no tabuleiro" })).toBeNull();
@@ -163,4 +171,4 @@ it("abrir prática encerra demo e fechar restaura exatamente a partida já jogad
   expect(casa("e2").querySelector('[aria-label="peão branco"]')).toBeNull();
   expect(screen.getByText("Vez do Hans (pretas).")).toBeTruthy();
   expect((screen.getByRole("button", { name: "Desfazer" }) as HTMLButtonElement).disabled).toBe(false);
-});
+}, 10_000); // Partida, demonstração, modal e exercício no mesmo fluxo de integração.

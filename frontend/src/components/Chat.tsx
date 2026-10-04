@@ -33,9 +33,11 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice 
   const [anexar, setAnexar] = useState(false);
   const [modo, setModo] = useState<ModoDoChat>("perguntar");
   const fim = useRef<HTMLDivElement>(null);
+  const mensagens = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fim.current?.scrollIntoView?.({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "end" });
+    const painel = mensagens.current;
+    if (painel) painel.scrollTo?.({ top: painel.scrollHeight, behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [itens.length, esperando]);
 
   function enviar(evento: FormEvent) {
@@ -49,7 +51,7 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice 
   return (
     <section aria-label="Conversa" className="tutor-panel caixa-pixel">
       <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p></header>
-      <div className="chat-messages flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
+      <div ref={mensagens} className="chat-messages flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
         {itens.length === 0 && (
           <p className="text-sm text-slate-600">
             Pergunte sobre regras, aberturas, táticas ou finais. As respostas vêm só dos livros e citam a fonte.

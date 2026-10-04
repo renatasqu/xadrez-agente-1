@@ -1,0 +1,505 @@
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -1,5 +1,7 @@
+ // Arena da partida; tutor e lições acessíveis sob demanda.
+ 
++import { createPortal } from "react-dom";
++import { useMatchLayout } from "./match/useMatchLayout";
+ import { useEffect, useRef, useState, useMemo } from "react";
+ import { ErroDaApi, api } from "./api";
+ import { apagarUsuarioId, gravarUsuarioId, lerUsuarioId } from "./armazenamento";
+@@ -34,7 +36,17 @@
+   return `${retomando ? "Retomando · " : ""}Lição ${licao.numero}/${licao.total} · ${licao.modulo} · ${licao.titulo}`;
+ }
+ 
++type AppPage = "match" | "lessons" | "curiosities" | "about" | "home";
++function pageFromHash(): AppPage {
++  return ({ "#/licoes": "lessons", "#/curiosidades": "curiosities", "#/sobre": "about", "#/": "home" } as const)[window.location.hash as "#/licoes"] ?? "match";
++}
++
+ export function App() {
++  const [page, setPage] = useState<AppPage>(pageFromHash);
++  const { layoutRef, mobile } = useMatchLayout(page === "match");
++  const [desktopTutorHost, setDesktopTutorHost] = useState<HTMLDivElement | null>(null);
++  const [desktopLessonsHost, setDesktopLessonsHost] = useState<HTMLDivElement | null>(null);
++  const [mobileAccessHost, setMobileAccessHost] = useState<HTMLDivElement | null>(null);
+   const [historico, setHistorico] = useState<string[]>([FEN_INICIAL]);
+   const [itens, setItens] = useState<ItemDoChat[]>([]);
+   const [esperando, setEsperando] = useState<TipoDeEspera | null>(null);
+@@ -204,32 +216,69 @@
+     modalOpener.current = opener;
+     setModal(area);
+   }
+-  // Provisório: voltar à Home sem encerrar sessão ou apagar dados.
+   function goHome() {
++    if (!window.confirm("Deseja sair da partida?")) return;
+     setModal(null);
+-    window.history.pushState(null, "", `${window.location.pathname}${window.location.search}`);
+-    window.dispatchEvent(new Event("hashchange"));
+-    window.scrollTo({ top: 0, behavior: "auto" });
+-  }
++    resetMatch();
++    fecharExercicio();
++    setDemo(null); setTocando(false);
++    window.location.hash = "/";
++  }
++  useEffect(() => {
++    const navigate = () => {
++      const next = pageFromHash();
++      if (next !== "match") {
++        setMatchPaused(true); setHistoryPlaying(false); setTocando(false);
++      }
++      setPage(next);
++      requestAnimationFrame(() => {
++        const target = next === "match"
++          ? document.querySelector(window.location.hash === "#historico-partida" ? "#historico-partida" : window.location.hash === "#agentes" ? "#agentes" : ".match-context-strip")
++          : document.querySelector(`[data-page="${next}"]`);
++        target?.scrollIntoView?.({ block: "start" });
++      });
++    };
++    window.addEventListener("hashchange", navigate);
++    if (pageFromHash() !== "match") { setMatchPaused(true); setHistoryPlaying(false); setTocando(false); }
++    return () => window.removeEventListener("hashchange", navigate);
++  }, []);
++  function practiceFromArea(id: string) { window.location.hash = "partida"; abrirExercicio(id); }
++  function demonstrationFromArea(value: Demonstracao) { window.location.hash = "partida"; verNoTabuleiro(value); }
++  function retainOpener(element: HTMLButtonElement | null) {
++    if (element && modalOpener.current?.dataset.modalTrigger === element.dataset.modalTrigger) modalOpener.current = element;
++  }
++
++  const lessonsContent = <>
++        <Licao licao={licao?.licao ?? null} concluido={licao?.concluido ?? false} ocupado={esperando !== null} onProxima={proximaLicao}
++          relatedExerciseIds={licao?.related_exercise_ids ?? licao?.conteudo?.related_exercise_ids ?? []} onPractice={practiceFromArea} />
++        {esperando === "licao" && <Carregando tipo="licao" />}
++        {licao?.conteudo && <div className="lesson-content"><RespostaDoAgente resposta={{ ...licao.conteudo,
++          concept_ids: licao.conteudo.concept_ids ?? licao.concept_ids ?? [],
++          related_exercise_ids: licao.conteudo.related_exercise_ids ?? licao.related_exercise_ids ?? [],
++        }} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} /></div>}
++        {lessonError && <RespostaDoAgente resposta={lessonError} erro />}
++        <button type="button" className="modal-tutor-link" onClick={() => setModal("tutor")}>Abrir conversa do tutor</button>
++  </>;
+ 
+   return (
+     <div className="min-h-screen">
+       <div className="arena-shell" inert={modal !== null ? true : undefined}>
+         <header className="game-header">
+           <BrandLogo />
+-          <HeaderNavigation onLessons={opener => openArea("lessons", opener)} onCuriosities={opener => openArea("curiosities", opener)} onExit={goHome} />
++          <HeaderNavigation onExit={goHome} />
+           <div className="header-server-status">
+             <StatusSaude />
+           </div>
+         </header>
+-        <main className="game-layout arena-layout" id="partida">
++        <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match"}>
+           <div className="match-upper-strip">
+             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
+-            <button type="button" className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></button>
++            <div className="desktop-tutor-slot" ref={setDesktopTutorHost} />
+             <MoveHistory moves={moves} selected={historyIndex} disabled={Boolean(exercicio.exercise || demo)} onSelect={index => { setSelectedPosition(index); setHistoryPlaying(false); }} />
+           </div>
+           <div className="match-context-strip" ref={setBoardContextHost} />
+           <div className="match-central">
++            <div className="match-game-column">
+             <div className="board-workspace arena-board-main" id="match-board">
+               <Board
+                 key={exercicio.exercise?.id ?? "partida"}
+@@ -268,17 +317,6 @@
+               )}
+ 
+             </div>
+-            <aside className="match-sidebar" aria-label="Acompanhamento da partida">
+-              <CurrentTurn side={shownSide} label={exercicio.exercise ? "Turno do exercício" : demo || selectedPosition !== null ? "Posição em exibição" : matchPaused ? "Partida pausada" : undefined} />
+-              <button type="button" className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></button>
+-              <button type="button" className="content-trigger curiosities-trigger" aria-haspopup="dialog" aria-controls="curiosities-modal" onClick={event => openArea("curiosities", event.currentTarget)}><span>CURIOSIDADES</span><small>Descubra mais sobre o xadrez</small></button>
+-              <div className="arena-reasoning" id="agentes">
+-                <div className="reasoning-title"><span className="eyebrow">Dois lados. Novas perspectivas.</span><h2>Análises da partida:</h2></div>
+-                <AgentThinking side="w" analysis={analyses.w?.resposta} stale={Boolean(analyses.w && analyses.w.fen !== fen)} busy={esperando === "analise" && matchSide === "w"} />
+-                <AgentThinking side="b" analysis={analyses.b?.resposta} stale={Boolean(analyses.b && analyses.b.fen !== fen)} busy={esperando === "analise" && matchSide === "b"} />
+-              </div>
+-            </aside>
+-          </div>
+           <div className="match-lower-strip">
+             <div className="arena-control-strip">
+               <MatchControls index={historyIndex} total={historico.length - 1}
+@@ -292,24 +330,46 @@
+                 onAnalyze={analisar} onReset={resetMatch}
+                 onUndo={() => { setSelectedPosition(null); setHistoryPlaying(false); setHistorico(h => h.length > 1 ? h.slice(0, -1) : h); }} />
+             </div>
++          </div>
++            </div>
++            <aside className="match-sidebar" aria-label="Acompanhamento da partida">
++              <CurrentTurn side={shownSide} label={exercicio.exercise ? "Turno do exercício" : demo || selectedPosition !== null ? "Posição em exibição" : matchPaused ? "Partida pausada" : undefined} />
++              <div className="desktop-lessons-slot" ref={setDesktopLessonsHost} />
++              <button type="button" className="content-trigger curiosities-trigger" aria-haspopup="dialog" aria-controls="curiosities-modal" onClick={event => openArea("curiosities", event.currentTarget)}><span>CURIOSIDADES</span><small>Descubra mais sobre o xadrez</small></button>
++              <div className="arena-reasoning" id="agentes">
++                <div className="reasoning-title"><span className="eyebrow">Dois lados. Novas perspectivas.</span><h2>Análises da partida:</h2></div>
++                <AgentThinking side="w" analysis={analyses.w?.resposta} stale={Boolean(analyses.w && analyses.w.fen !== fen)} busy={esperando === "analise" && matchSide === "w"} />
++                <AgentThinking side="b" analysis={analyses.b?.resposta} stale={Boolean(analyses.b && analyses.b.fen !== fen)} busy={esperando === "analise" && matchSide === "b"} />
++              </div>
+             <button type="button" className="content-trigger comment-trigger" aria-haspopup="dialog" aria-controls="comment-modal" onClick={event => openArea("comment", event.currentTarget)}><span>DEIXE SEU COMENTÁRIO / LIKE</span><small>Abra seu espaço de comentários</small></button>
++            </aside>
+           </div>
++          <div className="mobile-access-row" ref={setMobileAccessHost} />
+         </main>
+-        <div id="sobre-projeto"><Sobre onTutor={opener => openArea("tutor", opener)} /></div>
++        <section className="standalone-page" data-page="lessons" aria-label="Lições de xadrez" hidden={page !== "lessons"}>
++          {page === "lessons" && lessonsContent}
++        </section>
++        <section className="standalone-page" data-page="curiosities" aria-label="Curiosidades" hidden={page !== "curiosities"}>
++          <h2>CURIOSIDADES</h2><p>Este espaço vai reunir curiosidades sobre o xadrez.</p>
++        </section>
++        <div id="sobre-projeto" data-page="about" hidden={page !== "match" && page !== "about"}><Sobre onTutor={opener => openArea("tutor", opener)} /></div>
++        <section className="standalone-page" data-page="home" aria-label="Tela inicial" hidden={page !== "home"}>
++          <h2>Seu próximo grande lance.</h2><p>Explore. Aprenda. Jogue.</p><a className="botao-pixel" href="#partida">Iniciar partida</a>
++        </section>
++      </div>
++      {(mobile ? mobileAccessHost : desktopTutorHost) && createPortal(
++        <button type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></button>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
++      {(mobile ? mobileAccessHost : desktopLessonsHost) && createPortal(
++        <button type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></button>, (mobile ? mobileAccessHost : desktopLessonsHost)!)}
++      <div className="floating-actions" aria-label="Atalhos" hidden={modal !== null}>
++        <button type="button" aria-label="Abrir tutor" onClick={event => openArea("tutor", event.currentTarget)}>♟</button>
++        <button type="button" aria-label="Abrir lições" onClick={event => openArea("lessons", event.currentTarget)}>▤</button>
+       </div>
+       <ContentModal id="tutor-modal" title="SEU TUTOR" open={modal === "tutor"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+-        <Chat itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={verNoTabuleiro} onPractice={abrirExercicio} />
++        <Chat itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
+       </ContentModal>
+       <ContentModal id="lessons-modal" title="LIÇÕES" open={modal === "lessons"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+-        <Licao licao={licao?.licao ?? null} concluido={licao?.concluido ?? false} ocupado={esperando !== null} onProxima={proximaLicao}
+-          relatedExerciseIds={licao?.related_exercise_ids ?? licao?.conteudo?.related_exercise_ids ?? []} onPractice={abrirExercicio} />
+-        {esperando === "licao" && <Carregando tipo="licao" />}
+-        {licao?.conteudo && <div className="lesson-content"><RespostaDoAgente resposta={{ ...licao.conteudo,
+-          concept_ids: licao.conteudo.concept_ids ?? licao.concept_ids ?? [],
+-          related_exercise_ids: licao.conteudo.related_exercise_ids ?? licao.related_exercise_ids ?? [],
+-        }} onVerNoTabuleiro={verNoTabuleiro} onPractice={abrirExercicio} /></div>}
+-        {lessonError && <RespostaDoAgente resposta={lessonError} erro />}
+-        <button type="button" className="modal-tutor-link" onClick={() => setModal("tutor")}>Abrir conversa do tutor</button>
++        {page !== "lessons" && lessonsContent}
+       </ContentModal>
+       <ContentModal id="curiosities-modal" title="CURIOSIDADES" open={modal === "curiosities"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+         <p>Este espaço vai reunir curiosidades sobre o xadrez.</p>
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -382,95 +382,127 @@
+   .match-modal .tutor-answer { padding: 12px; }
+ }
+ 
+-/* Composição desktop/mobile; os componentes e fluxos permanecem únicos. */
+-.game-header, .game-layout.arena-layout, #sobre-projeto .game-footer { width: 100%; max-width: 1280px; margin-inline: auto; }
+-.game-header { grid-template-columns: auto minmax(0, 1fr) auto; position: relative; }
+-.header-navigation { grid-column: 2; grid-row: 1; }
++/* Layout fluido baseado nos ASCII; somente Flexbox na composição. */
++*, *::before, *::after { box-sizing: border-box; }
++[hidden] { display: none !important; }
++html { scroll-padding-top: 0; }
++.arena-shell :where(*) { min-width: 0; }
++.game-header, .game-layout.arena-layout, #sobre-projeto .game-footer { width: min(100%, 120rem); max-width: 100%; margin-inline: auto; }
++.game-header { display: flex; flex-wrap: nowrap; gap: clamp(.5rem, 1.2%, 1.25rem); align-items: center; padding: .5rem 1.2%; }
++.game-header .arena-brand { flex: 0 1 clamp(6rem, 18%, 16rem); width: clamp(6rem, 18%, 16rem) !important; height: auto; overflow: visible; }
++.arena-brand a { display: flex; width: 100%; }
++.header-navigation { display: block; flex: 1 1 0; }
+ .header-navigation-items { display: flex; flex-wrap: wrap; justify-content: center; }
+-.header-server-status { grid-column: 3; grid-row: 1; }
++.header-server-status { flex: 0 1 auto; }
++.header-server-status details { max-width: none !important; }
++.header-server-status summary > span:first-child { flex-shrink: 0; }
+ .header-menu-toggle { display: none; }
+-.game-layout.arena-layout { --match-board-size: clamp(280px, 60vh, 520px); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: none; gap: 14px; padding-inline: clamp(10px, 1.2vw, 20px); }
+-.match-upper-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
++.game-layout.arena-layout { --chrome-h: 0px; display: flex; flex-direction: column; gap: clamp(.5rem, 1dvh, .9rem); padding-inline: 1.2%; }
++.match-upper-strip { display: flex; flex-wrap: nowrap; gap: .65rem; align-items: stretch; }
+ .match-upper-strip .agent-headers { display: contents; }
+-.match-upper-strip .agent-header { min-width: 0; gap: 6px; padding: 10px; flex-wrap: wrap; }
+-.match-upper-strip .agent-header .pixel-avatar { width: 40px !important; height: 40px !important; }
+-.match-upper-strip .agent-header h2 { font-size: 23px; }
+-.match-upper-strip .agent-header p { font-size: 10px; }
+-.match-upper-strip .agent-clock { min-width: 0; margin-left: auto; padding: 5px; }
+-.match-upper-strip .agent-clock strong { font-size: 19px; }
+-.match-upper-strip .agent-clock small { font-size: 8px; }
+-.turn-tag { display: inline; }
+-.match-upper-strip .move-history { min-width: 0; min-height: 0; }
+-.history-disclosure > summary { cursor: pointer; padding: 9px 12px; background: #edece3; }
+-.history-disclosure > summary h2 { background: none; display: inline; padding: 0; font-size: 17px; }
+-.move-history-scroll { max-height: 100px; padding: 4px 10px; }
+-.match-context-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 12px; border: 1px solid #d3dce4; border-radius: 10px; background: var(--magnus-soft); }
+-.match-context-strip .board-context { padding: 0; border: 0; background: none; display: flex; flex-wrap: wrap; gap: 10px; }
+-.match-context-strip > p { margin: 0; font: 500 12px/1.6 "Inter", sans-serif; text-align: left; }
+-.match-central { display: flex; flex-wrap: wrap; gap: clamp(10px, 1.4vw, 20px); align-items: flex-start; min-width: 0; }
+-.match-central > .board-workspace { width: var(--match-board-size); max-width: 100%; flex: 0 1 var(--match-board-size); order: initial; min-width: 0; }
+-.arena-layout .moldura-tabuleiro { width: 100%; max-width: 520px; aspect-ratio: 1; }
+-.match-sidebar { flex: 1 1 320px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+-.match-sidebar .current-turn { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; order: initial; gap: 10px; }
++.match-upper-strip > section, .match-upper-strip .agent-header, .desktop-tutor-slot { flex: 1 1 0; }
++.desktop-tutor-slot, .desktop-lessons-slot { display: flex; }
++.match-upper-strip .agent-header { gap: .4rem; padding: .65rem; flex-wrap: wrap; }
++.match-upper-strip .agent-header .pixel-avatar { width: 2.5rem !important; height: 2.5rem !important; }
++.match-upper-strip .agent-header h2 { font-size: clamp(1.15rem, 2vw, 1.5rem); }
++.match-upper-strip .agent-header p { font-size: .65rem; }
++.match-upper-strip .agent-clock { min-width: 0; margin-left: auto; padding: .35rem; }
++.match-upper-strip .agent-clock strong { font-size: 1.2rem; }
++.match-upper-strip .agent-clock small { font-size: .5rem; }
++.turn-tag { display: inline; white-space: normal; }
++.match-upper-strip .move-history { min-height: 0; }
++.history-disclosure > summary { cursor: pointer; padding: .6rem .75rem; background: #edece3; }
++.history-disclosure > summary h2 { display: inline; background: none; padding: 0; font-size: 1.05rem; }
++.move-history-scroll { max-height: 12dvh; padding: .25rem .65rem; }
++.move-history li { display: flex; gap: .4rem; }
++.move-history li .move-number { flex: 0 0 12%; }
++.move-history li button, .move-history li > span:not(.move-number) { flex: 1 1 0; }
++.match-context-strip { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; padding: .6rem .75rem; border: 1px solid #d3dce4; border-radius: .65rem; background: var(--magnus-soft); }
++.match-context-strip .board-context { display: flex; flex-wrap: wrap; gap: .65rem; padding: 0; border: 0; background: none; }
++.match-context-strip > p { margin: 0; font: 500 .75rem/1.6 "Inter", sans-serif; text-align: left; }
++.match-central { display: flex; flex-wrap: wrap; gap: clamp(.5rem, 1.4%, 1.25rem); align-items: flex-start; }
++.match-game-column { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: clamp(.5rem, 1dvh, .9rem); }
++.match-game-column .board-workspace { width: 100%; max-width: 100%; order: initial; }
++.arena-layout .board-stage { width: 100%; padding: 0; }
++.arena-layout .moldura-tabuleiro { width: min(100%, calc(100dvh - var(--chrome-h))); max-width: 100%; aspect-ratio: 1; }
++.chess-piece { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; image-rendering: pixelated; }
++.chess-piece svg { width: 90%; height: 90%; image-rendering: pixelated; }
++.match-sidebar { flex: 0 0 clamp(300px, 28vw, 420px); display: flex; flex-direction: column; align-self: stretch; gap: .65rem; }
++.match-sidebar .current-turn { display: flex; justify-content: space-between; align-items: center; padding: .65rem .75rem; gap: .65rem; order: initial; }
+ .match-sidebar .current-turn .eyebrow { margin: 0; }
+ .match-sidebar > .content-trigger { flex: none; }
+-.match-sidebar .arena-reasoning { width: 100%; align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; order: initial; }
+-.match-sidebar .reasoning-title { grid-column: 1 / -1; }
+-.match-sidebar .reasoning-title h2 { font-size: 20px; }
+-.match-sidebar .agent-thinking { min-width: 0; }
+-.match-sidebar .agent-thinking header { gap: 6px; }
+-.match-lower-strip { display: grid; grid-template-columns: var(--match-board-size) minmax(0, 1fr); gap: clamp(10px, 1.4vw, 20px); }
+-.arena-control-strip { grid-area: auto; min-width: 0; }
++.match-sidebar .arena-reasoning { width: 100%; align-self: stretch; display: flex; flex-wrap: wrap; flex-direction: row; gap: .65rem; order: initial; }
++.match-sidebar .reasoning-title { flex: 1 1 100%; }
++.match-sidebar .agent-thinking { flex: 1 1 10rem; }
++.match-sidebar .agent-thinking header { flex-wrap: wrap; gap: .4rem; }
++.match-sidebar .comment-trigger { margin-top: auto; }
++.match-lower-strip { display: flex; flex-direction: column; }
++.arena-control-strip { grid-area: auto; width: 100%; padding: .65rem; }
+ .arena-control-strip .match-controls { display: flex; flex-wrap: wrap; }
+ .arena-control-strip .match-controls > div { flex: 1 1 100%; }
+-.arena-control-strip .navigation-controls { display: flex; flex-wrap: wrap; min-width: 0; }
+-.arena-control-strip .navigation-controls button { min-width: 0; flex: 1 1 0; }
+-.comment-trigger span { font-size: 20px; }
+-#sobre-projeto .game-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+-.game-footer section { min-width: 0; }
+-.game-footer section h2 { font-size: 19px; }
+-.project-documentation a, .project-documentation button { display: inline-flex; align-items: center; min-height: 44px; margin-right: 14px; color: var(--magnus-dark); text-decoration: underline; }
+-.comment-like-area { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+-.comment-like-area textarea { width: 100%; min-width: 0; padding: 10px; border: 1px solid #c4d2de; border-radius: 8px; resize: vertical; }
+-.history-disclosure summary:focus-visible { outline: 3px solid var(--magnus-dark); outline-offset: 3px; }
++.arena-control-strip .navigation-controls { display: flex; flex-wrap: wrap; }
++.arena-control-strip .navigation-controls button { flex: 1 1 0; overflow-wrap: anywhere; }
++.arena-control-strip .botao-pixel { overflow-wrap: anywhere; }
++.content-trigger { flex: 1 1 0; min-height: 0; height: auto; padding: .65rem .75rem; }
++.content-trigger span { font-size: clamp(1rem, 1.5vw, 1.25rem); }
++.comment-trigger span { font-size: 1.2rem; }
++.mobile-access-row { display: none; }
++#sobre-projeto .game-footer { display: flex; flex-wrap: wrap; gap: 1.25rem; }
++.game-footer section { flex: 1 1 0; }
++.game-footer section h2 { font-size: clamp(.85rem, 1.4vw, 1.2rem); }
++.project-documentation a, .project-documentation button { display: inline-flex; align-items: center; min-height: 2.75rem; margin-right: .85rem; color: var(--magnus-dark); text-decoration: underline; }
++.comment-like-area { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; }
++.comment-like-area textarea { width: 100%; padding: .65rem; border: 1px solid #c4d2de; border-radius: .5rem; resize: vertical; }
++.standalone-page { display: flex; flex-direction: column; gap: 1rem; width: min(96%, 65rem); margin: 1rem auto; padding: clamp(.75rem, 2%, 2rem); background: var(--surface); border-radius: .75rem; }
++.standalone-page h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
++.standalone-page a { align-self: flex-start; padding: .75rem; }
++.history-disclosure summary:focus-visible, .arena-brand a:focus-visible { outline: 3px solid var(--magnus-dark); outline-offset: 3px; }
+ @media (max-width: 899px) {
+-  .game-header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 8px 12px; }
+-  .game-header .arena-brand { width: clamp(100px, 34vw, 190px) !important; height: auto; }
++  .game-header { flex-wrap: wrap; padding: .5rem 2%; gap: .5rem; }
++  .game-header .arena-brand { flex: 0 1 34%; width: min(34%, 12rem) !important; order: 0; }
+   .header-navigation { display: contents; }
+-  .header-menu-toggle { display: inline-flex; grid-column: 3; grid-row: 1; font-size: 10px; padding: 6px; }
+-  .header-server-status { grid-column: 2; grid-row: 1; justify-self: center; }
+-  .game-header .header-server-status details { position: static; max-width: 100%; padding: 5px; }
+-  .game-header .header-server-status summary { font-size: 9px; white-space: normal; }
+-  .server-latency { display: block; margin: 3px 0 0; font-size: 9px; }
+-  .header-server-status details ul { left: 12px; right: 12px; width: auto; }
+-  .header-navigation-items { display: none; grid-column: 1 / -1; grid-row: 2; }
+-  .header-navigation-items.is-open { display: flex; position: static; width: 100%; padding: 8px; justify-content: flex-start; box-shadow: none; }
+-  .header-preferences { position: static; grid-column: 1 / -1; width: 100%; }
+-  .game-layout.arena-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "agents agents" "context context" "board board" "controls controls" "turn turn" "tutor lessons" "history history" "analysis analysis" "curiosities curiosities" "comment comment"; gap: 10px; padding-inline: 12px; }
+-  .match-upper-strip, .match-central, .match-sidebar, .match-lower-strip { display: contents; }
+-  .match-upper-strip .agent-headers { display: grid; grid-area: agents; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; order: initial; }
+-  .match-context-strip { grid-area: context; }
+-  .match-central > .board-workspace { grid-area: board; width: 100%; max-width: 100%; order: initial; }
+-  .arena-layout .moldura-tabuleiro { max-width: 100%; width: 100%; aspect-ratio: 1; }
+-  .arena-control-strip { grid-area: controls; }
+-  .match-sidebar .current-turn { grid-area: turn; }
+-  .tutor-trigger { grid-area: tutor; }
+-  .lessons-trigger { grid-area: lessons; }
+-  .move-history { grid-area: history; order: initial; }
+-  .match-sidebar .arena-reasoning { grid-area: analysis; }
+-  .curiosities-trigger { grid-area: curiosities; }
+-  .comment-trigger { grid-area: comment; }
++  .header-server-status { order: 1; flex: 1 1 0; }
++  .header-menu-toggle { display: inline-flex; order: 2; font-size: .65rem; padding: .4rem; }
++  .game-header .header-server-status details { position: static; padding: .35rem; }
++  .game-header .header-server-status summary { font-size: .6rem; white-space: normal; }
++  .server-latency { display: block; margin: .2rem 0 0; font-size: .6rem; }
++  .header-server-status details ul { left: 2%; right: 2%; width: auto; }
++  .header-navigation-items { display: none; order: 3; flex: 1 1 100%; }
++  .header-navigation-items.is-open { display: flex; position: static; width: 100%; padding: .5rem; justify-content: flex-start; box-shadow: none; }
++  .header-preferences { position: static; order: 4; width: 100%; }
++  .game-layout.arena-layout { width: 100%; padding-inline: 0; gap: .65rem; }
++  .match-upper-strip, .match-central, .match-game-column, .match-lower-strip, .match-sidebar { display: contents; }
++  .match-upper-strip .agent-headers { display: flex; order: 0; gap: .5rem; }
++  .match-upper-strip .agent-header { flex: 1 1 0; }
++  .match-context-strip { order: 1; }
++  .match-game-column .board-workspace { order: 2; width: 100%; padding-inline: 0; }
++  .arena-layout .moldura-tabuleiro { width: 100%; max-width: 100%; aspect-ratio: 1; margin-inline: auto; }
++  .arena-control-strip { order: 3; }
++  .match-sidebar .current-turn { order: 4; }
++  .desktop-tutor-slot, .desktop-lessons-slot { display: none; }
++  .mobile-access-row { display: flex; order: 5; gap: .65rem; }
++  .mobile-access-row > button { flex: 1 1 0; }
++  .move-history { order: 6; }
++  .match-sidebar .arena-reasoning { order: 7; }
++  .curiosities-trigger { order: 8; }
++  .comment-trigger { order: 9; }
+   .match-upper-strip .agent-clock { width: auto; }
+-  .match-upper-strip .agent-header .pixel-avatar { width: 36px !important; height: 36px !important; }
+   .turn-tag { display: inline; }
+-  .content-trigger { min-height: 64px; align-self: stretch; }
+-  #sobre-projeto .game-footer { padding-inline: 12px; gap: 14px; }
++  .match-sidebar .comment-trigger { margin-top: 0; }
++  #sobre-projeto .game-footer { padding-inline: 2%; gap: .85rem; }
++}
++@media (max-width: 899px) and (orientation: landscape) {
++  .arena-layout .moldura-tabuleiro { max-width: calc(100dvh - var(--chrome-h)); }
+ }
+ @media (max-width: 480px) {
+-  .match-upper-strip .agent-header h2 { font-size: 20px; }
+-  .match-upper-strip .agent-header .pixel-avatar { width: 28px !important; height: 28px !important; }
+-  .turn-tag { white-space: normal; }
++  .match-upper-strip .agent-header h2 { font-size: 1.2rem; }
++  .match-upper-strip .agent-header .pixel-avatar { width: 1.75rem !important; height: 1.75rem !important; }
+   .match-upper-strip .agent-clock { width: 100%; margin: 0; }
+-  .match-sidebar .arena-reasoning { grid-template-columns: minmax(0, 1fr); }
+-  #sobre-projeto .game-footer h2 { font-size: 14px; }
+-}
++}
++
++/* Ajustes de alinhamento e atalhos preservados. */
++.game-layout.arena-layout { align-items: stretch; }
++.arena-control-strip .navigation-controls button { flex: 1 1 3rem; }
++.arena-control-strip .match-controls > div > .botao-pixel { flex: 1 1 7rem; white-space: normal; }
++.floating-actions { position: fixed; right: 1%; top: 40%; display: flex; flex-direction: column; gap: .5rem; z-index: 25; }
++.floating-actions button { padding: .65rem; border-radius: 50%; background: var(--magnus-soft); border: 1px solid var(--magnus); cursor: pointer; }
+--- a/frontend/src/components/HeaderNavigation.tsx
++++ b/frontend/src/components/HeaderNavigation.tsx
+@@ -2,8 +2,8 @@
+ 
+ const links = [
+   ["#partida", "Partida"], ["#historico-partida", "Histórico"],
+-  ["#agentes", "Agentes"], ["#lessons-modal", "Lições de xadrez"],
+-  ["#curiosities-modal", "Curiosidades"], ["#sobre-projeto", "Sobre o projeto"],
++  ["#agentes", "Agentes"], ["#/licoes", "Lições de xadrez"],
++  ["#/curiosidades", "Curiosidades"], ["#/sobre", "Sobre o projeto"],
+ ] as const;
+ 
+ interface Props {
+@@ -11,7 +11,7 @@
+   onCuriosities?: (opener: HTMLElement) => void;
+   onExit?: () => void;
+ }
+-export function HeaderNavigation({ onLessons, onCuriosities, onExit }: Props = {}) {
++export function HeaderNavigation({ onExit }: Props = {}) {
+   const [active, setActive] = useState(window.location.hash || "#partida");
+   const [open, setOpen] = useState(false);
+   const [preferences, setPreferences] = useState(false);
+@@ -23,15 +23,13 @@
+   return <div className="header-navigation">
+     <button type="button" className="header-menu-toggle" aria-expanded={open} aria-controls="header-navigation-items" onClick={() => setOpen(!open)}><span aria-hidden="true">☰</span> Menu</button>
+     <nav id="header-navigation-items" className={`header-navigation-items${open ? " is-open" : ""}`} aria-label="Navegação principal">
+-      {links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={event => { setActive(href); setOpen(false); setPreferences(false);
+-        const openArea = href === "#lessons-modal" ? onLessons : href === "#curiosities-modal" ? onCuriosities : undefined;
+-        if (openArea) { event.preventDefault(); openArea(event.currentTarget); }
++      {links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); setPreferences(false);
+         if (href === "#historico-partida") {
+           const history = document.querySelector<HTMLDetailsElement>("#historico-partida details");
+           if (history) history.open = true;
+         } }}>{label}</a>)}
+       <button type="button" className="header-preferences-toggle" aria-expanded={preferences} aria-controls="header-preferences" onClick={() => setPreferences(!preferences)}>Configurações</button>
+-      <a href={window.location.pathname} onClick={event => { setOpen(false); setPreferences(false); setActive("#partida"); if (onExit) { event.preventDefault(); onExit(); } }}>Sair</a>
++      <a href="#/" onClick={event => { setOpen(false); setPreferences(false); if (onExit) { event.preventDefault(); onExit(); } }}>Sair</a>
+     </nav>
+     {preferences && <section id="header-preferences" className="header-preferences" aria-label="Configurações">
+       <h2>Configurações</h2>
+--- a/frontend/src/components/BrandLogo.tsx
++++ b/frontend/src/components/BrandLogo.tsx
+@@ -1,5 +1,5 @@
+ export function BrandLogo() {
+   return <h1 className="arena-brand">
+-    <img className="official-brand-logo" src={`${import.meta.env.BASE_URL}images/logo-xadrez-multiagente.png`} alt="XADREZ MULTIAGENTE" width="1983" height="793" />
++    <a href="#partida" title="Voltar à partida"><img className="official-brand-logo" src={`${import.meta.env.BASE_URL}images/logo-xadrez-multiagente.png`} alt="XADREZ MULTIAGENTE" width="1983" height="793" /></a>
+   </h1>;
+ }
+--- a/frontend/src/pixel/PecaSprite.tsx
++++ b/frontend/src/pixel/PecaSprite.tsx
+@@ -1,12 +1,12 @@
+-// Uma peça do tabuleiro: sprite 24×24 desenhado a ~85% da casa, centralizado, com aria-label.
++// Uma peça do tabuleiro: sprite 24×24 desenhado a 90% da casa, centralizado, com aria-label.
+ // Este arquivo só exporta componente (o Fast Refresh do Vite exige isso).
+ 
+ import { rotuloDaPeca, type Lado, type Tipo } from "./rotulos";
+ import { Sprite } from "./Sprite";
+ import { PALETAS, PECAS } from "./sprites";
+ 
+-const MARGEM_DA_PECA = 2; // 24 / (24 + 2 + 2) ≈ 85% da casa
++const MARGEM_DA_PECA = 0; // O tamanho de 90% é definido pelo container fluido em CSS.
+ 
+ export function PecaSprite({ lado, tipo }: { lado: Lado; tipo: Tipo }) {
+-  return <Sprite grade={PECAS[tipo]} paleta={PALETAS[lado]} rotulo={rotuloDaPeca(lado, tipo)} margem={MARGEM_DA_PECA} />;
++  return <span className="chess-piece"><Sprite grade={PECAS[tipo]} paleta={PALETAS[lado]} rotulo={rotuloDaPeca(lado, tipo)} margem={MARGEM_DA_PECA} /></span>;
+ }
+--- /dev/null
++++ b/frontend/src/match/useMatchLayout.ts
+@@ -0,0 +1,45 @@
++import { useEffect, useLayoutEffect, useRef, useState } from "react";
++
++/** Apenas apresentação: mede o espaço ocupado fora do quadrado do tabuleiro. */
++export function useMatchLayout(active: boolean) {
++  const layoutRef = useRef<HTMLElement>(null);
++  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 899px)").matches);
++  useEffect(() => {
++    const media = window.matchMedia("(max-width: 899px)");
++    const update = () => setMobile(media.matches);
++    media.addEventListener("change", update);
++    return () => media.removeEventListener("change", update);
++  }, []);
++  useLayoutEffect(() => {
++    const root = layoutRef.current;
++    if (!active || !root) return;
++    const context = root.querySelector<HTMLElement>(".match-context-strip");
++    const controls = root.querySelector<HTMLElement>(".arena-control-strip");
++    const workspace = root.querySelector<HTMLElement>(".board-workspace");
++    const column = root.querySelector<HTMLElement>(".match-game-column");
++    if (!context || !controls || !workspace || !column) return;
++    let frame = 0;
++    const gap = (element: HTMLElement) => Number.parseFloat(getComputedStyle(element).rowGap) || 0;
++    const measure = () => {
++      const square = workspace.querySelector<HTMLElement>(".moldura-tabuleiro");
++      if (!square) return;
++      const extra = Math.max(0, workspace.getBoundingClientRect().height - square.getBoundingClientRect().height);
++      const height = context.getBoundingClientRect().height + controls.getBoundingClientRect().height
++        + gap(root) + (mobile ? gap(root) : gap(column)) + extra;
++      const previous = Number.parseFloat(root.style.getPropertyValue("--chrome-h"));
++      if (!Number.isFinite(previous) || Math.abs(previous - height) > .5) root.style.setProperty("--chrome-h", `${height}px`);
++    };
++    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
++    const observer = new ResizeObserver(schedule);
++    [root, context, controls, workspace, column].forEach(element => observer.observe(element));
++    window.addEventListener("resize", schedule);
++    window.visualViewport?.addEventListener("resize", schedule);
++    schedule();
++    return () => {
++      observer.disconnect(); cancelAnimationFrame(frame);
++      window.removeEventListener("resize", schedule);
++      window.visualViewport?.removeEventListener("resize", schedule);
++    };
++  }, [active, mobile]);
++  return { layoutRef, mobile };
++}

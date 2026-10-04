@@ -44,3 +44,23 @@ for (const [status, texto] of [["correct", "Exercício concluído."], ["incorrec
     expect(screen.getByRole("region", { name: "Exercício" }).getAttribute("data-status")).toBe(status);
   });
 }
+
+it("apresenta Ver dica, próxima dica e limite sem encerrar a tentativa", () => {
+  const onHint = vi.fn();
+  const state = { ...estadoInicial, exercise: A1 };
+  const props = { visual: factsParaVisual([]), onHint, onAction: vi.fn(), onClose: vi.fn(), onRetry: vi.fn(), onPreview: vi.fn() };
+  const view = render(<ExercisePanel state={state} {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "Ver dica" }));
+  expect(onHint).toHaveBeenCalledTimes(1);
+  view.rerender(<ExercisePanel state={{ ...state, currentHintLevel: 1,
+    hint: { level: 1, code: "conceptual", text: "Observe o movimento", highlight_squares: [] } }} {...props} />);
+  expect(screen.getByText("Observe o movimento")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Ver próxima dica" }));
+  expect(onHint).toHaveBeenCalledTimes(2);
+  view.rerender(<ExercisePanel state={{ ...state, currentHintLevel: 3,
+    hint: { level: 3, code: "specific_squares", text: "Observe c3", highlight_squares: ["c3"] } }} {...props} />);
+  expect(screen.getByText("Casas da dica: c3.")).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Todas as dicas exibidas" }) as HTMLButtonElement).disabled).toBe(true);
+  view.rerender(<ExercisePanel state={{ ...state, concluido: true }} {...props} />);
+  expect(screen.queryByRole("button", { name: "Ver dica" })).toBeNull();
+});

@@ -2,6 +2,7 @@
 // frase-chave destacada. PDFs abrem no leitor do navegador na página certa; TXT abre o trecho
 // com os parágrafos em volta.
 
+import { idiomaDaFonte, localDaFonte, rotuloDoTrecho } from "../idioma";
 import { useState } from "react";
 import { urlDoDocumento } from "../api";
 import { Sprite } from "../pixel/Sprite";
@@ -25,10 +26,11 @@ export function OndeLer({ itens }: { itens: TrechoRecomendado[] }) {
                 <span className="font-pixel text-[0.55rem]">{i + 1}.</span>
                 <Sprite grade={ICONE_LIVRO.grade} paleta={ICONE_LIVRO.paleta} rotulo="livro" tamanho={14} />
                 <strong>{item.titulo}</strong>
-                {item.autor && <span>– {item.autor}</span>}
-                <span className="opacity-75">· {item.local}</span>
+                {item.autor && <span>Autor: {item.autor}</span>}
+                <span className="opacity-75">· {localDaFonte(item.local)}</span>
               </div>
-              <blockquote className="reading-excerpt">
+              <p className="support-label">{rotuloDoTrecho(item.documento)}</p>
+              <blockquote className="reading-excerpt" lang={idiomaDaFonte(item.documento)}>
                 <TextoComDestaque texto={item.trecho} destaque={item.frase_destaque} />
               </blockquote>
               {pdf ? (
@@ -38,7 +40,7 @@ export function OndeLer({ itens }: { itens: TrechoRecomendado[] }) {
                   rel="noopener noreferrer"
                   className="document-action"
                 >
-                  Ver no documento (p. {item.pagina})
+                  Ver no documento (Página {item.pagina})
                 </a>
               ) : (
                 <button type="button" className="document-action" onClick={() => setAberto(item)}>

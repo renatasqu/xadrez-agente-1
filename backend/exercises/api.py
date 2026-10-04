@@ -17,6 +17,8 @@ from starlette.responses import Response
 from .catalog import CATALOG
 from .models import AvoidMaterialLossGoal, Exercise, ExerciseClientError, ExerciseError, KnightForkGainGoal, ValidationRequest, ValidationResult
 from .validation import validate
+from .hints import next_hint
+from .models import HintRequest, HintResponse
 
 ERROR_STATUS = {"exercise_not_found": 404, "version_mismatch": 409,
                 "invalid_history": 422, "invalid_action": 422,
@@ -40,7 +42,7 @@ def request_error_response(error: RequestValidationError) -> JSONResponse:
               if len(item["loc"]) > 1 and item["loc"][0] == "body"}
     if "history" in fields:
         code, message = "invalid_history", "Histórico inválido: confira a lista de lances UCI"
-    elif "action" in fields:
+    elif "action" in fields or "last_action" in fields:
         code, message = "invalid_action", "Ação inválida: confira o tipo e os campos enviados"
     else:
         code, message = "invalid_request", "Requisição inválida: confira os campos enviados"
@@ -113,3 +115,11 @@ def validate_exercise(exercise_id: str, request: ValidationRequest,
     if recorder is not None:
         recorder(str(usuario_id), exercise.id, result.status)
     return result
+
+
+@router.post("/{exercise_id}/hint", response_model=HintResponse)
+def request_hint(exercise_id: str, request: HintRequest) -> HintResponse:
+    exercise = get_exercise(exercise_id)
+    if request.version != exercise.version:
+        raise ExerciseClientError("version_mismatch", "Versão incompatível")
+    return HintResponse(next_hint=next_hint(exercise, request))

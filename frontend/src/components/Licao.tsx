@@ -16,7 +16,7 @@ export function Licao({ licao, concluido, ocupado, onProxima, relatedExerciseIds
   return (
     <section aria-label="Lições" className="lesson-track flex flex-wrap items-center gap-3 caixa-pixel p-4">
       <div className="flex-1">
-        <p className="font-pixel text-[0.55rem] text-gelo-escuro">LIÇÕES</p>
+        <h2 className="lesson-heading text-gelo-escuro">LIÇÕES</h2>
         {concluido ? (
           <p className="mt-1 text-sm">Você concluiu todas as lições!</p>
         ) : licao ? (

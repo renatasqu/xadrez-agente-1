@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { apagarUsuarioId, gravarUsuarioId, lerUsuarioId } from "./armazenamento";
@@ -30,16 +30,17 @@ it("retoma a lição atual ao abrir quando há id guardado", async () => {
   gravarUsuarioId(ID);
   const chamadas = servidor({ "/health": [200, SAUDE], "/licao/atual": [200, LICAO] });
   render(<App />);
-  expect(await screen.findByText("O en passant é...")).toBeTruthy();
+  if (!screen.queryByRole("dialog", { name: "LIÇÕES" })) fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  expect(await within(screen.getByRole("dialog", { name: "LIÇÕES" })).findByText("O en passant é...")).toBeTruthy();
   expect(screen.getByText(/Retomando · Lição 3\/12/)).toBeTruthy();
   expect(chamadas).toContain(`/licao/atual?usuario_id=${ID}`);
-  expect(await screen.findByText("Servidor ok")).toBeTruthy();
+  expect(await screen.findByText("Servidor disponível")).toBeTruthy();
 });
 
 it("sem id guardado não chama /licao/atual", async () => {
   const chamadas = servidor({ "/health": [200, SAUDE] });
   render(<App />);
-  await screen.findByText("Servidor ok");
+  await screen.findByText("Servidor disponível");
   expect(chamadas.some((c) => c.startsWith("/licao/atual"))).toBe(false);
 });
 
@@ -56,6 +57,7 @@ it("erro da API aparece no chat com o .resposta do backend", async () => {
     "/chat": [429, { resposta: "Muitas perguntas em pouco tempo.", fontes: [], agente: "roteador", confianca: 0 }],
   });
   render(<App />);
+  if (!screen.queryByRole("dialog", { name: "SEU TUTOR" })) fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "roque?" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   expect(await screen.findByText("Muitas perguntas em pouco tempo.")).toBeTruthy();
@@ -64,8 +66,10 @@ it("erro da API aparece no chat com o .resposta do backend", async () => {
 it("próxima lição guarda o id novo", async () => {
   servidor({ "/health": [200, SAUDE], "/licao/proxima": [200, LICAO] });
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
-  expect(await screen.findByText("O en passant é...")).toBeTruthy();
+  if (!screen.queryByRole("dialog", { name: "LIÇÕES" })) fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  expect(await within(screen.getByRole("dialog", { name: "LIÇÕES" })).findByText("O en passant é...")).toBeTruthy();
   expect(lerUsuarioId()).toBe(ID);
   expect(screen.getByRole("button", { name: "Próxima lição" })).toBeTruthy();
 });
@@ -97,8 +101,10 @@ it("modo Qual documento me ajuda? chama /recomendar e mostra os trechos", async 
     }],
   });
   render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.click(screen.getByRole("radio", { name: "Qual documento me ajuda?" }));
   expect(screen.queryByLabelText("Anexar posição do tabuleiro")).toBeNull();
+  if (!screen.queryByRole("dialog", { name: "SEU TUTOR" })) fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "roque" } });
   fireEvent.click(screen.getByRole("button", { name: "Recomendar" }));
   expect(await screen.findByText("recomendação de leitura")).toBeTruthy();

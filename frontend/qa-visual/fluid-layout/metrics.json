@@ -1,0 +1,1040 @@
+[
+  {
+    "width": 375,
+    "height": 812,
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "chrome": 259.51875,
+    "board": {
+      "x": 0,
+      "y": 284.484375,
+      "width": 375,
+      "height": 375,
+      "top": 284.484375,
+      "right": 375,
+      "bottom": 659.484375,
+      "left": 0
+    },
+    "column": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "controls": {
+      "x": 0,
+      "y": 669.875,
+      "width": 375,
+      "height": 168.15625,
+      "top": 669.875,
+      "right": 375,
+      "bottom": 838.03125,
+      "left": 0
+    },
+    "context": {
+      "x": 0,
+      "y": 203.53125,
+      "width": 375,
+      "height": 70.5625,
+      "top": 203.53125,
+      "right": 375,
+      "bottom": 274.09375,
+      "left": 0
+    },
+    "nav": "none",
+    "historyOpen": false,
+    "controlCount": 7,
+    "commentHeight": 65.390625,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 75.9375,
+        "width": 375,
+        "height": 117.203125,
+        "top": 75.9375,
+        "right": 375,
+        "bottom": 193.140625,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 0,
+        "y": 203.53125,
+        "width": 375,
+        "height": 70.5625,
+        "top": 203.53125,
+        "right": 375,
+        "bottom": 274.09375,
+        "left": 0
+      },
+      "#match-board": {
+        "x": 0,
+        "y": 284.484375,
+        "width": 375,
+        "height": 375,
+        "top": 284.484375,
+        "right": 375,
+        "bottom": 659.484375,
+        "left": 0
+      },
+      ".arena-control-strip": {
+        "x": 0,
+        "y": 669.875,
+        "width": 375,
+        "height": 168.15625,
+        "top": 669.875,
+        "right": 375,
+        "bottom": 838.03125,
+        "left": 0
+      },
+      ".current-turn": {
+        "x": 0,
+        "y": 848.421875,
+        "width": 375,
+        "height": 48.78125,
+        "top": 848.421875,
+        "right": 375,
+        "bottom": 897.203125,
+        "left": 0
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 907.59375,
+        "width": 375,
+        "height": 78.375,
+        "top": 907.59375,
+        "right": 375,
+        "bottom": 985.96875,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 0,
+        "y": 996.359375,
+        "width": 375,
+        "height": 45.1875,
+        "top": 996.359375,
+        "right": 375,
+        "bottom": 1041.546875,
+        "left": 0
+      },
+      ".arena-reasoning": {
+        "x": 0,
+        "y": 1051.9375,
+        "width": 375,
+        "height": 179.46875,
+        "top": 1051.9375,
+        "right": 375,
+        "bottom": 1231.40625,
+        "left": 0
+      },
+      ".curiosities-trigger": {
+        "x": 0,
+        "y": 1241.796875,
+        "width": 375,
+        "height": 124.765625,
+        "top": 1241.796875,
+        "right": 375,
+        "bottom": 1366.5625,
+        "left": 0
+      },
+      ".comment-trigger": {
+        "x": 0,
+        "y": 1376.953125,
+        "width": 375,
+        "height": 65.390625,
+        "top": 1376.953125,
+        "right": 375,
+        "bottom": 1442.34375,
+        "left": 0
+      }
+    },
+    "piece": {
+      "x": 6.296875,
+      "y": 290.78125,
+      "width": 41.28125,
+      "height": 41.28125,
+      "top": 290.78125,
+      "right": 47.578125,
+      "bottom": 332.0625,
+      "left": 6.296875
+    },
+    "pieceCell": {
+      "x": 4,
+      "y": 288.484375,
+      "width": 45.875,
+      "height": 45.875,
+      "top": 288.484375,
+      "right": 49.875,
+      "bottom": 334.359375,
+      "left": 4
+    }
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "chrome": 195.25,
+    "board": {
+      "x": 0,
+      "y": 261.296875,
+      "width": 768,
+      "height": 768,
+      "top": 261.296875,
+      "right": 768,
+      "bottom": 1029.296875,
+      "left": 0
+    },
+    "column": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "controls": {
+      "x": 0,
+      "y": 1037.296875,
+      "width": 768,
+      "height": 137.1875,
+      "top": 1037.296875,
+      "right": 768,
+      "bottom": 1174.484375,
+      "left": 0
+    },
+    "context": {
+      "x": 0,
+      "y": 211.234375,
+      "width": 768,
+      "height": 42.0625,
+      "top": 211.234375,
+      "right": 768,
+      "bottom": 253.296875,
+      "left": 0
+    },
+    "nav": "none",
+    "historyOpen": false,
+    "controlCount": 7,
+    "commentHeight": 57.265625,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 129.234375,
+        "width": 768,
+        "height": 74,
+        "top": 129.234375,
+        "right": 768,
+        "bottom": 203.234375,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 0,
+        "y": 211.234375,
+        "width": 768,
+        "height": 42.0625,
+        "top": 211.234375,
+        "right": 768,
+        "bottom": 253.296875,
+        "left": 0
+      },
+      "#match-board": {
+        "x": 0,
+        "y": 261.296875,
+        "width": 768,
+        "height": 768,
+        "top": 261.296875,
+        "right": 768,
+        "bottom": 1029.296875,
+        "left": 0
+      },
+      ".arena-control-strip": {
+        "x": 0,
+        "y": 1037.296875,
+        "width": 768,
+        "height": 137.1875,
+        "top": 1037.296875,
+        "right": 768,
+        "bottom": 1174.484375,
+        "left": 0
+      },
+      ".current-turn": {
+        "x": 0,
+        "y": 1182.484375,
+        "width": 768,
+        "height": 58.84375,
+        "top": 1182.484375,
+        "right": 768,
+        "bottom": 1241.328125,
+        "left": 0
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 1249.328125,
+        "width": 768,
+        "height": 61.875,
+        "top": 1249.328125,
+        "right": 768,
+        "bottom": 1311.203125,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 0,
+        "y": 1319.203125,
+        "width": 768,
+        "height": 45.1875,
+        "top": 1319.203125,
+        "right": 768,
+        "bottom": 1364.390625,
+        "left": 0
+      },
+      ".arena-reasoning": {
+        "x": 0,
+        "y": 1372.390625,
+        "width": 768,
+        "height": 126.203125,
+        "top": 1372.390625,
+        "right": 768,
+        "bottom": 1498.59375,
+        "left": 0
+      },
+      ".curiosities-trigger": {
+        "x": 0,
+        "y": 1506.59375,
+        "width": 768,
+        "height": 109.75,
+        "top": 1506.59375,
+        "right": 768,
+        "bottom": 1616.34375,
+        "left": 0
+      },
+      ".comment-trigger": {
+        "x": 0,
+        "y": 1624.34375,
+        "width": 768,
+        "height": 57.265625,
+        "top": 1624.34375,
+        "right": 768,
+        "bottom": 1681.609375,
+        "left": 0
+      }
+    },
+    "piece": {
+      "x": 8.75,
+      "y": 270.046875,
+      "width": 85.5,
+      "height": 85.5,
+      "top": 270.046875,
+      "right": 94.25,
+      "bottom": 355.546875,
+      "left": 8.75
+    },
+    "pieceCell": {
+      "x": 4,
+      "y": 265.296875,
+      "width": 95,
+      "height": 95,
+      "top": 265.296875,
+      "right": 99,
+      "bottom": 360.296875,
+      "left": 4
+    }
+  },
+  {
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "chrome": 209.765625,
+    "board": {
+      "x": 99.546875,
+      "y": 267.625,
+      "width": 690.234375,
+      "height": 690.234375,
+      "top": 267.625,
+      "right": 789.78125,
+      "bottom": 957.859375,
+      "left": 99.546875
+    },
+    "column": {
+      "x": 15.171875,
+      "y": 267.625,
+      "width": 858.984375,
+      "height": 846.015625,
+      "top": 267.625,
+      "right": 874.15625,
+      "bottom": 1113.640625,
+      "left": 15.171875
+    },
+    "controls": {
+      "x": 15.171875,
+      "y": 966.859375,
+      "width": 858.984375,
+      "height": 146.78125,
+      "top": 966.859375,
+      "right": 874.15625,
+      "bottom": 1113.640625,
+      "left": 15.171875
+    },
+    "context": {
+      "x": 15.171875,
+      "y": 213.640625,
+      "width": 1234.65625,
+      "height": 44.984375,
+      "top": 213.640625,
+      "right": 1249.828125,
+      "bottom": 258.625,
+      "left": 15.171875
+    },
+    "nav": "flex",
+    "historyOpen": true,
+    "controlCount": 7,
+    "commentHeight": 65.390625,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 15.171875,
+        "y": 213.640625,
+        "width": 1234.65625,
+        "height": 44.984375,
+        "top": 213.640625,
+        "right": 1249.828125,
+        "bottom": 258.625,
+        "left": 15.171875
+      },
+      "#match-board": {
+        "x": 15.171875,
+        "y": 267.625,
+        "width": 858.984375,
+        "height": 690.234375,
+        "top": 267.625,
+        "right": 874.15625,
+        "bottom": 957.859375,
+        "left": 15.171875
+      },
+      ".arena-control-strip": {
+        "x": 15.171875,
+        "y": 966.859375,
+        "width": 858.984375,
+        "height": 146.78125,
+        "top": 966.859375,
+        "right": 874.15625,
+        "bottom": 1113.640625,
+        "left": 15.171875
+      },
+      ".current-turn": {
+        "x": 891.4375,
+        "y": 267.625,
+        "width": 358.390625,
+        "height": 64.78125,
+        "top": 267.625,
+        "right": 1249.828125,
+        "bottom": 332.40625,
+        "left": 891.4375
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 958.84375,
+        "y": 117.859375,
+        "width": 290.984375,
+        "height": 86.78125,
+        "top": 117.859375,
+        "right": 1249.828125,
+        "bottom": 204.640625,
+        "left": 958.84375
+      },
+      ".arena-reasoning": {
+        "x": 891.4375,
+        "y": 577.71875,
+        "width": 358.390625,
+        "height": 179.46875,
+        "top": 577.71875,
+        "right": 1249.828125,
+        "bottom": 757.1875,
+        "left": 891.4375
+      },
+      ".curiosities-trigger": {
+        "x": 891.4375,
+        "y": 418.578125,
+        "width": 358.390625,
+        "height": 148.75,
+        "top": 418.578125,
+        "right": 1249.828125,
+        "bottom": 567.328125,
+        "left": 891.4375
+      },
+      ".comment-trigger": {
+        "x": 891.4375,
+        "y": 767.578125,
+        "width": 358.390625,
+        "height": 65.390625,
+        "top": 767.578125,
+        "right": 1249.828125,
+        "bottom": 832.96875,
+        "left": 891.4375
+      }
+    },
+    "piece": {
+      "x": 107.8125,
+      "y": 275.890625,
+      "width": 76.734375,
+      "height": 76.734375,
+      "top": 275.890625,
+      "right": 184.546875,
+      "bottom": 352.625,
+      "left": 107.8125
+    },
+    "pieceCell": {
+      "x": 103.546875,
+      "y": 271.625,
+      "width": 85.265625,
+      "height": 85.265625,
+      "top": 271.625,
+      "right": 188.8125,
+      "bottom": 356.890625,
+      "left": 103.546875
+    }
+  },
+  {
+    "width": 1920,
+    "height": 1080,
+    "clientWidth": 1905,
+    "scrollWidth": 1905,
+    "chrome": 213.36562500000002,
+    "board": {
+      "x": 299.1875,
+      "y": 284.71875,
+      "width": 866.625,
+      "height": 866.625,
+      "top": 284.71875,
+      "right": 1165.8125,
+      "bottom": 1151.34375,
+      "left": 299.1875
+    },
+    "column": {
+      "x": 22.859375,
+      "y": 284.71875,
+      "width": 1419.28125,
+      "height": 1024.203125,
+      "top": 284.71875,
+      "right": 1442.140625,
+      "bottom": 1308.921875,
+      "left": 22.859375
+    },
+    "controls": {
+      "x": 22.859375,
+      "y": 1162.140625,
+      "width": 1419.28125,
+      "height": 146.78125,
+      "top": 1162.140625,
+      "right": 1442.140625,
+      "bottom": 1308.921875,
+      "left": 22.859375
+    },
+    "context": {
+      "x": 22.859375,
+      "y": 228.9375,
+      "width": 1859.28125,
+      "height": 44.984375,
+      "top": 228.9375,
+      "right": 1882.140625,
+      "bottom": 273.921875,
+      "left": 22.859375
+    },
+    "nav": "flex",
+    "historyOpen": true,
+    "controlCount": 7,
+    "commentHeight": 65.390625,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 22.859375,
+        "y": 228.9375,
+        "width": 1859.28125,
+        "height": 44.984375,
+        "top": 228.9375,
+        "right": 1882.140625,
+        "bottom": 273.921875,
+        "left": 22.859375
+      },
+      "#match-board": {
+        "x": 22.859375,
+        "y": 284.71875,
+        "width": 1419.28125,
+        "height": 866.625,
+        "top": 284.71875,
+        "right": 1442.140625,
+        "bottom": 1151.34375,
+        "left": 22.859375
+      },
+      ".arena-control-strip": {
+        "x": 22.859375,
+        "y": 1162.140625,
+        "width": 1419.28125,
+        "height": 146.78125,
+        "top": 1162.140625,
+        "right": 1442.140625,
+        "bottom": 1308.921875,
+        "left": 22.859375
+      },
+      ".current-turn": {
+        "x": 1462.140625,
+        "y": 284.71875,
+        "width": 420,
+        "height": 64.78125,
+        "top": 284.71875,
+        "right": 1882.140625,
+        "bottom": 349.5,
+        "left": 1462.140625
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 1435,
+        "y": 131.359375,
+        "width": 447.140625,
+        "height": 86.78125,
+        "top": 131.359375,
+        "right": 1882.140625,
+        "bottom": 218.140625,
+        "left": 1435
+      },
+      ".arena-reasoning": {
+        "x": 1462.140625,
+        "y": 577.71875,
+        "width": 420,
+        "height": 179.46875,
+        "top": 577.71875,
+        "right": 1882.140625,
+        "bottom": 757.1875,
+        "left": 1462.140625
+      },
+      ".curiosities-trigger": {
+        "x": 1462.140625,
+        "y": 436.5625,
+        "width": 420,
+        "height": 130.765625,
+        "top": 436.5625,
+        "right": 1882.140625,
+        "bottom": 567.328125,
+        "left": 1462.140625
+      },
+      ".comment-trigger": {
+        "x": 1462.140625,
+        "y": 767.578125,
+        "width": 420,
+        "height": 65.390625,
+        "top": 767.578125,
+        "right": 1882.140625,
+        "bottom": 832.96875,
+        "left": 1462.140625
+      }
+    },
+    "piece": {
+      "x": 308.546875,
+      "y": 294.078125,
+      "width": 96.59375,
+      "height": 96.59375,
+      "top": 294.078125,
+      "right": 405.140625,
+      "bottom": 390.671875,
+      "left": 308.546875
+    },
+    "pieceCell": {
+      "x": 303.1875,
+      "y": 288.71875,
+      "width": 107.328125,
+      "height": 107.328125,
+      "top": 288.71875,
+      "right": 410.515625,
+      "bottom": 396.046875,
+      "left": 303.1875
+    }
+  },
+  {
+    "width": 812,
+    "height": 375,
+    "clientWidth": 812,
+    "scrollWidth": 812,
+    "chrome": 196.4375,
+    "board": {
+      "x": 316.71875,
+      "y": 268.234375,
+      "width": 178.5625,
+      "height": 178.5625,
+      "top": 268.234375,
+      "right": 495.28125,
+      "bottom": 446.796875,
+      "left": 316.71875
+    },
+    "column": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "controls": {
+      "x": 0,
+      "y": 454.796875,
+      "width": 812,
+      "height": 137.1875,
+      "top": 454.796875,
+      "right": 812,
+      "bottom": 591.984375,
+      "left": 0
+    },
+    "context": {
+      "x": 0,
+      "y": 216.984375,
+      "width": 812,
+      "height": 43.25,
+      "top": 216.984375,
+      "right": 812,
+      "bottom": 260.234375,
+      "left": 0
+    },
+    "nav": "none",
+    "historyOpen": false,
+    "controlCount": 7,
+    "commentHeight": 59.1875,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 134.984375,
+        "width": 812,
+        "height": 74,
+        "top": 134.984375,
+        "right": 812,
+        "bottom": 208.984375,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 0,
+        "y": 216.984375,
+        "width": 812,
+        "height": 43.25,
+        "top": 216.984375,
+        "right": 812,
+        "bottom": 260.234375,
+        "left": 0
+      },
+      "#match-board": {
+        "x": 0,
+        "y": 268.234375,
+        "width": 812,
+        "height": 178.5625,
+        "top": 268.234375,
+        "right": 812,
+        "bottom": 446.796875,
+        "left": 0
+      },
+      ".arena-control-strip": {
+        "x": 0,
+        "y": 454.796875,
+        "width": 812,
+        "height": 137.1875,
+        "top": 454.796875,
+        "right": 812,
+        "bottom": 591.984375,
+        "left": 0
+      },
+      ".current-turn": {
+        "x": 0,
+        "y": 599.984375,
+        "width": 812,
+        "height": 59.71875,
+        "top": 599.984375,
+        "right": 812,
+        "bottom": 659.703125,
+        "left": 0
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 667.703125,
+        "width": 812,
+        "height": 61.875,
+        "top": 667.703125,
+        "right": 812,
+        "bottom": 729.578125,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 0,
+        "y": 737.578125,
+        "width": 812,
+        "height": 45.1875,
+        "top": 737.578125,
+        "right": 812,
+        "bottom": 782.765625,
+        "left": 0
+      },
+      ".arena-reasoning": {
+        "x": 0,
+        "y": 790.765625,
+        "width": 812,
+        "height": 130.109375,
+        "top": 790.765625,
+        "right": 812,
+        "bottom": 920.875,
+        "left": 0
+      },
+      ".curiosities-trigger": {
+        "x": 0,
+        "y": 928.875,
+        "width": 812,
+        "height": 113.671875,
+        "top": 928.875,
+        "right": 812,
+        "bottom": 1042.546875,
+        "left": 0
+      },
+      ".comment-trigger": {
+        "x": 0,
+        "y": 1050.546875,
+        "width": 812,
+        "height": 59.1875,
+        "top": 1050.546875,
+        "right": 812,
+        "bottom": 1109.734375,
+        "left": 0
+      }
+    },
+    "piece": {
+      "x": 321.78125,
+      "y": 273.296875,
+      "width": 19.171875,
+      "height": 19.171875,
+      "top": 273.296875,
+      "right": 340.953125,
+      "bottom": 292.46875,
+      "left": 321.78125
+    },
+    "pieceCell": {
+      "x": 320.71875,
+      "y": 272.234375,
+      "width": 21.3125,
+      "height": 21.3125,
+      "top": 272.234375,
+      "right": 342.03125,
+      "bottom": 293.546875,
+      "left": 320.71875
+    }
+  },
+  {
+    "width": 900,
+    "height": 600,
+    "clientWidth": 885,
+    "scrollWidth": 885,
+    "chrome": 207.765625,
+    "board": {
+      "x": 90.34375,
+      "y": 301.375,
+      "width": 392.234375,
+      "height": 392.234375,
+      "top": 301.375,
+      "right": 482.578125,
+      "bottom": 693.609375,
+      "left": 90.34375
+    },
+    "column": {
+      "x": 10.609375,
+      "y": 301.375,
+      "width": 551.703125,
+      "height": 547.015625,
+      "top": 301.375,
+      "right": 562.3125,
+      "bottom": 848.390625,
+      "left": 10.609375
+    },
+    "controls": {
+      "x": 10.609375,
+      "y": 701.609375,
+      "width": 551.703125,
+      "height": 146.78125,
+      "top": 701.609375,
+      "right": 562.3125,
+      "bottom": 848.390625,
+      "left": 10.609375
+    },
+    "context": {
+      "x": 10.609375,
+      "y": 248.390625,
+      "width": 863.78125,
+      "height": 44.984375,
+      "top": 248.390625,
+      "right": 874.390625,
+      "bottom": 293.375,
+      "left": 10.609375
+    },
+    "nav": "flex",
+    "historyOpen": true,
+    "controlCount": 7,
+    "commentHeight": 65.390625,
+    "parts": {
+      ".agent-headers": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".match-context-strip": {
+        "x": 10.609375,
+        "y": 248.390625,
+        "width": 863.78125,
+        "height": 44.984375,
+        "top": 248.390625,
+        "right": 874.390625,
+        "bottom": 293.375,
+        "left": 10.609375
+      },
+      "#match-board": {
+        "x": 10.609375,
+        "y": 301.375,
+        "width": 551.703125,
+        "height": 392.234375,
+        "top": 301.375,
+        "right": 562.3125,
+        "bottom": 693.609375,
+        "left": 10.609375
+      },
+      ".arena-control-strip": {
+        "x": 10.609375,
+        "y": 701.609375,
+        "width": 551.703125,
+        "height": 146.78125,
+        "top": 701.609375,
+        "right": 562.3125,
+        "bottom": 848.390625,
+        "left": 10.609375
+      },
+      ".current-turn": {
+        "x": 574.390625,
+        "y": 301.375,
+        "width": 300,
+        "height": 64.78125,
+        "top": 301.375,
+        "right": 874.390625,
+        "bottom": 366.15625,
+        "left": 574.390625
+      },
+      ".mobile-access-row": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      ".move-history": {
+        "x": 676.125,
+        "y": 120,
+        "width": 198.265625,
+        "height": 120.390625,
+        "top": 120,
+        "right": 874.390625,
+        "bottom": 240.390625,
+        "left": 676.125
+      },
+      ".arena-reasoning": {
+        "x": 574.390625,
+        "y": 603.15625,
+        "width": 300,
+        "height": 275.78125,
+        "top": 603.15625,
+        "right": 874.390625,
+        "bottom": 878.9375,
+        "left": 574.390625
+      },
+      ".curiosities-trigger": {
+        "x": 574.390625,
+        "y": 448.8125,
+        "width": 300,
+        "height": 143.953125,
+        "top": 448.8125,
+        "right": 874.390625,
+        "bottom": 592.765625,
+        "left": 574.390625
+      },
+      ".comment-trigger": {
+        "x": 574.390625,
+        "y": 889.328125,
+        "width": 300,
+        "height": 65.390625,
+        "top": 889.328125,
+        "right": 874.390625,
+        "bottom": 954.71875,
+        "left": 574.390625
+      }
+    },
+    "piece": {
+      "x": 96.75,
+      "y": 307.78125,
+      "width": 43.203125,
+      "height": 43.203125,
+      "top": 307.78125,
+      "right": 139.953125,
+      "bottom": 350.984375,
+      "left": 96.75
+    },
+    "pieceCell": {
+      "x": 94.34375,
+      "y": 305.375,
+      "width": 48.015625,
+      "height": 48.015625,
+      "top": 305.375,
+      "right": 142.359375,
+      "bottom": 353.390625,
+      "left": 94.34375
+    }
+  }
+]

@@ -1,6 +1,7 @@
 // Fontes de uma resposta como etiquetas clicáveis que expandem o trecho.
 // O Stockfish tem visual próprio (motor, não livro).
 
+import { idiomaDaFonte, localDaFonte, rotuloDoTrecho, textoDaAnalise } from "../idioma";
 import { useState } from "react";
 import type { Fonte } from "../types";
 import { Sprite } from "../pixel/Sprite";
@@ -37,14 +38,17 @@ export function Fontes({ fontes }: { fontes: Fonte[] }) {
               <Sprite grade={icone.grade} paleta={icone.paleta} rotulo={motor ? "motor" : "livro"} tamanho={14} />
               <span>
                 {motor ? "Motor: " : ""}
-                {fonte.titulo} · {fonte.local}
+                {fonte.titulo} · {localDaFonte(fonte.local)}
               </span>
             </button>
           );
         })}
       </div>
       {aberta !== null && (
+        <>
+        <p className="support-label">{ehMotor(fontes[aberta]) ? "Análise do Stockfish" : rotuloDoTrecho(fontes[aberta].documento)}</p>
         <blockquote
+          lang={ehMotor(fontes[aberta]) ? "pt-BR" : idiomaDaFonte(fontes[aberta].documento)}
           className={
             "source-excerpt " +
             (ehMotor(fontes[aberta])
@@ -52,8 +56,9 @@ export function Fontes({ fontes }: { fontes: Fonte[] }) {
               : "source-excerpt--book")
           }
         >
-          {fontes[aberta].trecho}
+          {ehMotor(fontes[aberta]) ? textoDaAnalise(fontes[aberta].trecho) : fontes[aberta].trecho}
         </blockquote>
+        </>
       )}
     </section>
   );

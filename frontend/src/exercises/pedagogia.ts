@@ -7,7 +7,7 @@ export const EXERCISE_LABELS: Record<string, { conceito: string; nome: string }>
   "a2-roque-grande": { conceito: "Roque", nome: "Roque grande" },
   "a2-roque-bloqueado": { conceito: "Roque", nome: "Roque bloqueado" },
   "a3-garfo-cavalo": { conceito: "Garfo", nome: "Garfo de cavalo" },
-  "e1-material-seguro": { conceito: "Evitar perda material", nome: "Segurança material" },
+  "e1-material-seguro": { conceito: "Evitar perda de material", nome: "Segurança material" },
 };
 const FACT_TEXT: Record<ExerciseFact["code"], string> = {
   legal_destination: "O lance é legal.",
@@ -28,8 +28,8 @@ const FACT_TEXT: Record<ExerciseFact["code"], string> = {
   opponent_reply: "A resposta adversária já foi aplicada pelo servidor.",
   material_gain: "O objetivo de ganho material foi alcançado neste exercício.",
   refutation_line: "Essa tentativa não atinge o objetivo. Veja a sequência enviada pelo servidor.",
-  material_loss: "Esse lance permite uma perda material.",
-  allows_mate: "Esse lance permite mate imediato.",
+  material_loss: "Esse lance permite uma perda de material.",
+  allows_mate: "Esse lance permite xeque-mate imediato.",
 };
 export function feedbackDosFacts(facts: readonly ExerciseFact[]): string[] {
   return [...new Set(facts.flatMap((fact) => FACT_TEXT[fact?.code] ? [FACT_TEXT[fact.code]] : []))];
@@ -41,6 +41,7 @@ export function descricaoVisual(visual: ExerciseVisual): string[] {
   if (visual.highlightedSquares.length) linhas.push(`Casas destacadas: ${visual.highlightedSquares.join(", ")}.`);
   if (visual.attackerSquare) linhas.push(`Atacante: ${visual.attackerSquare}.`);
   if (visual.targetSquares.length) linhas.push(`Alvos: ${visual.targetSquares.join(", ")}.`);
-  if (visual.mateSquare) linhas.push(`Rei em mate na refutação: ${visual.mateSquare}.`);
+  if (visual.mateSquare) linhas.push(`Rei em xeque-mate na refutação: ${visual.mateSquare}.`);
+  if (visual.hintSquares?.length) linhas.push(`Casas da dica: ${visual.hintSquares.join(", ")}.`);
   return linhas;
 }

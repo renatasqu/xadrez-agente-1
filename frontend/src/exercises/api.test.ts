@@ -76,3 +76,13 @@ it("preserva associações de resposta e envelope de lição", async () => {
   responder(200, lesson);
   expect(await api.proximaLicao(null)).toEqual(lesson);
 });
+
+it("solicita próxima dica pelo contrato stateless sem dados pedagógicos do cliente", async () => {
+  const body = { next_hint: { level: 2, code: "piece_or_region", text: "Observe b1", highlight_squares: ["b1"] } };
+  responder(200, body);
+  const payload = { version: 1, history: [], last_action: { type: "move" as const, source: "b1" as const, destination: "b3" as const }, current_hint_level: 1 as const };
+  expect(await api.dicaExercicio(A1.id, payload)).toEqual(body);
+  const [url, options] = vi.mocked(fetch).mock.calls[0];
+  expect(url).toMatch(/\/exercises\/a1-cavalo\/hint$/);
+  expect(JSON.parse(options!.body as string)).toEqual(payload);
+});

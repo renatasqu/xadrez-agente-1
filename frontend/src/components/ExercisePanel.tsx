@@ -1,3 +1,4 @@
+import { textoPedagogico } from "../idioma";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { lerUsuarioId } from "../armazenamento";
@@ -24,11 +25,12 @@ interface Props {
   state: ExerciseState;
   visual: ExerciseVisual;
   onAction: (action: ExerciseAction) => void;
+  onHint?: () => void;
   onClose: () => void;
   onRetry: () => void;
   onPreview: (position: Exibicao | null) => void;
 }
-export function ExercisePanel({ state, visual, onAction, onClose, onRetry, onPreview }: Props) {
+export function ExercisePanel({ state, visual, onAction, onHint, onClose, onRetry, onPreview }: Props) {
   const status = statusDoPainel(state);
   const [passo, setPasso] = useState<number | null>(null);
   const [progress, setProgress] = useState<ExerciseProgress | null>(null);
@@ -55,9 +57,9 @@ export function ExercisePanel({ state, visual, onAction, onClose, onRetry, onPre
   return <section aria-label="Exercício" className={"mission-panel caixa-pixel p-4 mission--" + status} data-status={status}>
     <p className="font-pixel text-[0.55rem] text-gelo-escuro">MISSÃO · EXERCÍCIO</p>
     {exercise && <>
-      <h2 className="mt-2 text-sm font-bold">{EXERCISE_LABELS[exercise.id]?.nome ?? exercise.id}</h2>
+      <h2 className="mt-2 text-sm font-bold">{EXERCISE_LABELS[exercise.id]?.nome ?? "Exercício de xadrez"}</h2>
       <p className="text-xs text-slate-600">Conceito: {EXERCISE_LABELS[exercise.id]?.conceito ?? "Prática relacionada"}</p>
-      <p className="mt-2 text-sm"><strong>Objetivo: </strong>{exercise.prompt}</p>
+      <p className="mt-2 text-sm"><strong>Objetivo: </strong>{textoPedagogico(exercise.prompt)}</p>
     </>}
     <div role="status" aria-live="polite" className="mission-status mt-3 text-sm">
       {status === "active" && <span>Sua vez · </span>}
@@ -70,6 +72,14 @@ export function ExercisePanel({ state, visual, onAction, onClose, onRetry, onPre
       {status === "partial" && <p className="text-sm">É sua vez de continuar: capture um dos alvos para atingir o objetivo.</p>}
       {visual.materialDelta !== null && <p className="text-sm">Variação material da linha: {visual.materialDelta > 0 ? "+" : ""}{visual.materialDelta}.</p>}
     </div>}
+    {state.hint && <div aria-label="Dica do exercício" aria-live="polite" className="mt-3 text-sm">
+      <p><strong>Dica {state.hint.level}: </strong>{state.hint.text ? textoPedagogico(state.hint.text) : "Observe as casas destacadas."}</p>
+      {state.hint.highlight_squares.length > 0 && <p>Casas da dica: {state.hint.highlight_squares.join(", ")}.</p>}
+    </div>}
+    {exercise && onHint && !state.concluido && <button type="button" className="botao-pixel mt-2 bg-gelo text-slate-900"
+      disabled={state.loading || state.currentHintLevel === 3} onClick={() => { ir(null); onHint(); }}>
+      {state.currentHintLevel === 0 ? "Ver dica" : state.currentHintLevel === 3 ? "Todas as dicas exibidas" : "Ver próxima dica"}
+    </button>}
     {exercise?.goal.type === "answer_position_question" && <div className="answer-actions mt-3 flex gap-3">
       <button type="button" className="botao-pixel bg-gelo text-slate-900" disabled={bloqueado} onClick={() => onAction({ type: "answer", answer: true })}>SIM</button>
       <button type="button" className="botao-pixel bg-slate-200 text-slate-900" disabled={bloqueado} onClick={() => onAction({ type: "answer", answer: false })}>NÃO</button>

@@ -337,7 +337,7 @@ Fact = Annotated[
 
 
 class Hint(Contract):
-    """Dica individual futura: conceito (1), peça/região (2), casas específicas (3)."""
+    """Dica individual curada: conceito (1), peça/região (2), casas específicas (3)."""
 
     level: Literal[1, 2, 3]
     code: Literal["conceptual", "piece_or_region", "specific_squares"]
@@ -375,3 +375,14 @@ class ValidationRequest(Contract):
     version: Annotated[StrictInt, Field(ge=1)]
     action: ExerciseAction
     history: History = Field(default_factory=list)
+
+
+class HintRequest(Contract):
+    version: Annotated[StrictInt, Field(ge=1)]
+    history: History = Field(default_factory=list)
+    last_action: ExerciseAction | None = None
+    current_hint_level: Annotated[StrictInt, Field(ge=0, le=3)] = 0
+
+
+class HintResponse(Contract):
+    next_hint: Hint | None = None

@@ -1,3 +1,4 @@
+import type { HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
 // Rotas legadas e progresso usam Resposta nos erros. /exercises usa code/message.
@@ -80,6 +81,8 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
 const post = (corpo: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(corpo) });
 
 export const api = {
+  dicaExercicio: (id: string, payload: HintRequest) =>
+    chamar<HintResponse>(`/exercises/${encodeURIComponent(id)}/hint`, post(payload), true),
   exercicio: (id: string) => chamar<Exercise>(`/exercises/${encodeURIComponent(id)}`, {}, true),
   validarExercicio: (id: string, payload: ValidationRequest) => {
     const usuarioId = lerUsuarioId();

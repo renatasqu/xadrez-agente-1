@@ -40,10 +40,27 @@ export function useExercise() {
     if (!exercise || ocupado.current || concluido) return;
     const token = geracao.current;
     ocupado.current = true;
-    aplicar({ type: "validar" });
+    aplicar({ type: "validar", action });
     try {
       const result = await api.validarExercicio(exercise.id, { version: exercise.version, action, history });
       if (token === geracao.current) aplicar({ type: "validado", result });
+    } catch (error) {
+      if (token === geracao.current) aplicar({ type: "erro", error: erroOperacional(error) });
+    } finally {
+      if (token === geracao.current) ocupado.current = false;
+    }
+  }
+  async function pedirDica() {
+    const { exercise, history, lastAction, currentHintLevel, concluido } = atual.current;
+    if (!exercise || ocupado.current || concluido || currentHintLevel === 3) return;
+    const token = geracao.current;
+    ocupado.current = true;
+    aplicar({ type: "pedir_dica" });
+    try {
+      const response = await api.dicaExercicio(exercise.id, {
+        version: exercise.version, history, last_action: lastAction, current_hint_level: currentHintLevel,
+      });
+      if (token === geracao.current) aplicar({ type: "dica", hint: response.next_hint });
     } catch (error) {
       if (token === geracao.current) aplicar({ type: "erro", error: erroOperacional(error) });
     } finally {
@@ -55,5 +72,8 @@ export function useExercise() {
     ocupado.current = false;
     aplicar({ type: "fechar" });
   }
-  return { ...state, visual: factsParaVisual(state.validationResult?.facts ?? []), carregar, tentar, fechar };
+  const visual = factsParaVisual(state.validationResult?.facts ?? []);
+  visual.errorSquares = state.validationResult?.status === "incorrect" && visual.destinationSquare ? [visual.destinationSquare] : [];
+  visual.hintSquares = state.hint?.highlight_squares ?? [];
+  return { ...state, visual, carregar, tentar, pedirDica, fechar };
 }

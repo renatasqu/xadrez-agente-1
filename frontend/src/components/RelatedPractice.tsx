@@ -11,9 +11,9 @@ export function RelatedPractice({ ids = [], onPractice, disabled = false }: Prop
     <div className="practice-options">
     {[...new Set(ids)].map((id) => <button key={id} type="button" disabled={disabled}
       className="practice-cta"
-      aria-label={`Praticar este conceito: ${EXERCISE_LABELS[id]?.nome ?? id}`}
+      aria-label={`Praticar este conceito: ${EXERCISE_LABELS[id]?.nome ?? "Exercício de xadrez"}`}
       onClick={() => onPractice(id)}>
-      Praticar este conceito <span className="text-xs">· {EXERCISE_LABELS[id]?.nome ?? id}</span>
+      Praticar este conceito <span className="text-xs">· {EXERCISE_LABELS[id]?.nome ?? "Exercício de xadrez"}</span>
     </button>)}
     </div>
   </section>;

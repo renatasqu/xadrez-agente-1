@@ -1,5 +1,6 @@
 // Janela com o trecho de um livro em TXT e os parágrafos em volta ("Ver no documento").
 
+import { idiomaDaFonte, localDaFonte, rotuloDoTrecho } from "../idioma";
 import { useEffect, useRef, useState } from "react";
 import { ErroDaApi, api } from "../api";
 import type { ContextoDoTrecho, TrechoRecomendado } from "../types";
@@ -45,7 +46,7 @@ export function ContextoModal({ item, onFechar }: Props) {
         <header className="flex items-start gap-2 border-b-4 border-[#0e1018] p-3">
           <h2 id="titulo-contexto" className="flex-1 text-sm">
             <strong>{item.titulo}</strong>
-            {item.autor && ` – ${item.autor}`} · {item.local}
+            {item.autor && ` · Autor: ${item.autor}`} · {localDaFonte(item.local)}
           </h2>
           <button ref={fechar} type="button" className="botao-pixel bg-white text-slate-900" onClick={onFechar}>
             Fechar
@@ -56,6 +57,8 @@ export function ContextoModal({ item, onFechar }: Props) {
           {!erro && !contexto && <p role="status">Abrindo o trecho…</p>}
           {contexto && (
             <>
+              <p className="support-label">{rotuloDoTrecho(item.documento)}</p>
+              <div lang={idiomaDaFonte(item.documento)}>
               {contexto.antes.map((p, i) => (
                 <p key={`a${i}`} className="mb-3 opacity-70">{p}</p>
               ))}
@@ -65,6 +68,7 @@ export function ContextoModal({ item, onFechar }: Props) {
               {contexto.depois.map((p, i) => (
                 <p key={`d${i}`} className="mb-3 opacity-70">{p}</p>
               ))}
+              </div>
             </>
           )}
         </div>

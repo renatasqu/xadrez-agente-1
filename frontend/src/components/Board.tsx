@@ -1,13 +1,14 @@
 // Partida: chess.js. Demonstração: leitura. Exercício: tentativas para o backend.
 
+import { createPortal } from "react-dom";
 import { BoardControls } from "./BoardControls";
 import { descricaoVisual } from "../exercises/pedagogia";
-import { useEffect, useState } from "react";
+import { observarIdiomaDoTabuleiro } from "../acessibilidadeTabuleiro";
+import { useEffect, useState, useRef } from "react";
 import type { ExerciseAction, ExerciseGoal, ExerciseSquare } from "../types";
 import type { ExerciseVisual } from "../exercises/visual";
 import { Chessboard } from "react-chessboard";
 import { PECAS_DO_TABULEIRO } from "../pixel/pecas";
-import { TILE_GRAMA, TILE_PEDRA, fundoDoTile } from "../pixel/tiles";
 import { destinosLegais, ladoDaPeca, situacao, tentarLance, vezDe } from "../lances";
 
 // Posição mostrada no lugar da partida (demonstração): sem mexer peças, com o último lance
@@ -20,6 +21,7 @@ export interface Exibicao {
 
 interface BaseProps {
   hideControls?: boolean;
+  contextContainer?: HTMLElement | null;
   fen: string;
   ocupado: boolean;
   podeDesfazer: boolean;
@@ -50,14 +52,18 @@ function ehCasa(square: string): square is ExerciseSquare {
 }
 
 const CASA_BASE = { backgroundSize: "100% 100%", imageRendering: "pixelated" as const };
-const CASA_CLARA = { ...CASA_BASE, backgroundImage: fundoDoTile(TILE_GRAMA) };
-const CASA_ESCURA = { ...CASA_BASE, backgroundImage: fundoDoTile(TILE_PEDRA) };
+const CASA_CLARA = { ...CASA_BASE, backgroundColor: "var(--board-light)" };
+const CASA_ESCURA = { ...CASA_BASE, backgroundColor: "var(--board-dark)" };
 
 // Sem animação para quem pede movimento reduzido no sistema.
 const MOVIMENTO_REDUZIDO =
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 export function Board(props: BoardProps) {
+  const boardRoot = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (boardRoot.current) return observarIdiomaDoTabuleiro(boardRoot.current);
+  }, []);
   const { fen, ocupado, podeDesfazer, onLance, onDesfazer, onReiniciar, onAnalisar } = props;
   // exibicao sem modo mantém compatibilidade com consumidores existentes.
   const modo = props.modo ?? (props.exibicao ? "demonstration" : "normal");
@@ -131,13 +137,19 @@ export function Board(props: BoardProps) {
     for (const casa of visual.dangerSquares ?? []) estilos[casa] = { ...estilos[casa], boxShadow: "inset 0 0 0 4px var(--perigo)" };
   }
 
+  for (const casa of exercicio?.visual?.errorSquares ?? []) {
+    estilos[casa] = { ...estilos[casa], outline: "3px dashed var(--perigo)", outlineOffset: "-5px" };
+  }
+  for (const casa of exercicio?.visual?.hintSquares ?? []) {
+    estilos[casa] = { ...estilos[casa], backgroundImage: "radial-gradient(circle, #16825d 2px, transparent 3px)",
+      backgroundSize: "9px 9px", backgroundPosition: "center bottom", backgroundRepeat: "repeat-x" };
+  }
   if (exercicio?.preview) {
     if (exercicio.preview.de) estilos[exercicio.preview.de] = { boxShadow: "inset 0 0 0 4px var(--azul-magnus-escuro)" };
     if (exercicio.preview.para) estilos[exercicio.preview.para] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
   }
 
-  return (
-    <section aria-label="Tabuleiro" className="board-stage flex flex-col gap-4">
+  const context = <>
       <div className={"board-context board-context--" + modo} aria-label="Contexto do tabuleiro">
         <span className="font-pixel">{emExercicio ? "EXERCÍCIO" : emDemo ? "DEMONSTRAÇÃO" : "PARTIDA"}</span>
         <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : "Explore uma posição"}</span>
@@ -145,7 +157,12 @@ export function Board(props: BoardProps) {
       <p className="text-center font-pixel text-[0.6rem] leading-relaxed" aria-live="polite">
         {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : situacao(fen)}
       </p>
-      <div className="moldura-tabuleiro mx-auto w-full max-w-[640px]">
+  </>;
+
+  return (
+    <section ref={boardRoot} aria-label="Tabuleiro" className="board-stage flex flex-col gap-4">
+      {props.contextContainer ? createPortal(context, props.contextContainer) : context}
+      <div className="moldura-tabuleiro w-full">
         <Chessboard
           options={{
             position: fenExibido,
@@ -172,4 +189,3 @@ export function Board(props: BoardProps) {
     </section>
   );
 }
-

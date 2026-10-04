@@ -21,7 +21,7 @@ afterEach(() => vi.unstubAllGlobals());
 it("mostra título, autor, local e destaca a frase-chave", () => {
   render(<OndeLer itens={[PDF, TXT]} />);
   expect(screen.getByText("FIDE Laws of Chess (FIDE, 2023)")).toBeTruthy();
-  expect(screen.getByText("– J. R. Capablanca")).toBeTruthy();
+  expect(screen.getByText("Autor: J. R. Capablanca")).toBeTruthy();
   const marcas = document.querySelectorAll("mark");
   expect(marcas[0].textContent).toBe("This is a move of the king and a rook.");
   expect(screen.getAllByRole("listitem")).toHaveLength(2);

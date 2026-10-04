@@ -155,3 +155,11 @@ export interface ExerciseProgress {
   attempts: number;
   updated_at: string;
 }
+
+export interface HintRequest {
+  version: number;
+  history: string[];
+  last_action: ExerciseAction | null;
+  current_hint_level: 0 | 1 | 2 | 3;
+}
+export interface HintResponse { next_hint: ExerciseHint | null }

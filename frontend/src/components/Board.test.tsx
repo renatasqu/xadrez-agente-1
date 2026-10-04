@@ -93,3 +93,37 @@ it("mostra contexto acessível ao alternar PARTIDA, DEMONSTRAÇÃO e EXERCÍCIO"
   view.rerender(<Board {...normal} modo="exercise" exercicio={{ fen: A1.fen, goal: A1.goal, concluido: false, onTentativa: vi.fn() }} />);
   expect(screen.getByLabelText("Contexto do tabuleiro").textContent).toContain("EXERCÍCIO");
 });
+
+it("dica distingue marcação e preserva destaques da tentativa e erro", () => {
+  const visual = factsParaVisual([{ code: "straight_knight_move", source: "b1", destination: "b3" },
+    { code: "transit_attacked", square: "c3" }]);
+  visual.hintSquares = ["b1", "b3", "c3"];
+  visual.errorSquares = ["b3"];
+  const onTentativa = vi.fn();
+  render(<Board {...props()} modo="exercise" exercicio={{ fen: A1.fen, goal: A1.goal, concluido: false, visual, onTentativa }} />);
+  expect(board.options?.squareStyles?.b1).toHaveProperty("boxShadow");
+  expect(board.options?.squareStyles?.b1).toHaveProperty("backgroundImage", "radial-gradient(circle, #16825d 2px, transparent 3px)");
+  expect(board.options?.squareStyles?.c3).toHaveProperty("boxShadow", "inset 0 0 0 4px var(--perigo)");
+  expect(board.options?.squareStyles?.c3).toHaveProperty("backgroundImage", "radial-gradient(circle, #16825d 2px, transparent 3px)");
+  expect(board.options?.squareStyles?.b3).toHaveProperty("outline", "3px dashed var(--perigo)");
+  expect(screen.getByText("Casas da dica: b1, b3, c3.")).toBeTruthy();
+  click("b1", "c3");
+  expect(onTentativa).toHaveBeenCalledOnce();
+});
+
+it("faixa de contexto reposicionada acompanha o modo sem duplicar textos", () => {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const normal = props();
+  const view = render(<Board {...normal} contextContainer={host} />);
+  expect(host.textContent).toContain("PARTIDA");
+  expect(host.textContent).toContain("Explore uma posição");
+  expect(screen.getAllByText("Vez do Magnus (brancas).")).toHaveLength(1);
+  view.rerender(<Board {...normal} contextContainer={host} modo="demonstration" exibicao={{ fen: A1.fen, de: "b1", para: "c3" }} />);
+  expect(host.textContent).toContain("DEMONSTRAÇÃO");
+  expect(host.textContent).toContain("Demonstração: a sua partida está guardada.");
+  expect(host.textContent).not.toContain("Explore uma posição");
+  expect(normal.onLance).not.toHaveBeenCalled();
+  view.unmount();
+  host.remove();
+});
