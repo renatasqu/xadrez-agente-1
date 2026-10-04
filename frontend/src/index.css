@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+:root {
+  --azul-magnus: #9fd8ff;
+  --azul-magnus-escuro: #173f60;
+  --ceu: #e8f4fa;
+  --fogo-hans: #ffac61;
+  --fogo-hans-escuro: #833f18;
+  --creme: #fff5df;
+  --painel: #fffefa;
+  --borda: #233e50;
+  --sucesso: #26734b;
+  --perigo: #b73939;
+  --ouro: #ffd23f;
+}
+@theme {
+  --font-pixel: "Press Start 2P", ui-monospace, monospace;
+  --color-noite: #e8f4fa;
+  --color-noite-clara: #fffefa;
+  --color-gelo: #9fd8ff;
+  --color-gelo-escuro: #173f60;
+  --color-fogo: #ffac61;
+  --color-fogo-escuro: #833f18;
+  --color-pergaminho: #fff5df;
+}
+body { margin: 0; background: var(--ceu); color: var(--borda); font-family: system-ui, sans-serif; }
+@utility caixa-pixel { border: 3px solid var(--borda); box-shadow: 4px 4px 0 var(--borda); }
+@utility botao-pixel {
+  font-family: var(--font-pixel);
+  font-size: 0.65rem;
+  line-height: 1.7;
+  padding: 0.65rem 0.8rem;
+  min-height: 44px;
+  border: 2px solid var(--borda);
+  box-shadow: 3px 3px 0 var(--borda);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  &:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+:where(button, a, input, textarea, summary):focus-visible { outline: 3px solid var(--azul-magnus-escuro); outline-offset: 4px; }
+button:not(:disabled):hover, a.botao-pixel:hover { filter: brightness(0.96); }
+.game-header { max-width: 1240px; margin: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 24px 24px 20px; }
+.game-header h1 { line-height: 1.8; }
+.player { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 2px solid var(--borda); box-shadow: 2px 2px var(--borda); background: var(--azul-magnus); }
+.player--fogo { background: var(--fogo-hans); }
+.player-side { display: block; margin-top: 7px; font: 600 12px/1.3 system-ui, sans-serif; }
+.game-layout { max-width: 1240px; margin: auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); grid-template-areas: "board chat" "lesson chat"; gap: 24px 28px; align-items: start; }
+.board-workspace { grid-area: board; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.board-stage { padding: 16px 16px 20px; background: var(--painel); border: 3px solid var(--borda); box-shadow: 4px 4px var(--borda); }
+.board-context { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; border: 2px solid var(--borda); background: var(--ceu); font-size: 13px; }
+.board-context .font-pixel { font-size: 0.65rem; line-height: 1.7; }
+.board-context--exercise { background: var(--creme); border-left: 6px solid #c79614; }
+.board-context--demonstration { border-left: 6px solid #237eb5; }
+.moldura-tabuleiro { border: 6px solid #655339; box-shadow: 0 6px 0 #3d2a1a, 4px 10px 0 var(--borda); image-rendering: pixelated; margin-bottom: 10px; }
+.tutor-panel { grid-area: chat; min-width: 0; background: var(--painel); display: flex; flex-direction: column; height: 840px; max-height: calc(100vh - 130px); min-height: 600px; }
+.tutor-heading { padding: 18px 16px 14px; background: var(--azul-magnus); border-bottom: 3px solid var(--borda); }
+.tutor-heading h2 { font-size: 0.75rem; line-height: 1.8; color: var(--azul-magnus-escuro); }
+.tutor-heading p { margin-top: 6px; font-size: 13px; }
+.chat-messages { min-height: 180px; overscroll-behavior: contain; }
+.question-bubble { color: white; border-width: 2px; box-shadow: 2px 2px var(--borda); }
+.tutor-answer { width: 100%; background: var(--painel); border-width: 2px; box-shadow: 2px 2px #c4d4df; }
+.tutor-answer > header { padding-bottom: 8px; border-bottom: 1px solid #c4d4df; }
+.tutor-answer > div.whitespace-pre-wrap { font-size: 0.9375rem; line-height: 1.75; }
+.tutor-answer blockquote { line-height: 1.7; max-height: 120px; }
+.practice-cta { background: var(--azul-magnus); border-left: 5px solid #c79614; }
+.mission-panel { background: var(--creme); }
+.mission-panel h2 { font-size: 18px; }
+.mission-status { padding: 12px; border: 2px solid var(--borda); border-left-width: 6px; background: var(--ceu); font-weight: 700; }
+.mission--partial .mission-status { border-left-color: #a97b00; background: #fff0bd; }
+.mission--correct .mission-status { border-left-color: var(--sucesso); background: #e7f5eb; color: #175234; }
+.mission--incorrect .mission-status { border-left-color: var(--fogo-hans-escuro); background: #ffead7; color: #733515; }
+.mission--operational_error .mission-status { border: 2px dashed var(--perigo); background: #fff0ee; color: #852929; }
+.answer-actions button { flex: 1; min-height: 58px; font-size: 0.85rem; }
+.replay-panel { background: var(--ceu); border-left: 5px solid #237eb5; padding: 14px; }
+.lesson-track { grid-area: lesson; min-width: 0; background: var(--creme); border-top: 5px solid #c79614; }
+.reading-details { padding-top: 10px; border-top: 1px solid #c4d4df; }
+.reading-details summary { font-size: 0.6rem; line-height: 1.8; cursor: pointer; margin-bottom: 10px; color: var(--azul-magnus-escuro); }
+.game-footer { max-width: 1240px; margin: 32px auto 0; padding: 20px 24px 28px; border-top: 2px solid #c4d4df; line-height: 1.7; }
+.game-footer > h2 { display: none; }
+.game-footer details { margin-bottom: 10px; }
+.game-footer summary { cursor: pointer; font-weight: 600; }
+/* A tipografia pixel fica em títulos e ações; o texto longo usa a fonte do sistema. */
+.font-pixel { line-height: 1.8; }
+@media (max-width: 1023px) {
+  .game-layout { max-width: 760px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "board" "chat" "lesson"; }
+  .game-header { max-width: 760px; gap: 16px; }
+  .tutor-panel { height: auto; max-height: none; min-height: 440px; }
+  .chat-messages { max-height: 650px; }
+}
+@media (max-width: 480px) {
+  .game-header { padding: 18px 12px; gap: 14px; }
+  .game-header h1 { width: 100%; }
+  .game-header > div.flex { gap: 8px; }
+  .player { padding: 5px; }
+  .game-layout { padding: 0 12px; gap: 20px; }
+  .board-stage { padding: 10px 8px 16px; }
+  .board-context { padding: 8px; }
+  .board-context > span:last-child { font-size: 12px; }
+  .moldura-tabuleiro { border-width: 4px; }
+  .game-footer { padding: 16px 12px 24px; }
+  .botao-pixel { font-size: 0.6rem; padding: 0.6rem; }
+  .tutor-answer { padding: 12px; }
+}
+@keyframes piscar { 50% { opacity: 0.2; } }
+.piscando { animation: piscar 1s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { .piscando { animation: none; } }
+
+.font-pixel.text-\[0\.55rem\] { font-size: 0.625rem; }
+
+.tutor-answer--error { background: #fff0ee; border-color: var(--perigo); }
+
+/* Ajustes de QA: acomodar o jogo em laptops e reduzir molduras secundárias. */
+@media (min-width: 1024px) and (max-height: 900px) {
+  .moldura-tabuleiro { max-width: min(640px, calc(100vh - 330px)); }
+}
+.tutor-answer { border: 0; box-shadow: none; }
+.tutor-answer--error { border-left: 3px solid var(--perigo); }
+.reading-details li { border-width: 0 0 0 2px; }
+.chat-messages, .mission-panel, .lesson-track, .game-footer { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .game-header { padding-top: 12px; padding-bottom: 12px; gap: 10px; }
+}
+
+/* Hierarquia pedagógica: explicação, aplicação e referências de apoio. */
+.answer-explanation { margin-top: 12px; }
+.tutor-answer > header > span:nth-child(2) { color: #526574; font-size: 11px; }
+.support-label { margin: 0 0 8px; color: #526574; font: 600 12px/1.6 system-ui, sans-serif; letter-spacing: 0.04em; }
+.related-practice { margin-top: 20px; padding: 14px; background: #edf6fb; border-left: 3px solid #6aa6cc; width: 100%; }
+.practice-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.practice-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 44px; padding: 9px 12px; border: 1px solid #719ab4; background: #fffefa; color: #173f60; font: 600 13px/1.6 system-ui, sans-serif; text-align: left; cursor: pointer; }
+.practice-cta span { font-weight: 400; }
+.practice-cta:disabled { opacity: 0.5; cursor: not-allowed; }
+.answer-sources { margin-top: 20px; padding-top: 14px; border-top: 1px solid #dae3e8; }
+.source-button { display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 8px 10px; border: 1px solid #d4dde2; background: #f5f7f8; color: #405564; font-size: 12px; line-height: 1.6; text-align: left; cursor: pointer; }
+.source-button--engine { border-color: #c9d6df; background: #edf2f6; }
+.source-button[aria-expanded="true"] { border-color: #719ab4; background: #e8f4fa; color: #173f60; }
+.source-excerpt, .reading-excerpt { margin-top: 12px; padding: 12px 14px; border-left: 3px solid #c3b38e; background: #faf7ef; color: #514a3b; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-y: auto; max-height: 240px; }
+.source-excerpt--engine { border-color: #91a9ba; background: #f1f5f8; color: #405564; font-family: ui-monospace, monospace; }
+.tutor-answer .source-excerpt, .tutor-answer .reading-excerpt { max-height: 240px; line-height: 1.8; }
+.recommended-reading { margin-top: 18px; }
+.reading-details { padding-top: 14px; border-color: #dae3e8; }
+.reading-details summary { min-height: 44px; margin-bottom: 0; font: 600 12px/1.8 system-ui, sans-serif; color: #526574; }
+.reading-card { padding: 12px 0; color: #405564; }
+.reading-details li { border: 0; }
+.reading-card + .reading-card { border-top: 1px solid #e4e9ec; }
+.reading-excerpt mark { background: #f3e6b9; color: #493d20; }
+.document-action { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 8px 2px; color: #173f60; font: 600 12px/1.6 system-ui, sans-serif; text-decoration: underline; text-underline-offset: 3px; border: 0; background: transparent; cursor: pointer; }
+.mission-panel { background: var(--painel); }
+.pedagogical-feedback { margin-top: 12px; padding: 0 12px; border-left: 2px solid #d4dde2; font-size: 14px; line-height: 1.75; }
+.pedagogical-feedback:empty { display: none; }
+.pedagogical-feedback p + p { margin-top: 8px; }
+.lesson-track > .related-practice { order: 1; }

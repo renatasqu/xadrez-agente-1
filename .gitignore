@@ -1,0 +1,34 @@
+# Segredos (chaves só no .env; os .env.example não têm valores)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dados gerados
+backend/chroma/
+*.sqlite
+*.db
+backend/logs/
+*.log
+
+# Documentos de terceiros: cada pessoa baixa das fontes oficiais (ver README)
+backend/docs/*
+!backend/docs/.gitkeep
+
+# Entrega da disciplina (texto pessoal, não vai para o repositório público)
+ATIVIDADE.md
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Sistema
+.DS_Store

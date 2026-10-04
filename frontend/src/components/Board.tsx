@@ -1,0 +1,175 @@
+// Partida: chess.js. Demonstração: leitura. Exercício: tentativas para o backend.
+
+import { BoardControls } from "./BoardControls";
+import { descricaoVisual } from "../exercises/pedagogia";
+import { useEffect, useState } from "react";
+import type { ExerciseAction, ExerciseGoal, ExerciseSquare } from "../types";
+import type { ExerciseVisual } from "../exercises/visual";
+import { Chessboard } from "react-chessboard";
+import { PECAS_DO_TABULEIRO } from "../pixel/pecas";
+import { TILE_GRAMA, TILE_PEDRA, fundoDoTile } from "../pixel/tiles";
+import { destinosLegais, ladoDaPeca, situacao, tentarLance, vezDe } from "../lances";
+
+// Posição mostrada no lugar da partida (demonstração): sem mexer peças, com o último lance
+// destacado.
+export interface Exibicao {
+  fen: string;
+  de: string | null;
+  para: string | null;
+}
+
+interface BaseProps {
+  hideControls?: boolean;
+  fen: string;
+  ocupado: boolean;
+  podeDesfazer: boolean;
+  onLance: (fen: string) => void;
+  onDesfazer: () => void;
+  onReiniciar: () => void;
+  onAnalisar: () => void;
+}
+
+export interface ExerciseBoardState {
+  fen: string;
+  goal: ExerciseGoal;
+  concluido: boolean;
+  visual?: ExerciseVisual;
+  preview?: Exibicao | null;
+  onTentativa: (action: ExerciseAction) => void;
+}
+export type BoardModeProps = (
+  | { modo?: "normal"; exibicao?: Exibicao | null; exercicio?: never }
+  | { modo: "demonstration"; exibicao: Exibicao; exercicio?: never }
+  | { modo: "exercise"; exercicio: ExerciseBoardState; exibicao?: never }
+);
+
+export type BoardProps = BaseProps & BoardModeProps;
+
+function ehCasa(square: string): square is ExerciseSquare {
+  return /^[a-h][1-8]$/.test(square);
+}
+
+const CASA_BASE = { backgroundSize: "100% 100%", imageRendering: "pixelated" as const };
+const CASA_CLARA = { ...CASA_BASE, backgroundImage: fundoDoTile(TILE_GRAMA) };
+const CASA_ESCURA = { ...CASA_BASE, backgroundImage: fundoDoTile(TILE_PEDRA) };
+
+// Sem animação para quem pede movimento reduzido no sistema.
+const MOVIMENTO_REDUZIDO =
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+export function Board(props: BoardProps) {
+  const { fen, ocupado, podeDesfazer, onLance, onDesfazer, onReiniciar, onAnalisar } = props;
+  // exibicao sem modo mantém compatibilidade com consumidores existentes.
+  const modo = props.modo ?? (props.exibicao ? "demonstration" : "normal");
+  const exibicao = modo === "demonstration" ? props.exibicao : null;
+  const exercicio = props.modo === "exercise" ? props.exercicio : null;
+  const fenExibido = exercicio?.preview?.fen ?? exercicio?.fen ?? exibicao?.fen ?? fen;
+  const emDemo = modo === "demonstration";
+  const emExercicio = modo === "exercise";
+  const bloqueado = ocupado || emDemo || Boolean(exercicio && (
+    exercicio.concluido || exercicio.preview || exercicio.goal.type === "answer_position_question"));
+  const controlesBloqueados = ocupado || modo !== "normal";
+  const [selecionada, setSelecionada] = useState<string | null>(null);
+  useEffect(() => setSelecionada(null), [fenExibido, modo]);
+  const destinos = selecionada ? destinosLegais(fenExibido, selecionada) : [];
+
+  function jogar(de: string, para: string): boolean {
+    setSelecionada(null);
+    if (bloqueado) return false;
+    if (exercicio) {
+      if (ehCasa(de) && ehCasa(para) && de !== para && ladoDaPeca(fenExibido, de)) {
+        exercicio.onTentativa({ type: "move", source: de, destination: para });
+      }
+      // Não move de forma otimista: só resulting_fen pode alterar a posição exibida.
+      return false;
+    }
+    const novo = tentarLance(fen, de, para);
+    if (!novo) return false;
+    onLance(novo);
+    return true;
+  }
+
+  function tocar(casa: string) {
+    if (exercicio) {
+      if (!ehCasa(casa)) return;
+      if (selecionada) {
+        if (selecionada === casa) setSelecionada(null);
+        else jogar(selecionada, casa); // Mesmo fora dos destinos sugeridos pelo chess.js.
+      } else if (ladoDaPeca(fenExibido, casa)) setSelecionada(casa);
+      return;
+    }
+    if (selecionada && destinos.includes(casa)) {
+      jogar(selecionada, casa);
+    } else if (ladoDaPeca(fen, casa) === vezDe(fen)) {
+      setSelecionada(casa === selecionada ? null : casa);
+    } else {
+      setSelecionada(null);
+    }
+  }
+
+  // Destaques sem apagar o ladrilho: só uma borda interna.
+  const estilos: Record<string, React.CSSProperties> = {};
+  if (exibicao) {
+    if (exibicao.de) estilos[exibicao.de] = { boxShadow: "inset 0 0 0 4px var(--azul-magnus-escuro)" };
+    if (exibicao.para) estilos[exibicao.para] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
+  } else {
+    if (selecionada) estilos[selecionada] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
+    for (const casa of destinos) estilos[casa] = { boxShadow: "inset 0 0 0 4px rgba(255,255,255,0.75)" };
+  }
+
+  if (exercicio?.visual) {
+    const visual = exercicio.visual;
+    for (const casa of visual.highlightedSquares) {
+      estilos[casa] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
+    }
+    for (const casa of visual.targetSquares) estilos[casa] = { boxShadow: "inset 0 0 0 4px var(--fogo-hans)" };
+    if (visual.sourceSquare) estilos[visual.sourceSquare] = { boxShadow: "inset 0 0 0 4px var(--azul-magnus-escuro)" };
+    if (visual.attackerSquare) estilos[visual.attackerSquare] = { boxShadow: "inset 0 0 0 6px var(--azul-magnus-escuro)" };
+    if (visual.mateSquare) estilos[visual.mateSquare] = { boxShadow: "inset 0 0 0 5px var(--perigo)" };
+    if (visual.destinationSquare) estilos[visual.destinationSquare] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
+    for (const casa of visual.blockedSquares ?? []) estilos[casa] = { outline: "3px dashed var(--perigo)", outlineOffset: "-5px" };
+    for (const casa of visual.dangerSquares ?? []) estilos[casa] = { ...estilos[casa], boxShadow: "inset 0 0 0 4px var(--perigo)" };
+  }
+
+  if (exercicio?.preview) {
+    if (exercicio.preview.de) estilos[exercicio.preview.de] = { boxShadow: "inset 0 0 0 4px var(--azul-magnus-escuro)" };
+    if (exercicio.preview.para) estilos[exercicio.preview.para] = { boxShadow: "inset 0 0 0 4px var(--ouro)" };
+  }
+
+  return (
+    <section aria-label="Tabuleiro" className="board-stage flex flex-col gap-4">
+      <div className={"board-context board-context--" + modo} aria-label="Contexto do tabuleiro">
+        <span className="font-pixel">{emExercicio ? "EXERCÍCIO" : emDemo ? "DEMONSTRAÇÃO" : "PARTIDA"}</span>
+        <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : "Explore uma posição"}</span>
+      </div>
+      <p className="text-center font-pixel text-[0.6rem] leading-relaxed" aria-live="polite">
+        {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : situacao(fen)}
+      </p>
+      <div className="moldura-tabuleiro mx-auto w-full max-w-[640px]">
+        <Chessboard
+          options={{
+            position: fenExibido,
+            pieces: PECAS_DO_TABULEIRO,
+            showAnimations: !MOVIMENTO_REDUZIDO,
+            animationDurationInMs: 400,
+            lightSquareStyle: CASA_CLARA,
+            darkSquareStyle: CASA_ESCURA,
+            squareStyles: estilos,
+            allowDragging: !bloqueado,
+            onPieceDrop: ({ sourceSquare, targetSquare }) =>
+              !bloqueado && targetSquare ? jogar(sourceSquare, targetSquare) : false,
+            onSquareClick: ({ square }) => !bloqueado && tocar(square),
+          }}
+        />
+      </div>
+
+      {exercicio?.visual && <div aria-label="Destaques do exercício" className="text-center text-xs" aria-live="polite">
+        {descricaoVisual(exercicio.visual).map((text) => <p key={text}>{text}</p>)}
+        {exercicio.preview && <p>Prévia da refutação: {exercicio.preview.de ?? "posição inicial"}{exercicio.preview.para ? ` → ${exercicio.preview.para}` : ""}. Volte ao exercício para tentar novamente.</p>}
+      </div>}
+      {!props.hideControls && <BoardControls ocupado={controlesBloqueados} podeDesfazer={podeDesfazer}
+        onAnalisar={onAnalisar} onDesfazer={onDesfazer} onReiniciar={onReiniciar} />}
+    </section>
+  );
+}
+
