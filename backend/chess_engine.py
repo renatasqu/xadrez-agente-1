@@ -307,7 +307,7 @@ class Candidate:
 _CANDIDATE_SLOTS = BoundedSemaphore(2)
 
 
-def gerar_candidatos(board: chess.Board, *, tempo: float, nodes: int, quantidade: int) -> list[Candidate]:
+def gerar_candidatos(board: chess.Board, *, tempo: float, nodes: int, quantidade: int, somente_nodes: bool = False) -> list[Candidate]:
     """MultiPV estruturada; score do lado a jogar, PV legal até 8 plies."""
     if not math.isfinite(tempo) or not 0 < tempo <= 1 or type(nodes) is not int or not 1 <= nodes <= 50000 or type(quantidade) is not int or not 1 <= quantidade <= 5:
         raise ValueError('Orçamento de candidatos inválido')
@@ -319,7 +319,9 @@ def gerar_candidatos(board: chess.Board, *, tempo: float, nodes: int, quantidade
         motor = abrir_motor()
         try:
             motor.timeout = 5.0
-            infos = motor.analyse(board.copy(stack=True), chess.engine.Limit(time=tempo, nodes=nodes),
+            if somente_nodes:
+                motor.configure({'Threads': 1, 'Hash': 16})
+            infos = motor.analyse(board.copy(stack=True), chess.engine.Limit(time=None if somente_nodes else tempo, nodes=nodes),
                                   multipv=min(quantidade, board.legal_moves.count()))
             candidates = []
             seen = set()

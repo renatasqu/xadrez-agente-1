@@ -1481,3 +1481,64 @@ Pendências: enriquecimento LLM opcional, comentários por seleção de replay, 
 Criação/duas cores/agente/retry/promoção/terminal/reload/retomada/listagem/idempotência/SAN/PGN round-trip/replay/revisão Stockfish/propriedade/perfis genéricos seguem cobertos pela regressão executada. Round-trip inspirado confirmou nome seguro, PersonaId/PersonaVersion e FEN final; genéricos/posições alternativas permanecem na suíte. As completas finais foram executadas sequencialmente; focadas podem ter coincidido com trabalho local de QA. Nenhum timeout frontend observado nesta etapa, sem relaxar prazos/excluir casos. Nenhuma regressão identificada nos checks realizados; não se certifica ausência de flutuações futuras.
 
 LLM para jogar: NÃO. LLM para persona: NÃO. LLM necessário para estes fluxos: NÃO; tutor documental continua dependente dos provedores/corpus como antes. A suíte offline ainda usa recursos locais/corpus/modelo cacheado anteriores e Stockfish; 60 casos LLM excluídos deliberadamente. Sem upgrade, dados reais, commit/deploy ou etapa11.
+
+## Adendo — benchmark e telemetria de decisão, etapa 11 (05/10/2026)
+
+Início com `git status --short` vazio. Baseline270 frontend/37 arquivos e959 backend/60 LLM excluídos; Stockfish19. Conferidos perfis/policy/personas, engine/Game, histórico/revisão, contratos/interface e testes anteriores. Não havia trace nem benchmark de diferenciação. Heurísticas já usavam qualidade antes de estilo, CP side_to_move e mate separado. Pesos, perfis v1, personas e cadeia Stockfish→MultiPV→janela→policy→UCI→validação→Game foram preservados.
+
+### Implementação e limites
+
+`agent_policy.py` extrai StyleFeatures frozen das fórmulas existentes, sem novos pesos: check/capture, desenvolvimento de cavalo/bispo da fileira inicial, destino central (não influência global), peças adversárias atacadas geometricamente pela peça movida, defesa/exposição da casa de destino, peão dobrado, roque e capturas +2×xeques do próprio lado na PV. DecisionTrace/CandidateTrace frozen incluem candidatos/ranks/score/PV, features/pontuação/eligible, perfil/versão/dificuldade/estilo, motivo, melhor score encontrado, perda CP e classe de mate. Engine-best usa hierarquia mate vencedor mais rápido, maior CP seguro, mate perdedor mais distante; empates por rank/UCI. Assim ranks inconsistentes em fixtures não invertem perda CP nem escondem mate. A escolha continua exatamente pelo seletor anterior, sem reordenar sua entrada.
+
+`trace_move` é opt-in interno, usa gerador/budget/seletor existentes e mantém bypass de motor para lance único. Game chama choose_move como antes, não persiste trace nem expõe metadados técnicos. Benchmark compara policies isoladas, não cria partidas. Persona não é feature, não recebe Board/trace nem decide lance.
+
+`chess_engine.gerar_candidatos` ganha opção interna `somente_nodes=False`; produção continua time+nodes. Só benchmark ativa node-only e configura Threads1/Hash16 MiB, usando o mesmo serviço/processos, MultiPV/PV/perspectiva/fechamento/semáforo e timeout5s. Sem novo engine/policy, pool, endpoint, RNG ou banco. Benchmark é sequencial; node-only não garante prazo total rígido incluindo bootstrap/finalização. Limites globais/multiworker permanecem anteriores.
+
+Dataset versionado em benchmarks/positions.py: **16 entradas/15 categorias/15 FENs distintos**. Todas synthetic/project-test com ID/FEN/categoria/descrição/origem, sem scraping/PGN externo/jogador atribuído. Captura e controle de qualidade reutilizam o mesmo FEN e contam duas vezes; relatórios não representam distribuição natural de partidas. Categorias listadas no README. FENs ativos/validade/lance único conferidos. Não há histórico de repetição nessas posições isoladas.
+
+Comando offline em backend:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m benchmarks.agent_styles --json /tmp/stage11-final-benchmark.json
+```
+
+Saída compacta por perfil, features, classes de mate, divergências entre os28 pares e diagnóstico controlado com candidatos advanced comuns; JSON opcional contém traces/metadata completa. Resultados grandes ficam em /tmp, não versionados. Cada dificuldade busca uma vez por FEN e compartilha candidatos; budgets4000/15000/50000, candidatos5/4/4, janela150/75/25. O cenário controlado altera somente configuração efêmera da comparação, não definições v1 nem Game. Melhor candidato é referência MultiPV limitada, não análise absoluta de qualidade/erro do jogador.
+
+### Resultados reais
+
+Stockfish19, perfis v1, **45 chamadas de busca/46 processos incluindo handshake**, máximo simultâneo1 do benchmark, **10,59s** final. Execução anterior após corrigir o caso de mate perdido:11,99s; traces completos idênticos entre ambas. Duração varia; reprodução entre versões/plataformas não garantida. Antes disso, uma rodada exploratória12,39s tinha o caso losing_mate incorretamente descrito como mate vencedor; fixture substituída por rei preto com duas defesas ambas mate-2. Resultados finais usam a fixture corrigida.
+
+| Perfil | Posições | Rank 1 | Rank médio | Perda CP média / mediana / máxima | Divergência vs balanced |
+| --- | --- | --- | --- | --- | --- |
+| training_beginner | 16 | 8 | 1.50 | 5.00 / 2 / 15 | 6 |
+| balanced | 16 | 16 | 1.00 | 0.00 / 0 / 0 | 0 |
+| aggressive | 16 | 11 | 1.56 | 3.09 / 0 / 16 | 5 |
+| positional | 16 | 11 | 1.44 | 3.27 / 0 / 14 | 5 |
+| tactical | 16 | 15 | 1.12 | 0.73 / 0 / 8 | 3 |
+| magnus_inspired | 16 | 11 | 1.44 | 3.27 / 0 / 14 | 5 |
+| hans_inspired | 16 | 12 | 1.38 | 2.73 / 0 / 9 | 5 |
+| judit_inspired | 16 | 15 | 1.12 | 0.73 / 0 / 8 | 3 |
+
+CP:11 amostras por perfil; nenhum valor mate na média. Rank1 inclui o lance único convencionado rank1, sem score do motor. Em cada perfil:3 mates vencedores preservados,1 mate perdedor inevitável no conjunto analisado,1 lance único sem score inventado. Zero mates vencedores mais lentos/perdidos; classificações adversas testadas com candidatos controlados. Qualidade máxima de16CP intermediate,14CP advanced e15CP beginner, dentro das janelas. Controle de dama grátis escolheu c3d5 em todos os perfis, sem perder qualidade para estilo. Não é comprovação de força monotônica/Elo.
+
+Com candidatos advanced compartilhados,8 posições tinham>1 elegível; divergências aggressive4,positional5,tactical1; pontuações empatadas em2/2/4 dessas8. Oito posições tiveram apenas um elegível, incluindo o lance único; entre as oito com alternativas está o caso de dois mates perdedores com mesma distância. Oportunidades elegíveis e pontuação empatada limitam o diagnóstico: tactical não diverge em7/8, mas contabiliza21 ações forçantes ponderadas versus20 balanced e há provas controladas de preferência tática. Não há evidência suficiente para retunar pesos. Capturas4/5/3/5, desenvolvimento2/1/5/1, destino central5/8/5/6 no controle balanced/aggressive/positional/tactical. Roque0 para todos, portanto segurança global/roque não confirmados por este recorte. Métricas geométricas não comprovam ganho forçado.
+
+Perfis inspirados: Magnus inspirado vs positional0/16, Judit inspirado vs tactical0/16; Hans inspirado vs aggressive1/16 (advanced vs intermediate). Mesmo conjunto/configuração de estilo, não comparação com jogadores. **Calibrações realizadas: NENHUMA**, por diferenciação observada/ausência de violações e amostra pequena. Este benchmark testa implementação, diferenciação interna, qualidade relativa e invariantes; não fidelidade histórica, personalidade, semelhança estatística nem Elo.
+
+### Testes e execução funcional
+
+Novo test_decision_trace.py:47 casos, sinais CP de ambas cores, referencia/rank/count, frozen, perda não negativa/janela, mate vencedor/perdedor/mais lento/perdido, únicos em todos os perfis, features de diferenciação com FakeCandidates, mesma seleção/budget sem/com trace, Board/Game preservados, ausência de trace/benchmark na API, isolamento de persona/banco, dataset/proveniência/aggregate e quatro posições UCI reais (inicial/mate branco/mate preto/mate perdido), MultiPV/scores/fechamento. Regressão existente preserva produção, Game/ownership/personas/PGN/revisão/exercícios.
+
+Primeira focada:100 aprovados/1 falha de inspeção de teste, porque _IncludedRouter não possui path na versão FastAPI local. Assertion passou a examinar paths do OpenAPI; sem mudança de endpoint. Comandos iniciais em diretório incorreto não iniciaram benchmark/pytest, corrigidos para backend. Não houve alteração de timeouts, exclusão ou relaxamento de assertions. Focada final nova:47 aprovados,2,77s. Backend completo antes dos últimos2 casos:1004/60,55,36s; final abaixo. Frontend não alterado e não teve timeout.
+
+**Chrome realmente usado: SIM**, local headless/CDP, perfil isolado /tmp, conta stage11 sintética, auth/progresso TemporaryDirectory. Skill Browser aplicada; bootstrap iab indisponível, troubleshooting conferido antes do fallback autorizado pelo pedido. Servidores/Chrome localhost fora da restrição de bind permitidos pela revisão automática; nenhuma dependência instalada. API com chaves vazias/aquecimento desligado/health QA sem corpus; Stockfish real.
+
+Balanced/brancas: e4 e5 Nf3 Nf6, revisão4/turno humano/comentário Nf6. Hans inspirado/pretas: abertura IA e4, e5 d4 Nf6 dxe5, revisão5/persona initiative v1/captura comentada. Reload real restaurou sessão; abrir área IA listou Games sem criar automaticamente; mesma Game retomada com5 lances/persona. Clique e4 mostrou replay1/5, peças aria-disabled=true; exportação PGN recebida em textarea com sequência/resultado*/nome seguro/PersonaId e Version. A ação existente de exportação foi executada; diretório de downloads não foi inspecionado. Captura1280×1000 aberta e inspecionada; sem validação visual extensa/mobile/TLS/acessibilidade completa. Bancos exclusivamente temporários, servidores/Chrome encerrados, zero diretórios de banco restantes e perfil Chrome removido.
+
+### Checks finais e arquivos
+
+Frontend `cd frontend && npm test`: **270 aprovados/37 arquivos,40,42s**; `npm run build`: aprovado (tsc noEmit+Vite), JS433,17kB/gzip134,46 e CSS84,65/gzip25,54. Backend em backend, mesmas variáveis offline, `../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra`: **1006 aprovados/60 LLM não selecionados,nenhum skip/falha,53,43s** (+47). Completas sequenciais. Corpus/cache local anterior usado por parte da regressão offline; sem reingestão/FIDE/LLM real/pago/.env/upgrade/dado real lido ou alterado.
+
+Oito arquivos: backend/agent_policy.py (features/trace), chess_engine.py (opção nodes-only); novos benchmarks/__init__.py, positions.py, agent_styles.py; novo tests/test_decision_trace.py; README.md e PROJECT_AUDIT.md. Frontend/Game/auth/progresso/perfis/personas/histórico/RAG/assets preservados. Revisão de diffs/novos arquivos, git diff --check e status realizada.
+
+Pendências: dataset maior/balanceado/independente, casos de roque/segurança/negativosCP adicionais, calibração estatística, variações entre binários/versões, análise causal de cada feature, acervos/grandes históricos/coordenação global e demais achados anteriores. FEN duplicado documentado, amostra não representa partidas reais; equivalência de estilos em alguns casos não é bug por si só. Sem commit/deploy ou etapa12.

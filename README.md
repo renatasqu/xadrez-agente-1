@@ -430,3 +430,40 @@ Autorização/anti-enumeração/no-store/SQL parametrizado/idempotência/retry/l
 Validação real em Chrome headless isolado, com conta/bancos temporários e Stockfish real: catálogo5+3; Magnus/brancas dois turnos e comentário analítico; Hans/pretas abre automaticamente e dois turnos com comentário direto; Judit/brancas dois turnos, reload/retomada mesma identidade/persona; replay e exportação com nome inspirado seguro; manual/tutor disponíveis sem enviar pergunta. Captura desktop1280×1000 inspecionada. O navegador integrado estava indisponível; Chrome local foi utilizado. Bancos/perfil/servidores temporários encerrados/removidos; nenhum dado real ou API paga utilizado. Resultados finais e limites estão no adendo da auditoria.
 
 Resultados finais da etapa10: **270 frontend/37 arquivos**, build/typecheck aprovado; **959 backend aprovados/60 LLM não selecionados**, nenhum skip/falha (+10/+39). Nenhum timeout frontend observado, sem alterar prazos. Genéricos, duas cores, retry/promoção/terminal, continuidade/idempotência, SAN/PGN round-trip/replay/revisão/propriedade preservados na regressão. Handshake final confirmou **Stockfish19**; diff check aprovado,16 arquivos revisados. LLM não usado nem necessário para jogo/persona; tutor documental mantém dependências anteriores. Sem commit/deploy ou etapa11.
+
+## Benchmark offline de estilos — etapa 11
+
+Em `backend`, com a venv existente e Stockfish local:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m benchmarks.agent_styles
+```
+
+Opcional: acrescente `--json /tmp/agent-styles.json` para traces estruturados. O comando não usa rede/LLM, não cria Game nem acessa banco e não tem endpoint público. Mede implementação, diferenciação interna, qualidade relativa aos candidatos e invariantes; não mede Elo, fidelidade histórica, personalidade ou semelhança estatística com jogadores reais.
+
+Dataset v1: 16 entradas, 15 categorias e 15 FENs distintos, criados no projeto (`synthetic/project-test`), com ID/FEN/categoria/descrição/origem em `backend/benchmarks/positions.py`. A oportunidade de captura da dama também é usada como controle de qualidade; sua repetição pondera esse caso duas vezes. Categorias: abertura/desenvolvimento, centro, fechada, aberta, ataque ao rei, captura, xeque, tática, posicional, alternativas aproximadamente equivalentes, final, lance único, mate vencedor (duas cores), qualidade e mate perdido. A descrição de alternativas é intenção do caso; elegibilidade é medida pelo motor.
+
+`DecisionTrace` interno/frozen registra perfil/versão/dificuldade/estilo, candidato escolhido e melhor avaliação encontrada, ranks/scores/PVs, elegibilidade, features/pontuação de estilo, motivo de seleção, perda CP e classificação de mate. Não é persistido nem exposto na API. `trace_move` reutiliza gerador e seletor de produção; as decisões sem/com trace são testadas com os mesmos candidatos. Persona não participa.
+
+Perspectiva `side_to_move`: CP positivo favorece quem decide, também quando são pretas. Perda CP = melhor CP dos candidatos válidos menos CP escolhido, não negativa. Mate não recebe CP fictício: há categorias de mate vencedor preservado/mais lento/perdido, mate perdedor e lance único sem avaliação. A política mantém o mate vencedor mais curto encontrado e adia o mate perdedor quando todos os candidatos perdem. Isso não garante encontrar todos os mates fora do horizonte.
+
+O benchmark usa **somente nós**, Threads=1/Hash=16 MiB e processo novo por busca. Reutiliza os limites internos de candidatos, semáforo, timeout de protocolo e fechamento; partidas mantêm tempo E nós. Os três budgets v1 conservam 4000/15000/50000 nós, 5/4/4 candidatos e janelas 150/75/25 CP. Cada dificuldade gera candidatos uma vez por posição, compartilhados pelos perfis correspondentes. Outra comparação fixa todos os estilos no mesmo orçamento/janela advanced, separando estilo e dificuldade. Não há RNG; reproduzir resultados numéricos requer mesma versão/binário/opções do motor e bibliotecas. Busca limitada em produção pode variar.
+
+Execução local Stockfish **19**: **16 posições × 8 perfis**, 45 buscas + 1 handshake, sequencial, **10,59 s**. Repetição produziu traces idênticos nesta máquina; duração anterior 11,99 s. Não é garantia entre versões/plataformas. Todos os selecionados eram legais/elegíveis e respeitaram as janelas; cada perfil preservou três mates vencedores, uma posição de mate perdedor e um lance único. Médias CP abaixo usam somente 11 casos CP por perfil. Rank 1 inclui o lance único, convencionado como rank 1 sem avaliação do motor.
+
+| Perfil | Posições | Rank 1 | Rank médio | Perda CP média / mediana / máxima | Divergência vs balanced |
+| --- | --- | --- | --- | --- | --- |
+| training_beginner | 16 | 8 | 1.50 | 5.00 / 2 / 15 | 6 |
+| balanced | 16 | 16 | 1.00 | 0.00 / 0 / 0 | 0 |
+| aggressive | 16 | 11 | 1.56 | 3.09 / 0 / 16 | 5 |
+| positional | 16 | 11 | 1.44 | 3.27 / 0 / 14 | 5 |
+| tactical | 16 | 15 | 1.12 | 0.73 / 0 / 8 | 3 |
+| magnus_inspired | 16 | 11 | 1.44 | 3.27 / 0 / 14 | 5 |
+| hans_inspired | 16 | 12 | 1.38 | 2.73 / 0 / 9 | 5 |
+| judit_inspired | 16 | 15 | 1.12 | 0.73 / 0 / 8 | 3 |
+
+Com candidatos advanced iguais: aggressive/positional/tactical diferiram do balanced em **4/5/1** posições; oito tinham alternativas elegíveis. Houve empate de pontuação de estilo em **2/2/4** dessas oito. No mesmo conjunto, balanced/aggressive/positional/tactical escolheram **4/5/3/5 capturas**, **2/1/5/1 desenvolvimentos**, **5/8/5/6 destinos centrais** e **20/16/16/21 ações forçantes próprias ponderadas na PV**. São contagens definidas, não percentuais de agressividade. Nenhum roque foi escolhido: este recorte não valida preferência por roque ou segurança global do rei. Defesa/exposição são somente ataques geométricos à casa de destino.
+
+**Calibração: NENHUMA.** Há diferenciação observada e nenhuma violação de janela/mate. A divergência tática pequena exige amostra maior antes de alterar pesos. Magnus/Judit inspirados coincidiram com positional/tactical nos mesmos budgets; Hans inspirado difere de aggressive em uma posição pelo orçamento advanced/intermediate. Comparação exclusivamente interna.
+
+Regressão final etapa 11: **270 frontend/37 arquivos**, build/typecheck aprovado; **1006 backend aprovados/60 LLM não selecionados**, nenhum skip/falha. Chrome headless isolado confirmou duas cores/dois turnos, reload/retomada, persona, replay e PGN; sem conta/banco real. Detalhes e limites no adendo da auditoria. Sem commit/deploy ou etapa 12.
