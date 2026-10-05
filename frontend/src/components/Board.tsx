@@ -22,6 +22,8 @@ export interface Exibicao {
 
 interface BaseProps {
   hideControls?: boolean;
+  onMoveIntent?: (uci: string) => void;
+  orientation?: "white" | "black";
   estadoTexto?: string;
   terminado?: boolean;
   contextContainer?: HTMLElement | null;
@@ -99,6 +101,7 @@ export function Board(props: BoardProps) {
     if (candidatos.some(m => m.promotion)) { setPromocao({ de, para, fen }); return false; }
     const novo = tentarLance(fen, de, para);
     if (!novo) return false;
+    if (props.onMoveIntent) { props.onMoveIntent(de + para); return false; }
     onLance(novo);
     return true;
   }
@@ -160,7 +163,7 @@ export function Board(props: BoardProps) {
   const context = <>
       <div className={"board-context board-context--" + modo} aria-label="Contexto do tabuleiro">
         <span className="font-pixel">{emExercicio ? "EXERCÍCIO" : emDemo ? "DEMONSTRAÇÃO" : "PARTIDA"}</span>
-        <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : "Explore uma posição"}</span>
+        <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : props.onMoveIntent ? "Você contra a IA" : "Explore uma posição"}</span>
       </div>
       <p className="text-center font-pixel text-[0.6rem] leading-relaxed" aria-live="polite">
         {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : props.estadoTexto ?? situacao(fen)}
@@ -176,7 +179,7 @@ export function Board(props: BoardProps) {
           onClick={() => {
             if (!bloqueado && promocao.fen === fen) {
               const novo = tentarLance(fen, promocao.de, promocao.para, peca);
-              if (novo) onLance(novo);
+              if (novo) { if (props.onMoveIntent) props.onMoveIntent(promocao.de + promocao.para + peca); else onLance(novo); }
             }
             setPromocao(null);
           }}>{["Dama", "Torre", "Bispo", "Cavalo"][i]}</button>)}
@@ -186,6 +189,7 @@ export function Board(props: BoardProps) {
         <Chessboard
           options={{
             position: fenExibido,
+            boardOrientation: props.orientation ?? "white",
             pieces: PECAS_DO_TABULEIRO,
             showAnimations: !MOVIMENTO_REDUZIDO,
             animationDurationInMs: 400,

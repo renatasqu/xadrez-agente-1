@@ -1,5 +1,6 @@
 // Arena da partida; tutor e lições acessíveis sob demanda.
 
+import { AiGame } from "./components/AiGame";
 import { createPortal } from "react-dom";
 import { useMatchLayout } from "./match/useMatchLayout";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -49,8 +50,11 @@ function pageFromHash(): AppPage {
 }
 
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
+  const [aiMode, setAiMode] = useState(false);
+  const [aiVisited, setAiVisited] = useState(false);
+  const [aiFen, setAiFen] = useState<string | null>(null);
   const [page, setPage] = useState<AppPage>(pageFromHash);
-  const { layoutRef, mobile } = useMatchLayout(page === "match");
+  const { layoutRef, mobile } = useMatchLayout(page === "match" && !aiMode);
   const [desktopTutorHost, setDesktopTutorHost] = useState<HTMLDivElement | null>(null);
   const [desktopLessonsHost, setDesktopLessonsHost] = useState<HTMLDivElement | null>(null);
   const [mobileAccessHost, setMobileAccessHost] = useState<HTMLDivElement | null>(null);
@@ -87,10 +91,10 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [tocando, setTocando] = useState(false);
   const passos = demo ? passosDaDemo(demo.fen_inicial, demo.lances) : [];
   useEffect(() => {
-    if (historico.length < 2 || matchPaused || selectedPosition !== null || exercicio.exercise || esperando || demo || estado.ended) return;
+    if (aiMode || historico.length < 2 || matchPaused || selectedPosition !== null || exercicio.exercise || esperando || demo || estado.ended) return;
     const timer = setInterval(() => setActivity(value => ({ ...value, [matchSide]: value[matchSide] + 1 })), 1000);
     return () => clearInterval(timer);
-  }, [historico.length, matchPaused, selectedPosition, exercicio.exercise, esperando, matchSide, demo, fen]);
+  }, [aiMode, historico.length, matchPaused, selectedPosition, exercicio.exercise, esperando, matchSide, demo, fen]);
 
   useEffect(() => {
     if (!historyPlaying || selectedPosition === null || exercicio.exercise || demo) return;
@@ -111,6 +115,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   }, [tocando, passo, passos.length, exercicio.exercise]);
 
   function abrirExercicio(id: string) {
+    setAiMode(false);
     setModal(null);
     exerciseId.current = id;
     setSelectedPosition(null); setHistoryPlaying(false);
@@ -123,6 +128,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   }
 
   function verNoTabuleiro(nova: Demonstracao) {
+    setAiMode(false);
     setModal(null);
     fecharExercicio();
     setSelectedPosition(null); setHistoryPlaying(false);
@@ -191,13 +197,13 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       executar("recomendar", () => api.recomendar(texto), (r) => mostrarResposta(r));
       return;
     }
-    adicionar({ tipo: "pergunta", texto: anexarPosicao ? `${texto}\n(posição: ${fen})` : texto });
-    executar("chat", () => api.perguntar(texto, anexarPosicao ? fen : undefined), (r) => mostrarResposta(r));
+    adicionar({ tipo: "pergunta", texto: anexarPosicao ? `${texto}\n(posição: ${aiMode ? aiFen ?? fen : fen})` : texto });
+    executar("chat", () => api.perguntar(texto, anexarPosicao ? (aiMode ? aiFen ?? undefined : fen) : undefined), (r) => mostrarResposta(r));
   }
 
   function analisar() {
     adicionar({ tipo: "pergunta", texto: "Analise esta posição." });
-    executar("analise", () => api.analisar(fen), (r) => {
+    executar("analise", () => api.analisar(aiMode ? aiFen ?? fen : fen), (r) => {
       setAnalyses(value => ({ ...value, [matchSide]: { fen, resposta: r } }));
       mostrarResposta(r);
     });
@@ -286,7 +292,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             <StatusSaude />
           </div>
         </header>
-        <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match"}>
+        {page === "match" && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(value => !value); }}>{aiMode ? "Voltar à partida manual" : "Jogar contra IA"}</button></div>}
+        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} />}</div>
+        <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
             <div className="desktop-tutor-slot" ref={setDesktopTutorHost} />

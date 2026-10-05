@@ -1,0 +1,281 @@
+"""Partidas persistentes autoritativas. Policies escolhem candidatos; o servidor revalida e persiste."""
+import json
+import logging
+import sqlite3
+import uuid
+from contextlib import closing
+from datetime import datetime, timezone
+from typing import Literal, Protocol
+from collections.abc import Awaitable, Callable
+
+import chess
+from fastapi import APIRouter, Depends, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+
+from auth import require_user
+from chess_engine import reconstruir_partida, estado_tabuleiro
+import progresso
+
+log = logging.getLogger(__name__)
+Color = Literal['white', 'black']
+GameStatus = Literal['playing', 'check', 'checkmate', 'stalemate', 'insufficient_material', 'repetition', 'fifty_move', 'draw']
+
+
+class CreateGame(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    human_color: Color = 'white'
+
+
+class HumanMove(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    move: str = Field(min_length=4, max_length=5)
+    version: StrictInt = Field(ge=0)
+    client_move_id: uuid.UUID
+
+
+class Opponent(BaseModel):
+    type: Literal['ai'] = 'ai'
+    agent_id: str = 'stockfish'
+
+
+class Game(BaseModel):
+    id: str
+    initial_fen: str
+    current_fen: str
+    moves: list[str]
+    human_color: Color
+    side_to_move: Color
+    status: GameStatus
+    winner: Color | None
+    terminal: bool
+    awaiting_agent: bool
+    opponent: Opponent
+    created_at: str
+    updated_at: str
+    version: int
+    human_move: str | None = None
+    agent_move: str | None = None
+    agent_status: Literal['not_requested', 'pending', 'moved', 'error', 'superseded'] = 'not_requested'
+    error: str | None = None
+
+
+class AgentPolicy(Protocol):
+    """Recebe cópia oficial; o servidor sempre revalida o candidato."""
+    def choose_move(self, board: chess.Board, legal_moves: tuple[str, ...], config: Opponent) -> str: ...
+
+
+class GameError(Exception):
+    def __init__(self, code: str, message: str, status: int):
+        self.code, self.message, self.status = code, message, status
+
+
+def error_response(code: str, message: str, status: int) -> JSONResponse:
+    return JSONResponse({'code': code, 'message': message}, status_code=status,
+                        headers={'Cache-Control': 'no-store'})
+
+
+class GameRoute(APIRoute):
+    def get_route_handler(self) -> Callable[[Request], Awaitable[Response]]:
+        original = super().get_route_handler()
+
+        async def handle(request: Request) -> Response:
+            try:
+                response = await original(request)
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+            except GameError as error:
+                return error_response(error.code, error.message, error.status)
+            except RequestValidationError:
+                return error_response('invalid_request', 'Confira os campos da requisição.', 422)
+            except HTTPException as error:
+                code = 'unauthenticated' if error.status_code == 401 else 'forbidden'
+                return error_response(code, 'Sessão ausente ou expirada.' if error.status_code == 401 else 'Requisição não autorizada.', error.status_code)
+            except sqlite3.OperationalError:
+                return error_response('storage_unavailable', 'Armazenamento temporariamente indisponível.', 503)
+            except Exception as error:
+                log.error('game_error: %s', type(error).__name__)
+                return error_response('internal_error', 'Não foi possível processar a partida.', 500)
+        return handle
+
+
+def criar_tabelas() -> None:
+    """Migração aditiva/idempotente no SQLite já utilizado pelo progresso."""
+    with closing(progresso._conectar()) as db, db:
+        db.execute('''CREATE TABLE IF NOT EXISTS games (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, initial_fen TEXT NOT NULL,
+            moves_json TEXT NOT NULL, human_color TEXT NOT NULL CHECK(human_color IN ('white','black')),
+            agent_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            version INTEGER NOT NULL DEFAULT 0 CHECK(version >= 0))''')
+        db.execute('''CREATE TABLE IF NOT EXISTS game_move_requests (
+            game_id TEXT NOT NULL REFERENCES games(id), request_id TEXT NOT NULL,
+            move TEXT NOT NULL, expected_version INTEGER NOT NULL, response_json TEXT NOT NULL,
+            PRIMARY KEY(game_id, request_id))''')
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec='microseconds')
+
+
+def game_from_row(row: sqlite3.Row) -> Game:
+    moves = json.loads(row['moves_json'])
+    state = estado_tabuleiro(reconstruir_partida(row['initial_fen'], moves))
+    return Game(id=row['id'], initial_fen=row['initial_fen'], current_fen=state['fen'], moves=moves,
+                human_color=row['human_color'], side_to_move=state['turn'], status=state['status'],
+                winner=state['winner'], terminal=state['ended'],
+                awaiting_agent=not state['ended'] and state['turn'] != row['human_color'],
+                opponent=Opponent(agent_id=row['agent_id']), created_at=row['created_at'],
+                updated_at=row['updated_at'], version=row['version'])
+
+
+def owned_row(db: sqlite3.Connection, game_id: str, owner: str) -> sqlite3.Row:
+    db.row_factory = sqlite3.Row
+    row = db.execute('SELECT * FROM games WHERE id = ? AND owner = ?', (game_id, owner)).fetchone()
+    if row is None:
+        # Mesmo erro para ID inexistente ou de outra conta; evita enumeração.
+        raise GameError('game_not_found', 'Partida não encontrada.', 404)
+    return row
+
+
+def create_game(owner: str, human_color: Color, *, initial_fen: str = chess.STARTING_FEN) -> Game:
+    """FEN inicial é configuração interna; a API pública sempre cria posição padrão."""
+    reconstruir_partida(initial_fen, [])
+    game_id, timestamp = str(uuid.uuid4()), now()
+    with closing(progresso._conectar()) as db, db:
+        db.execute('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)',
+                   (game_id, owner, initial_fen, '[]', human_color, 'stockfish', timestamp, timestamp))
+        return game_from_row(owned_row(db, game_id, owner))
+
+
+def get_game(game_id: str, owner: str) -> Game:
+    with closing(progresso._conectar()) as db:
+        return game_from_row(owned_row(db, game_id, owner))
+
+
+def submit_human_move(game_id: str, owner: str, request: HumanMove) -> Game:
+    with closing(progresso._conectar()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        row = owned_row(db, game_id, owner)
+        key = str(request.client_move_id)
+        previous = db.execute('SELECT * FROM game_move_requests WHERE game_id = ? AND request_id = ?', (game_id, key)).fetchone()
+        if previous:
+            if previous['move'] != request.move or previous['expected_version'] != request.version:
+                raise GameError('duplicate_request', 'Chave de requisição reutilizada com dados diferentes.', 409)
+            return Game.model_validate_json(previous['response_json'])
+        game = game_from_row(row)
+        if request.version != game.version:
+            raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+        if game.terminal:
+            raise GameError('game_finished', 'A partida já terminou.', 409)
+        if game.awaiting_agent:
+            raise GameError('not_human_turn', 'A partida aguarda o agente.', 409)
+        try:
+            reconstruir_partida(game.initial_fen, [*game.moves, request.move])
+        except ValueError:
+            raise GameError('invalid_move', 'Movimento ilegal na partida.', 422) from None
+        updated = db.execute('UPDATE games SET moves_json = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?',
+                   (json.dumps([*game.moves, request.move]), now(), game_id, game.version))
+        if updated.rowcount != 1:
+            raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+        result = game_from_row(owned_row(db, game_id, owner))
+        result.human_move = request.move
+        result.agent_status = 'pending' if result.awaiting_agent else 'not_requested'
+        db.execute('INSERT INTO game_move_requests VALUES (?, ?, ?, ?, ?)',
+                   (game_id, key, request.move, request.version, result.model_dump_json()))
+        return result
+
+
+def get_policy() -> AgentPolicy:
+    from agent_policy import StockfishPolicy
+    return StockfishPolicy()
+
+
+def execute_agent(snapshot: Game, owner: str, policy: AgentPolicy) -> Game:
+    """Calcule fora de qualquer conexão SQLite; CAS protege a aplicação posterior."""
+    if snapshot.terminal:
+        raise GameError('game_finished', 'A partida já terminou.', 409)
+    if not snapshot.awaiting_agent:
+        raise GameError('agent_not_expected', 'Agora é o turno humano.', 409)
+    try:
+        board = reconstruir_partida(snapshot.initial_fen, snapshot.moves)
+        legal = tuple(move.uci() for move in board.legal_moves)
+        candidate = policy.choose_move(board.copy(stack=True), legal, snapshot.opponent)
+        # A policy pode alterar sua cópia. Sempre valide contra uma reconstrução nova.
+        try:
+            reconstruir_partida(snapshot.initial_fen, [*snapshot.moves, candidate])
+        except (ValueError, TypeError, AttributeError):
+            raise GameError('invalid_agent_move', 'O agente retornou um movimento inválido.', 503) from None
+    except Exception as error:
+        code = 'invalid_agent_move' if isinstance(error, GameError) and error.code == 'invalid_agent_move' else 'agent_timeout' if isinstance(error, TimeoutError) else 'agent_unavailable'
+        try:
+            current = get_game(snapshot.id, owner)
+        except sqlite3.OperationalError:
+            current = snapshot
+        if current.version != snapshot.version:
+            return current.model_copy(update=dict(human_move=snapshot.human_move, agent_status='superseded'))
+        return current.model_copy(update=dict(human_move=snapshot.human_move, agent_status='error', error=code))
+    with closing(progresso._conectar()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        current = game_from_row(owned_row(db, snapshot.id, owner))
+        if current.version != snapshot.version or current.terminal or not current.awaiting_agent:
+            return current.model_copy(update=dict(human_move=snapshot.human_move,
+                agent_move=current.moves[-1] if current.version == snapshot.version + 1 else None,
+                agent_status='moved' if current.version == snapshot.version + 1 else 'superseded'))
+        # Revalidação no estado recarregado, sob a revisão esperada.
+        reconstruir_partida(current.initial_fen, [*current.moves, candidate])
+        updated = db.execute('UPDATE games SET moves_json = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?',
+                            (json.dumps([*current.moves, candidate]), now(), current.id, current.version))
+        if updated.rowcount != 1:
+            raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+        return game_from_row(owned_row(db, current.id, owner)).model_copy(update=dict(
+            human_move=snapshot.human_move, agent_move=candidate, agent_status='moved'))
+
+
+class AgentMoveRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    version: StrictInt = Field(ge=0)
+
+
+router = APIRouter(prefix='/games', tags=['games'], route_class=GameRoute)
+
+
+@router.post('', response_model=Game, status_code=201)
+def create(data: CreateGame, user: dict = Depends(require_user), policy: AgentPolicy = Depends(get_policy)) -> Game:
+    game = create_game(user['email'], data.human_color)
+    return execute_agent(game, user['email'], policy) if game.awaiting_agent else game
+
+
+@router.get('/{game_id}', response_model=Game)
+def read(game_id: str, user: dict = Depends(require_user)) -> Game:
+    return get_game(game_id, user['email'])
+
+
+@router.post('/{game_id}/moves', response_model=Game)
+def move(game_id: str, data: HumanMove, user: dict = Depends(require_user), policy: AgentPolicy = Depends(get_policy)) -> Game:
+    result = submit_human_move(game_id, user['email'], data)
+    if result.agent_status != 'pending':
+        return result
+    result = execute_agent(result, user['email'], policy)
+    with closing(progresso._conectar()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        stored = db.execute('SELECT response_json FROM game_move_requests WHERE game_id=? AND request_id=?',
+                            (game_id, str(data.client_move_id))).fetchone()
+        acknowledgement = Game.model_validate_json(stored[0])
+        if acknowledgement.agent_status != 'pending':
+            return acknowledgement
+        db.execute('UPDATE game_move_requests SET response_json = ? WHERE game_id = ? AND request_id = ?',
+                   (result.model_dump_json(), game_id, str(data.client_move_id)))
+    return result
+
+
+@router.post('/{game_id}/agent-move', response_model=Game)
+def agent_move(game_id: str, data: AgentMoveRequest, user: dict = Depends(require_user),
+               policy: AgentPolicy = Depends(get_policy)) -> Game:
+    snapshot = get_game(game_id, user['email'])
+    if snapshot.version != data.version:
+        raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+    return execute_agent(snapshot, user['email'], policy)

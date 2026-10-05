@@ -270,3 +270,19 @@ def lances_legais(fen_inicial: str, movimentos: list[str] | None = None) -> list
 
 def aplicar_na_partida(fen_inicial: str, movimentos: list[str], uci: str) -> dict:
     return estado_tabuleiro(reconstruir_partida(fen_inicial, [*movimentos, uci]))
+
+
+def escolher_lance(board: chess.Board, tempo: float | None = None) -> str:
+    """Decisão UCI com histórico completo, prazo do protocolo e processo próprio."""
+    segundos = settings.stockfish_tempo if tempo is None else tempo
+    if not math.isfinite(segundos) or segundos <= 0 or segundos > 10:
+        raise ValueError('Tempo de decisão deve estar entre zero e dez segundos')
+    motor = abrir_motor()
+    try:
+        motor.timeout = 5.0
+        result = motor.play(board.copy(stack=True), chess.engine.Limit(time=segundos))
+        if result.move is None:
+            raise ErroDoMotor('Motor não retornou candidato')
+        return result.move.uci()
+    finally:
+        fechar_motor(motor)

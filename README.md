@@ -4,7 +4,7 @@
 
 Aplicação de aprendizagem de xadrez em português, com tabuleiro interativo, tutor baseado em documentos, análise de posições com Stockfish, lições e exercícios curados. A interface usa pixel art e chama os lados brancos e pretos de **Magnus** e **Hans**.
 
-**Hoje, a pessoa movimenta os dois lados do tabuleiro.** Magnus e Hans não são jogadores autônomos: seus painéis exibem análises solicitadas pelo usuário. Os papéis de linguagem realmente implementados no backend são Árbitro, Professor, Estrategista, Analista e Roteador.
+**No modo manual, a pessoa movimenta os dois lados; em “Jogar contra IA”, enfrenta um adversário Stockfish funcional.** Magnus e Hans continuam sendo nomes visuais, sem personalidades próprias: seus painéis exibem análises solicitadas pelo usuário. Os papéis de linguagem realmente implementados no backend são Árbitro, Professor, Estrategista, Analista e Roteador.
 
 Projeto originado na atividade acadêmica “Recuperando documentos úteis para aprender um esporte”. Esta descrição foi conferida no código em **05/10/2026**. O mapa técnico, evidências, limites de verificação e recomendações estão em [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
@@ -70,13 +70,14 @@ FastAPI em Python, com contratos Pydantic, LangGraph para roteamento, LangChain 
 | Tutor/análise | `POST /chat`, `POST /recomendar`, `POST /analisar` |
 | Lições/progresso | `POST /licao/proxima`, `GET /licao/atual`, `GET /progresso/exercicios` |
 | Exercícios | `GET /exercises/{exercise_id}`, `POST /exercises/{exercise_id}/validate`, `POST /exercises/{exercise_id}/hint` |
+| Partidas persistentes | `POST /games`, `GET /games/{game_id}`, `POST /games/{game_id}/moves`, `POST /games/{game_id}/agent-move` |
 | Documentos | `GET /documentos/{nome}`, `GET /documentos/{nome}/contexto` |
 | Administração | `POST /ingest`, protegido por `X-Admin-Token`, desativado sem token configurado |
 | Documentação automática | `/docs`, `/redoc`, `/openapi.json` |
 
-Persistência local: SQLite para contas/sessões, progresso/cache de lições e cache de ratings; ChromaDB em disco para documentos. Não existe backend de partidas, comentários ou likes.
+Persistência local: SQLite para contas/sessões, progresso/cache de lições, partidas e cache de ratings; ChromaDB em disco para documentos. Partidas contra IA usam Game persistente e API autoritativa, com StockfishPolicy e integração visual. Comentários e likes não têm backend.
 
-**Etapa 2: autorização no backend.** Tutor, recomendações, análise, lições, progresso, exercícios e documentos exigem sessão válida. Health, autenticação, documentação FastAPI e Masters permanecem públicos; `/ingest` exige o segredo administrativo independente. O UUID de progresso é verificado contra a conta autenticada. CORS e limites por IP não substituem autorização.
+**Etapa 2: autorização no backend.** Tutor, recomendações, análise, lições, progresso, exercícios e documentos exigem sessão válida. Health, autenticação, documentação FastAPI e Masters permanecem públicos; `/ingest` exige o segredo administrativo independente. A etapa 5 também exige sessão e proprietário nas rotas de Game. O UUID de progresso é verificado contra a conta autenticada. CORS e limites por IP não substituem autorização.
 
 O cookie `xadrez_session` usa `Path=/`, HttpOnly, SameSite=lax, validade de sete dias e Secure configurável por `AUTH_COOKIE_SECURE`. Logout revoga a sessão SQLite e remove cookies nos paths atual e legado (`/auth`). Cookies antigos exigem novo login para acessar rotas privadas.
 
@@ -90,7 +91,7 @@ A ferramenta exige conta provisionada, recusa substituir proprietário e selecio
 
 ## Inteligência artificial e xadrez
 
-- **Stockfish/python-chess:** serviço reutilizável em `backend/chess_engine.py` valida FEN, calcula avaliação/melhor lance/PV e valida/aplica candidatos UCI, sem importar LLM, RAG ou embeddings. Não executa jogadas automaticamente na partida.
+- **Stockfish/python-chess:** serviço reutilizável em `backend/chess_engine.py` valida FEN, calcula avaliação/melhor lance/PV e valida/aplica candidatos UCI, sem importar LLM, RAG ou embeddings. StockfishPolicy também usa esse serviço para escolher lances do adversário, revalidados pelo servidor.
 - **LLM:** classifica perguntas, escreve explicações e verifica fundamentação. `backend/llm.py` suporta Anthropic, OpenAI ou Ollama. Os nomes configurados são descritos abaixo como valores do código, sem garantia de disponibilidade no provedor.
 - **RAG real:** PDFs/TXTs são limpos, divididos em trechos de até 800 caracteres com sobreposição de 100, vetorizados com `intfloat/multilingual-e5-base` e armazenados em três coleções ChromaDB. A busca expande termos de xadrez português/inglês e filtra por similaridade.
 - **Referências curadas:** definições básicas reconhecidas usam resumos FIDE de `regras_curadas.py`, sem busca vetorial; a redação da resposta no chat ainda usa LLM.
@@ -110,7 +111,7 @@ Sem chave, falha de provedor/modelo/juiz ou timeout do provedor: análise preser
 
 Cada análise não terminal abre processo UCI próprio e executa quit/close em finally. O motor já está fechado antes da explicação. Threads não são interrompidas pelo timeout HTTP; trabalho de linguagem pode continuar até seu limite próprio. Uma falha durante aquecimento de embeddings agora é registrada e permite iniciar a API; consultas que dependem do corpus ainda podem falhar. Inicialização demorada/travada do aquecimento não foi resolvida.
 
-FEN isolado não preserva repetição; scores de busca limitada por tempo podem variar entre execuções. Não há MultiPV, policy, loop ou endpoints de partida contra IA. Uma etapa futura poderá usar `analisar_posicao` → candidato UCI → `movimento_legal` → `aplicar_movimento`, com propriedade da partida na camada de aplicação.
+FEN isolado não preserva repetição; scores de busca limitada por tempo podem variar entre execuções. Não há MultiPV, implementação de policy ou loop de adversário. A etapa 5 acrescenta endpoints de partida, descritos abaixo. Uma etapa futura poderá usar `analisar_posicao` → candidato UCI → `movimento_legal` → `aplicar_movimento`, com propriedade da partida na camada de aplicação.
 
 ## Fontes externas e APIs
 
@@ -139,7 +140,7 @@ Os links preservam as fontes documentadas; sua disponibilidade e a autenticidade
 
 ## Como executar localmente
 
-Use Python 3.11 e Node 24 para os comandos abaixo. O Vite instalado aceita Node `^20.19.0 || >=22.12.0`, mas o Vitest instalado exige `^22.12.0 || ^24.0.0 || >=26.0.0`; o script de prévia também executa TypeScript diretamente com Node. Instale Stockfish separadamente e configure um provedor de linguagem.
+Use Python 3.11 e Node 24 para os comandos abaixo. O Vite instalado aceita Node `^20.19.0 || >=22.12.0`, mas o Vitest instalado exige `^22.12.0 || ^24.0.0 || >=26.0.0`; o script de prévia também executa TypeScript diretamente com Node. Instale Stockfish separadamente para jogar contra IA; configure um provedor de linguagem para tutor/explicações.
 
 Na raiz:
 
@@ -276,7 +277,7 @@ frontend/
 
 O núcleo interativo e os fluxos pedagógicos estão implementados e possuem cobertura automatizada. Há integração real de engine, recuperação documental e provedores de linguagem no código, mas a operação completa depende do ambiente e dos serviços configurados.
 
-Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, armazenamento de partidas/chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. A etapa 3 preserva fatos de análise diante de falhas LLM/RAG. Permanecem pendentes limites de taxa/concorrência dos exercícios, cancelamento de threads, regras de empate/promoção e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, listagem/retomada de partidas pela UI, armazenamento de chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. A etapa 3 preserva fatos de análise diante de falhas LLM/RAG. Permanecem pendentes limites de taxa/concorrência dos exercícios, cancelamento de threads e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
 ## Licença e créditos
 
@@ -289,3 +290,41 @@ A partida manual reconstrói o histórico legal completo em chess.js 1.4.0; os F
 Promoção na arena aguarda escolha de dama, torre, bispo ou cavalo; cancelar/Escape preserva a posição. Demonstrações e exercícios mantêm seus contratos próprios. O contexto da arena agora apresenta avisos de estado.
 
 No backend, `reconstruir_partida`, `estado_tabuleiro`, `estado_posicao`, `lances_legais` e `aplicar_na_partida` são primitivas locais sem persistência. Histórico UCI é revalidado e não aceita continuação após o fim. As funções anteriores de posição/análise seguem recebendo FEN isolado: não confirmam repetição. Nenhum endpoint de partida ou adversário IA foi criado. Uma futura entidade Game deverá guardar identidade/proprietário, FEN inicial, movimentos, estado atual e datas; sessão/propriedade devem ser verificadas pela aplicação.
+
+### Game persistente e API autoritativa — etapa 5
+
+`backend/games.py` usa o mesmo arquivo `DB_PROGRESSO`, com migração aditiva/idempotente de `games` e `game_move_requests` no lifespan. Nenhum dado existente é apagado. A fonte de verdade é `initial_fen` + lista ordenada de movimentos UCI. FEN atual, SAN quando necessário, turno, status, vencedor e terminal são derivados por python-chess, reutilizando as regras da etapa 4. Não se armazena uma lista de FENs como histórico oficial. Cada operação abre/fecha sua conexão SQLite.
+
+Game guarda UUID v4, proprietário derivado do e-mail normalizado da sessão, FEN inicial, movimentos, cor humana, agent_id reservado `stockfish`, timestamps UTC e revisão. A resposta não expõe proprietário: inclui `id`, `initial_fen`, `current_fen`, `moves`, `human_color`, `side_to_move`, `status`, `winner`, `terminal`, `awaiting_agent`, `opponent`, datas e `version`. `opponent.type=ai` é fixo neste modelo.
+
+| Método | Endpoint | Contrato |
+| --- | --- | --- |
+| POST | `/games` | `{ "human_color": "white" }` ou `black`; 201, posição inicial padrão, sem movimento automático |
+| GET | `/games/{game_id}` | Estado privado reconstruído; 200 |
+| POST | `/games/{game_id}/moves` | `{ "move": "e2e4", "version": 0, "client_move_id": "UUID" }`; 200 com estado atualizado |
+
+Todas exigem sessão. ID inexistente ou de outra conta retorna o mesmo `404 game_not_found`. Campos extras como proprietário/FEN são recusados (422). Movimento ilegal: `422 invalid_move`; revisão antiga: `409 stale_game_version`; fim: `409 game_finished`; turno do agente: `409 not_human_turn`; chave reutilizada com payload diferente: `409 duplicate_request`. Erros usam `{code,message}`, sem detalhes internos; respostas têm `Cache-Control: no-store`.
+
+`BEGIN IMMEDIATE`, revisão condicional e gravação da resposta de idempotência na mesma transação impedem estados concorrentes incompatíveis. O cliente deve conservar `client_move_id` **e o mesmo payload** para retry da mesma intenção. Retry aceito devolve a resposta original, mesmo com revisão antiga; para o estado mais recente use GET. Intenção nova precisa de nova chave. Rejeições não gravam chave nem mudam Game. SQL é parametrizado. O lock de escrita é compartilhado com operações de progresso no mesmo arquivo; não há coordenação distribuída.
+
+Depois do lance humano, `awaiting_agent=true` significa apenas que o adversário deverá jogar. Humano de pretas começa nessa condição com histórico vazio. **O agente ainda não faz movimentos**: não há chamada automática Stockfish/LLM, bot aleatório ou policy implementada. O pequeno `AgentPolicy` recebe tabuleiro reconstruído, movimentos legais e configuração, retornando um candidato UCI para revalidação futura pelo servidor. A etapa 6 deverá implementar execução/revalidação/persistência do agente.
+
+Frontend acrescenta somente `api.createGame`, `api.getGame`, `api.submitHumanMove` e tipos/erro operacional; reutiliza credenciais e evento de 401 existentes. A arena manual continua independente. Não existem listagem/reset de Games, PGN, multiplayer, matchmaking ou ranking.
+
+Validação da etapa 5 (05/10/2026): frontend **220 testes em 34 arquivos**, build/typecheck aprovado; backend offline **774 aprovados / 60 LLM não selecionados**, nenhum skip/falha. Baseline anterior: 215 frontend / 726 backend. Novos testes de Game usam bancos temporários, sessões reais e concorrência de conexões; nenhuma chamada real de agente/LLM foi feita. `git diff --check` aprovado. Resultados detalhados no adendo da auditoria.
+
+### Adversário funcional — etapa 6
+
+Na área da partida, selecione **Jogar contra IA**, escolha **Seu lado** e clique **Iniciar partida contra IA**. Brancas fazem o primeiro lance; para humano de pretas, a IA joga antes de a criação retornar. Mova por clique/arraste e escolha dama, torre, bispo ou cavalo ao promover. O tabuleiro espera o estado oficial após cada intenção, mostra xeque/resultado, bloqueia entrada durante espera e permite **Nova partida contra IA**. **Voltar à partida manual** conserva a arena pedagógica e seu histórico. Tutor continua acessível; posições anexadas usam a Game enquanto o modo IA está ativo. Demonstração/prática retornam à arena manual. A partida contra IA exibe histórico UCI; replay/desfazer permanecem exclusivos do modo manual.
+
+Game guarda estado oficial e proprietário; Agent é a identidade/configuração do adversário; Policy escolhe um candidato; Engine é a ferramenta de cálculo. O identificador legado `stockfish` permanece por compatibilidade, mas `AgentPolicy` e `Opponent` separam identidade e mecanismo. A policy concreta atual é StockfishPolicy, sem personalidade/níveis. Ela recebe cópia do tabuleiro com histórico completo, lista legal e configuração; chama `chess_engine.escolher_lance` e não escreve no banco. O servidor reconstrói/revalida o candidato antes de persistir.
+
+POST /games e POST /games/{id}/moves agora executam o turno da IA quando necessário. A resposta Game recebe campos aditivos `human_move`, `agent_move`, `agent_status` e `error`. Rejeição do humano continua erro HTTP tipado. Depois de um lance humano aceito, falha do agente retorna 200 com Game preservada, `agent_status=error`, `awaiting_agent=true` e código `agent_unavailable`, `agent_timeout` ou `invalid_agent_move`, sem movimento inventado. GET retorna estado oficial sem metadados da última operação.
+
+**POST /games/{id}/agent-move**, com somente `{version}`, retoma um turno pendente; exige sessão/proprietário, revisão atual, partida ativa e turno do agente. Não aceita lance do cliente. A UI oferece **Tentar novamente o turno da IA**. Falhas de transporte recarregam a Game e preservam a intenção/chave para confirmação segura. Retry do mesmo lance humano conserva a resposta original, inclusive quando a IA falhou: retomada usa a rota própria.
+
+Transação curta persiste o humano e a chave; cálculo ocorre sem conexão/lock SQLite aberto; nova transação recarrega a revisão, revalida e aplica o agente via atualização condicional. Execuções concorrentes podem calcular mais de um candidato, mas persistem no máximo um lance para a revisão. Candidato obsoleto é descartado e retorna estado atual. A resposta final da intenção é gravada de forma coordenada; crash antes disso deixa o acknowledgement intermediário recuperável, sem duplicação de lance. Não há fila, lock distribuído, cancelamento de requests nem limitação global de processos nesta etapa.
+
+Stockfish usa descoberta/configuração existentes. Decisão usa STOCKFISH_TEMPO (padrão 1 s, intervalo positivo até 10 s), timeout de protocolo de 5 s somado ao limite de busca, inicialização UCI existente e quit/close em finally. Não requer chave de linguagem, RAG ou embeddings; para iniciar sem aquecimento documental, use AQUECER_NA_INICIALIZACAO=false. Não há fallback aleatório, PGN, multiplayer, personalidades ou níveis. Listagem/retomada após reload pela interface, limites globais de custo/concorrência e retenção de Games/chaves continuam pendentes. As seções das etapas 4/5 acima são registros históricos superados neste escopo pela etapa 6.
+
+Validação final da etapa 6 (05/10/2026): **234 testes frontend em 35 arquivos**, build/typecheck aprovado; **819 backend não-LLM aprovados / 60 LLM não selecionados**, nenhum skip/falha (baseline 220/774). Testes incluem policies defeituosas, concorrência/idempotência, promoções, terminais, sequência completa até mate com policy controlada e movimentos reais Stockfish. Script funcional adicional executou duas respostas reais da IA para cada cor com contas/bancos temporários, removidos ao terminar. Handshake confirmou Stockfish 19 e fechamento. Sem LLM pago, FIDE, ingestão, banco real alterado ou navegador integrado. Houve dois timeouts intermediários frontend; rodada focada e completa final passaram sem relaxar limites. Detalhes no adendo da auditoria. `git diff --check` aprovado; nenhuma etapa 7 iniciada.

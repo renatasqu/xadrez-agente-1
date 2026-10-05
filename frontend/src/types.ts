@@ -188,3 +188,32 @@ export interface HintRequest {
   current_hint_level: 0 | 1 | 2 | 3;
 }
 export interface HintResponse { next_hint: ExerciseHint | null }
+
+// Partidas contra IA: servidor é autoridade; modo manual permanece independente.
+export type GameColor = "white" | "black";
+export interface Game {
+  id: string;
+  initial_fen: string;
+  current_fen: string;
+  moves: string[]; // UCI canônico, em ordem
+  human_color: GameColor;
+  side_to_move: GameColor;
+  status: "playing" | "check" | "checkmate" | "stalemate" | "insufficient_material" | "repetition" | "fifty_move" | "draw";
+  winner: GameColor | null;
+  terminal: boolean;
+  awaiting_agent: boolean;
+  opponent: { type: "ai"; agent_id: string };
+  created_at: string;
+  updated_at: string;
+  version: number;
+  human_move?: string | null;
+  agent_move?: string | null;
+  agent_status?: "not_requested" | "pending" | "moved" | "error" | "superseded";
+  error?: string | null;
+}
+export interface HumanMoveRequest {
+  move: string;
+  version: number;
+  client_move_id: string; // UUID estável para retry da mesma intenção
+}
+export interface GameError { code: string; message: string }

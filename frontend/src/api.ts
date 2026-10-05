@@ -1,5 +1,5 @@
 import { sessionExpired } from "./auth/sessionEvents";
-import type { HintRequest, HintResponse } from "./types";
+import type { Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
 // Rotas legadas e progresso usam Resposta nos erros. /exercises usa code/message.
@@ -49,7 +49,11 @@ function erroOperacional(mensagem: string, status: number, exercicio: boolean): 
     : new ErroDaApi(mensagem, status);
 }
 
-async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = false): Promise<T> {
+export class ErroDePartida extends Error {
+  constructor(readonly erro: GameError, readonly status: number) { super(erro.message); }
+}
+
+async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = false, partida = false): Promise<T> {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_MAXIMO_MS);
   let resposta: Response;
@@ -61,7 +65,9 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
       signal: controle.signal,
     });
   } catch {
-    throw erroOperacional(controle.signal.aborted ? MSG_TEMPO_ESGOTADO : MSG_SEM_SERVIDOR, 0, exercicio);
+    const message = controle.signal.aborted ? MSG_TEMPO_ESGOTADO : MSG_SEM_SERVIDOR;
+    if (partida) throw new ErroDePartida({ code: "transport_error", message }, 0);
+    throw erroOperacional(message, 0, exercicio);
   } finally {
     clearTimeout(relogio);
   }
@@ -74,6 +80,12 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
     // corpo vazio ou que não é JSON: tratado abaixo
   }
   if (!resposta.ok) {
+    if (partida) {
+      const erro = corpo as Partial<GameError> | null;
+      throw new ErroDePartida(typeof erro?.code === "string" && typeof erro?.message === "string"
+        ? { code: erro.code, message: erro.message }
+        : { code: "internal_error", message: `Erro ${resposta.status} no servidor. Tente de novo.` }, resposta.status);
+    }
     if (exercicio && ehErroDeExercicio(corpo)) throw new ErroDeExercicio(corpo, resposta.status);
     if (!exercicio && ehResposta(corpo)) throw new ErroDaApi(corpo.resposta, resposta.status, corpo);
     throw erroOperacional(`Erro ${resposta.status} no servidor. Tente de novo.`, resposta.status, exercicio);
@@ -91,6 +103,12 @@ export interface MastersRatings {
 }
 
 export const api = {
+  createGame: (human_color: GameColor) => chamar<Game>("/games", post({ human_color }), false, true),
+  getGame: (id: string) => chamar<Game>(`/games/${encodeURIComponent(id)}`, {}, false, true),
+  submitHumanMove: (id: string, payload: HumanMoveRequest) =>
+    chamar<Game>(`/games/${encodeURIComponent(id)}/moves`, post(payload), false, true),
+  resumeAgent: (id: string, version: number) =>
+    chamar<Game>(`/games/${encodeURIComponent(id)}/agent-move`, post({ version }), false, true),
   mastersRatings: () => chamar<MastersRatings>("/masters/ratings"),
   dicaExercicio: (id: string, payload: HintRequest) =>
     chamar<HintResponse>(`/exercises/${encodeURIComponent(id)}/hint`, post(payload), true),

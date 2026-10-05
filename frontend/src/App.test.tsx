@@ -111,3 +111,32 @@ it("modo Qual documento me ajuda? chama /recomendar e mostra os trechos", async 
   expect(screen.getByText("Castling is a move of the king.").tagName).toBe("MARK");
   expect(chamadas).toContain("/recomendar");
 });
+
+
+it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tutor", async () => {
+  window.location.hash = "partida";
+  const officialFen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2";
+  servidor({ "/health": [200, SAUDE], "/games": [201, {
+    id: "ai-game", initial_fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    current_fen: officialFen, moves: ["e2e4", "e7e5"], human_color: "white", side_to_move: "white",
+    status: "playing", winner: null, terminal: false, awaiting_agent: false, version: 2,
+  }], "/chat": [200, { resposta: "Tutor preservado", fontes: [], agente: "professor", confianca: 0 }] });
+  render(<App />);
+  const arena = document.getElementById("partida")!;
+  fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
+  expect(arena.hidden).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
+  await screen.findByRole("list", { name: "Histórico oficial" });
+  fireEvent.click(screen.getByRole("button", { name: "Abrir tutor" }));
+  fireEvent.click(screen.getByLabelText("Anexar posição do tabuleiro"));
+  fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Explique a posição" } });
+  fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await screen.findByText("Tutor preservado");
+  const chat = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/chat"));
+  expect(JSON.parse(chat?.[1]?.body as string).fen).toBe(officialFen);
+  fireEvent.keyDown(screen.getByRole("dialog", { name: "SEU TUTOR" }), { key: "Escape" });
+  fireEvent.click(screen.getByRole("button", { name: "Voltar à partida manual" }));
+  expect(document.getElementById("partida")).toBe(arena);
+  expect(arena.hidden).toBe(false);
+  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+});

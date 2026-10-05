@@ -44,6 +44,7 @@ from starlette.exceptions import HTTPException as ErroHttpDoStarlette
 import documentos
 import guardrails
 import progresso
+import games
 import conceitos
 from agents import analista, router
 from agents.licoes import LICOES
@@ -141,6 +142,7 @@ def aquecer() -> None:
 async def lifespan(app: FastAPI):
     """Na subida: tabelas do SQLite e (opcional) embeddings + ChromaDB em memória."""
     progresso.criar_tabelas()
+    games.criar_tabelas()
     if settings.aquecer_na_inicializacao:
         try:
             await run_in_threadpool(aquecer)
@@ -151,6 +153,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
 app.include_router(exercises_router)
+app.include_router(games.router)
 app.include_router(auth_router)
 app.include_router(masters_router)
 app.state.exercise_recorder = progresso.registrar_exercicio
