@@ -90,13 +90,27 @@ A ferramenta exige conta provisionada, recusa substituir proprietário e selecio
 
 ## Inteligência artificial e xadrez
 
-- **Stockfish:** melhor lance e avaliação sob demanda; não executa automaticamente jogadas na partida.
+- **Stockfish/python-chess:** serviço reutilizável em `backend/chess_engine.py` valida FEN, calcula avaliação/melhor lance/PV e valida/aplica candidatos UCI, sem importar LLM, RAG ou embeddings. Não executa jogadas automaticamente na partida.
 - **LLM:** classifica perguntas, escreve explicações e verifica fundamentação. `backend/llm.py` suporta Anthropic, OpenAI ou Ollama. Os nomes configurados são descritos abaixo como valores do código, sem garantia de disponibilidade no provedor.
 - **RAG real:** PDFs/TXTs são limpos, divididos em trechos de até 800 caracteres com sobreposição de 100, vetorizados com `intfloat/multilingual-e5-base` e armazenados em três coleções ChromaDB. A busca expande termos de xadrez português/inglês e filtra por similaridade.
 - **Referências curadas:** definições básicas reconhecidas usam resumos FIDE de `regras_curadas.py`, sem busca vetorial; a redação da resposta no chat ainda usa LLM.
 - **Tutor:** roteador escolhe Árbitro, Professor, Estrategista ou Analista. Fontes vêm do código/busca; o juiz pode recusar a explicação ou reduzir confiança.
 - **Exercícios/dicas:** catálogo fixo e cálculos com `python-chess`. A3 verifica conversão do garfo em até quatro plies; E1 limita segurança material a três plies. Não são análises gerais de partidas.
 - **Magnus/Hans, AlphaZero, Leela e Transformers:** Magnus/Hans são identidades visuais; os demais aparecem em conteúdo informativo. Não existe integração executável com AlphaZero ou Leela.
+
+### Análise independente — etapa 3
+
+`POST /analisar` continua autenticado e mantém texto, fonte Stockfish, demonstração e prática relacionada. Primeiro valida a entrada e calcula os fatos; depois tenta enriquecê-los com contexto documental e linguagem. RAG recupera trechos/conceitos; LLM escreve a explicação e o juiz verifica fundamentação. Falha opcional não elimina fatos, PV ou demonstração já calculados.
+
+O campo aditivo `analise` separa `status` (`available`, `invalid_position`, `engine_error`), `dados`, `explicacao_status` (`available`, `unavailable`, `not_applicable`) e `explicacao_erro`. Erros tratados mantêm o formato HTTP 200 legado com estado explícito; schema inválido continua 422 e ausência de sessão continua 401. Respostas antigas/cache sem esse campo continuam válidos.
+
+`dados` contém FEN, lado a jogar, perspectiva `white`, tipo de avaliação (`centipawn`/`mate` ou null), centipeões/mate, melhor lance e PV em SAN inglês/UCI (até três plies), profundidade se fornecida, status terminal e características locais. **Score positivo favorece brancas e negativo favorece pretas**, mesmo quando pretas jogam. Mate positivo significa brancas dando mate, negativo significa pretas; mate terminal tem valor 0 e vencedor explícito. Afogamento/material insuficiente não recebem score inventado. Posições terminais são identificadas por python-chess sem abrir Stockfish.
+
+Sem chave, falha de provedor/modelo/juiz ou timeout do provedor: análise preservada e explicação indisponível (`llm_error`). Falha de corpus/embedding/recuperação ou ingestão em andamento: fatos preservados, sem referências documentais inventadas (`retrieval_error`). Sem explicação apoiada ou bloqueada pelos guardrails: `explanation_unavailable`. O prazo HTTP é compartilhado entre as duas etapas; expiração enquanto aguarda explicação retorna os fatos com `explanation_timeout`. Falha/ausência do motor é `engine_error`, sem avaliação inventada. Confiança continua se referindo à explicação, não à probabilidade de acerto do motor.
+
+Cada análise não terminal abre processo UCI próprio e executa quit/close em finally. O motor já está fechado antes da explicação. Threads não são interrompidas pelo timeout HTTP; trabalho de linguagem pode continuar até seu limite próprio. Uma falha durante aquecimento de embeddings agora é registrada e permite iniciar a API; consultas que dependem do corpus ainda podem falhar. Inicialização demorada/travada do aquecimento não foi resolvida.
+
+FEN isolado não preserva repetição; scores de busca limitada por tempo podem variar entre execuções. Não há MultiPV, policy, loop ou endpoints de partida contra IA. Uma etapa futura poderá usar `analisar_posicao` → candidato UCI → `movimento_legal` → `aplicar_movimento`, com propriedade da partida na camada de aplicação.
 
 ## Fontes externas e APIs
 
@@ -217,6 +231,8 @@ Há testes de API, autenticação, agentes, guardrails, recuperação/ingestão,
 
 **Etapa 2 (05/10/2026):** frontend **197/197 em 32 arquivos**, build/typecheck aprovado; backend **654 aprovados, 60 LLM não selecionados, nenhum skip/falha** nas mesmas condições offline. Novos testes cobrem sessão real, cookies, rotas públicas/privadas, propriedade, migração aditiva, concorrência da identidade, credentials e reação a 401. Sem chamadas reais/pagas de LLM, refresh FIDE ou navegador integrado.
 
+**Etapa 3 (05/10/2026):** frontend **197/197 em 32 arquivos**, build/typecheck aprovado; backend **711 aprovados, 60 LLM não selecionados, nenhum skip/falha** (baseline 654). Serviço Stockfish 19 independente de linguagem/recuperação, com testes reais e falhas simuladas. Sem chamadas pagas ou adversário IA implementado.
+
 Para reproduzir a rodada local sem LLM/download de modelo, a partir de `backend` com o ambiente ativado:
 
 ```bash
@@ -236,6 +252,7 @@ backend/
   main.py / config.py     Aplicação FastAPI e configurações
   auth.py                 Conta local e sessões
   masters.py              Adaptador FIDE e cache diário
+  chess_engine.py         Serviço independente de engine e legalidade
   agents/                 Roteador, papéis documentais, análise e demonstrações
   exercises/              Catálogo, contratos, validação e dicas
   ingest.py / retrieval.py Embeddings e recuperação ChromaDB
@@ -259,7 +276,7 @@ frontend/
 
 O núcleo interativo e os fluxos pedagógicos estão implementados e possuem cobertura automatizada. Há integração real de engine, recuperação documental e provedores de linguagem no código, mas a operação completa depende do ambiente e dos serviços configurados.
 
-Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, armazenamento de partidas/chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. Permanecem pendentes limites de taxa/concorrência dos exercícios, resiliência LLM/RAG, regras de empate/promoção e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, armazenamento de partidas/chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. A etapa 3 preserva fatos de análise diante de falhas LLM/RAG. Permanecem pendentes limites de taxa/concorrência dos exercícios, cancelamento de threads, regras de empate/promoção e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
 ## Licença e créditos
 

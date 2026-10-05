@@ -29,8 +29,33 @@ export interface Demonstracao {
   descricao: string;
 }
 
+export interface DadosDoMotor {
+  fen: string;
+  lado: "brancas" | "pretas";
+  perspectiva: "white";
+  tipo_avaliacao: "centipawn" | "mate" | null;
+  pontos: number | null;
+  mate: number | null;
+  melhor_lance: string | null; // SAN inglês
+  melhor_lance_uci: string | null;
+  linha: string[]; // até três plies, em SAN inglês
+  linha_uci: string[];
+  profundidade: number | null;
+  status: "ongoing" | "checkmate" | "stalemate" | "insufficient_material";
+  vencedor: "white" | "black" | null; // desambigua mate=0 em posição terminal
+  fim_de_jogo: string | null;
+  caracteristicas: string[];
+}
+export interface EstadoAnalise {
+  status: "available" | "invalid_position" | "engine_error";
+  dados: DadosDoMotor | null;
+  explicacao_status: "available" | "unavailable" | "not_applicable";
+  explicacao_erro: "llm_error" | "retrieval_error" | "explanation_unavailable" | "explanation_timeout" | null;
+}
+
 export interface Resposta {
   resposta: string;
+  analise?: EstadoAnalise | null; // aditivo; respostas antigas continuam válidas
   fontes: Fonte[];
   agente: NomeAgente;
   confianca: number;

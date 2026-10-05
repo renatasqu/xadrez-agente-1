@@ -27,6 +27,7 @@ import logging
 import secrets
 import threading
 import uuid
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -62,6 +63,7 @@ from schemas import (
     RespostaLicao,
     Saude,
     ProgressoExercicio,
+    EstadoAnalise,
 )
 
 log = logging.getLogger(__name__)
@@ -140,7 +142,10 @@ async def lifespan(app: FastAPI):
     """Na subida: tabelas do SQLite e (opcional) embeddings + ChromaDB em memória."""
     progresso.criar_tabelas()
     if settings.aquecer_na_inicializacao:
-        await run_in_threadpool(aquecer)
+        try:
+            await run_in_threadpool(aquecer)
+        except Exception as erro:
+            log.warning("retrieval_error: warmup %s", type(erro).__name__)
     yield
 
 
@@ -260,20 +265,42 @@ async def recomendar(request: Request, entrada: EntradaRecomendacao, llms: LLMs 
     return await executar(router.recomendar, entrada.mensagem, llms.classificador)
 
 
-def analisar_fen(fen: str, llms: LLMs) -> Resposta:
-    """Análise direta de um FEN. Sem texto livre não há o que o classificador checar."""
+def preparar_fen(fen: str) -> tuple[analista.Analise | None, Resposta]:
+    """Guardrails de entrada e etapa enxadrística independente de corpus/linguagem."""
     _, bloqueio = guardrails.validar_entrada(PERGUNTA_ANALISE, fen)
     if bloqueio:
-        return bloqueio
-    resposta = analista.responder(PERGUNTA_ANALISE, fen, llms.agente, llms.juiz)
-    return guardrails.checar_saida(resposta)
+        log.warning("invalid_position")
+        return None, bloqueio.model_copy(update={"analise": EstadoAnalise(status="invalid_position")})
+    return analista.preparar_resposta(PERGUNTA_ANALISE, fen)
 
 
 @app.post("/analisar", response_model=Resposta, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def analisar(request: Request, entrada: EntradaAnalise, llms: LLMs = Depends(obter_llms)) -> Resposta:
-    """Melhor lance e avaliação do Stockfish, explicados pelo Estrategista."""
-    return await executar(analisar_fen, entrada.fen, llms)
+    """Fatos preservados mesmo quando a explicação falha ou excede o orçamento HTTP."""
+    inicio = time.monotonic()
+    try:
+        analise, resposta = await asyncio.wait_for(
+            run_in_threadpool(preparar_fen, entrada.fen), timeout=settings.timeout_requisicao)
+    except asyncio.TimeoutError:
+        log.warning("engine_error: timeout")
+        return analista.erro_engine()
+    if analise is None or analise.fim_de_jogo:
+        return resposta
+    restante = settings.timeout_requisicao - (time.monotonic() - inicio)
+    if restante <= 0:
+        return analista.sem_explicacao(resposta, "explanation_timeout")
+    if ingerindo.is_set():
+        log.warning("retrieval_error: ingest_in_progress")
+        return analista.sem_explicacao(resposta, "retrieval_error")
+    try:
+        enriquecida = await asyncio.wait_for(
+            run_in_threadpool(analista.enriquecer_resposta, analise, resposta,
+                              PERGUNTA_ANALISE, llms.agente, llms.juiz), timeout=restante)
+    except asyncio.TimeoutError:
+        log.warning("explanation_timeout")
+        return analista.sem_explicacao(resposta, "explanation_timeout")
+    return guardrails.checar_saida(enriquecida)
 
 
 @app.get("/progresso/exercicios", response_model=list[ProgressoExercicio], dependencies=[Depends(require_user)])

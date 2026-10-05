@@ -1032,3 +1032,70 @@ A3 continua pendente: validate/hint autenticados ainda não possuem rate limit/t
 Sessões reais dos testes usam contas e SQLite temporários. Testes anteriores de protocolo usam override explícito de require_user; os novos testes de autorização não substituem essa dependência. Cobertura inclui login válido/inválido e rate limit existentes, token forjado/expirado, revogação, cookie Secure/path/HttpOnly/SameSite/max-age, todas as rotas privadas sem sessão, rota privada com sessão válida, públicos/admin, leitura/mutação cruzada, legado preservado, migração repetida, criação concorrente de identidade e redirecionamento frontend sem retry. Nenhuma dependência foi instalada/atualizada, nenhum teste pago ou refresh real FIDE foi executado; corpus/cache/Stockfish locais são usados pela suíte offline como na baseline. Não houve execução integrada em navegador.
 
 Arquivos da etapa 2: `backend/auth.py`, `backend/main.py`, `backend/progresso.py`, `backend/exercises/api.py`, novo `backend/associate_progress.py`; testes `test_authorization.py` (novo), `test_api.py`, `test_backend_v1.py`, `test_documentos.py`, `test_exercises_api.py`, `test_exercises_hints.py`, `test_recomendar.py`; frontend `App.tsx`, `api.ts`, `auth/AuthContext.tsx`, novo `auth/sessionEvents.ts`, `components/ExercisePanel.tsx`; testes `App.test.tsx`, `App.exercises.test.tsx`, `ExperienciaPedagogica.test.tsx`, `api.test.ts`, `auth/AuthGate.test.tsx`, novo `auth/authApi.test.ts`; README e este adendo. MatchArena.test e requirements-constraints continuam com o conteúdo preexistente da etapa 1. Não houve commit ou início da etapa 3.
+
+## Adendo — análise enxadrística independente, etapa 3 (05/10/2026)
+
+O início desta etapa apresentou `git status --short` vazio. O histórico e as implementações das etapas anteriores foram preservados. Este adendo supera A2 para o fluxo `/analisar` e corrige a falha de inicialização descrita em A4 quando o aquecimento lança exceção. Não afirma solucionar inicialização demorada/travada, imports ausentes nem todo timeout do tutor.
+
+### Diagnóstico confirmado antes da extração
+
+`main.analisar_fen` validava entrada com guardrails, chamava `analista.responder` e checava saída; todo esse trabalho compartilhava uma única thread/timeout em `executar`. O Analista validava FEN, detectava finais, abria UCI, calculava `score.white()`, validava até três lances da PV e fechava o processo. Só depois chamava `explicar_lance`, que instanciava LLM antes da busca. Ausência de chave escapava como LLMNaoConfigurado; falha de Chroma/corpus/embedding escapava da busca ou recomendação. Resultados calculados não chegavam à resposta nesses caminhos. Erros SDK de geração eram capturados e retornavam None, sem distinguir indisponibilidade de falta de contexto. Falha do juiz podia conservar explicação parcial. O timeout HTTP podia descartar todos os fatos esperando linguagem, cujo timeout padrão é maior. Os testes existentes cobriam falta de trechos, juiz recusando explicação, UCI real e fechamento após erro, mas não comprovavam resiliência a esses caminhos de configuração/recuperação/prazo.
+
+Menor mudança adotada: extrair a implementação local do motor preservando uma fachada no Analista; produzir uma resposta de fatos antes da explicação; separar as duas etapas no endpoint dentro do prazo existente; acrescentar metadados opcionais ao contrato, sem mudar layout, prompts, provedor, embeddings ou conteúdo documental.
+
+### Responsabilidades e contrato implementados
+
+| Camada | Responsabilidade e limites |
+| --- | --- |
+| `chess_engine.py` / Stockfish + python-chess | FEN/validade, score, melhor lance, PV, status e fatos geométricos locais; validação/aplicação UCI. Sem imports LLM/retrieval/ingest/guardrails/LangChain. |
+| Knowledge/RAG | Busca de contexto nos índices estrategia/fundamentos, fontes reais, conceitos e recomendação de leitura. Falhas são da explicação; perguntas documentais continuam dependentes de corpus. |
+| Language/LLM | Explicação pedagógica estruturada e juiz; fatos enxadrísticos não são escritos nem escolhidos pelo LLM. Guardrails continuam verificando lances declarados, fundamentação e vazamento. |
+
+`chess_engine.Analise` mantém campos usados pelo Analista/testes e acrescenta UCI, profundidade, perspectiva, status e vencedor. `analisar_posicao(fen, tempo)` aceita limite positivo/finito e devolve dados locais. `movimento_legal(fen, uci)` rejeita UCI inválido/ilegal; `aplicar_movimento` revalida no servidor e devolve FEN resultante, incluindo subpromoção explícita. Não há policy, seleção de adversário, pool complexo, persistência ou rota de game. Subpromoção da UI segue pendente.
+
+A PV mantém o contrato de até três plies, SAN inglês em ordem e UCI correspondente; cada movimento é validado na posição resultante do anterior. Sufixo ilegal é descartado. Ausência de primeiro lance legal/score válido é erro do motor; não há lance inventado. Profundidade vem de `info.depth` quando inteiro não negativo, senão null. Não foi implementado MultiPV. “Determinístico” significa fatos calculados sem linguagem generativa: busca limitada por tempo pode fornecer score/PV diferentes entre execuções.
+
+Perspectiva é sempre `white` por `score.white()`: centipeões positivos favorecem brancas, negativos pretas, independentemente do lado a jogar. Mate positivo é das brancas, negativo das pretas. Xeque-mate terminal identificado por python-chess tem mate=0 e vencedor explícito, sem lance/PV; afogamento/material insuficiente não recebem número inventado. FEN não fornece histórico necessário para repetição.
+
+`Resposta.analise` é aditivo/opcional (null em outras respostas/ausente em caches antigos): `status=available|invalid_position|engine_error`, `dados`, `explicacao_status=available|unavailable|not_applicable`, `explicacao_erro=llm_error|retrieval_error|explanation_unavailable|explanation_timeout|null`. Dados incluem FEN, lado, perspectiva/tipo/score, SAN/UCI, profundidade, status/vencedor, características e texto de fim de jogo. Frontend espelha esses tipos e mantém apresentação atual por texto; parsing por regex (M10) continua pendente na UI.
+
+### Fluxo e fallbacks
+
+1. Sessão e rate limit existentes são verificados; autenticação/progresso não foram alterados.
+2. Pydantic/guardrails validam entrada e o serviço valida FEN/posição. Rejeição por FEN continua mensagem legada HTTP 200 com `invalid_position`; erros de schema permanecem 422.
+3. Motor analisa ou python-chess detecta terminal. Prepara dados estruturados, texto, fonte Stockfish, demo e prática, antes de recuperar documentos/criar LLM. Terminal usa resultado local sem fonte Stockfish inventada e `not_applicable` para explicação.
+4. Ausência/falha de UCI/score/PV válida resulta em `engine_error`, sem dados calculados fictícios. Erros tratados mantêm HTTP 200 legado; ausência de sessão permanece 401.
+5. Explicação usa o tempo restante de TIMEOUT_REQUISICAO contado monotonicamente, sem reiniciar um segundo orçamento inteiro. Ingestão em andamento limita só a explicação, não o motor.
+6. Falha de criar modelo/provedor, gerar texto, validar saída malformada ou juiz gera `llm_error`; falha de buscar/documentos/embeddings/recomendação gera `retrieval_error`. Somente fatos, fonte Stockfish, demo e associações ficam preservados, com confiança zero e mensagem explícita de explicação indisponível. Juiz indisponível agora descarta explicação e registra falha; veredito parcial continua avisado/limitado como antes.
+7. Ausência de explicação fundamentada/trechos ou bloqueio pelos guardrails gera `explanation_unavailable`; não finge explicação de IA. Guardrail de linguagem é aplicado antes de agregar fatos, evitando descartar análise por vazamento da explicação.
+8. Timeout durante explicação retorna o snapshot de fatos com `explanation_timeout`; timeout antes de obter fatos resulta em `engine_error`. Falha de aquecimento lança apenas log seguro e permite subir API; disponibilidade de corpus não é presumida.
+
+Logs distinguem invalid_position, engine_error, retrieval_error, llm_error e explanation_timeout; falhas opcionais registram somente classe/camada, não mensagem SDK, perguntas, documentos, chaves, tokens ou stack trace. Cliente recebe códigos/mensagens controladas. Busca documental essencial no tutor não foi convertida em sucesso fictício.
+
+Cada análise não terminal possui processo próprio, sem compartilhar sessões UCI entre threads. `finally` chama quit e close, inclusive após erro; close ocorre mesmo se quit falhar. O motor fecha antes de RAG/LLM. Threads de explicação podem continuar após timeout até os limites de seus serviços; o snapshot retornado não é mutado por enriquecimento tardio. Limites globais/cancelamento de trabalho não foram implementados. Inicialização ainda espera o aquecimento terminar, embora uma exceção já não derrube a API.
+
+### Escopo preservado e pendências
+
+Sem adversário IA, Magnus/Hans autônomos, rotas game/move, policy, PGN, multiplayer, mudança de personalidade/biografias/comentários, upgrades, troca de provedor ou reingestão. `auth.py`, propriedade de progresso, retrieval.py, llm.py e prompts permanecem com o comportamento da etapa anterior. Adversário futuro poderá consumir melhor lance UCI, selecionar candidato por policy futura, revalidar/aplicar movimento e verificar propriedade da partida na aplicação. Isso ainda não é um sistema de jogo.
+
+Permanecem A3, M2/M3/M4/M5/M6/M7/M9/M10/M12 e demais pendências fora da etapa: rate limit dos exercícios, histórico/repetição, promoção na UI, status/textos, cancelamento de threads, ingestão/cache, assets e checagem de todos os lances em texto livre. A confiança continua sendo da explicação; não certifica acerto. Avaliação independente do motor não torna todo tutor/RAG disponível sem corpus/modelo. Não houve verificação integrada em navegador ou dos provedores externos.
+
+### Validação e arquivos desta etapa
+
+Regressão frontend: `cd frontend && npm test` — **197 aprovados em 32 arquivos**, 43,80 s (baseline 197). `cd frontend && npm run build` — **aprovado**, typecheck e Vite; JS 415,89 kB / gzip 129,33 kB, CSS 84,39 kB / gzip 25,48 kB. O único arquivo frontend alterado é a tipagem aditiva; apresentação não foi redesenhada.
+
+Backend foi executado em `backend` com a `.venv` existente:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra
+```
+
+Rodadas intermediárias: 146 testes existentes de análise/API/fluxos aprovados (4,71 s); 53 novos testes de engine/resiliência aprovados (3,64 s); suíte completa com 707 aprovados/60 não selecionados (26,69 s); depois 709 aprovados/60 não selecionados (19,87 s). Dois casos finais de saída de linguagem malformada foram acrescentados após a revisão, exigindo nova execução completa.
+
+Testes novos cobrem legalidade/aplicação UCI (incluindo subpromoção no serviço), replay da PV/SAN, descarte de sufixo ilegal, primeiro lance/score ausentes, perspectiva positiva/negativa de CP/mate para ambos os lados a jogar, profundidade, status terminal, budgets inválidos, falta/erro de modelo/provedor, corpus/embedding/recomendação indisponíveis, juiz/saída malformada, guardrail bloqueando só a explicação, timeout HTTP preservando snapshot, ingestão em andamento, falha de aquecimento e sessão real da API. Teste em subprocesso comprova import/uso do serviço sem camadas de linguagem/recuperação. Novo conjunto UCI real cobre análises concorrentes com processos distintos encerrados, mates para brancas/pretas e endpoint sem LLM/corpus, além dos testes reais anteriores de Stockfish/fechamento após falha. Handshake separado pelo serviço confirmou **Stockfish 19**, encerrado em finally.
+
+Não houve instalação/upgrade, alteração de `.env`, ingestão ou associação de progresso real, refresh FIDE, chamada paga/real a LLM ou teste integrado em navegador. Os 60 testes LLM foram excluídos deliberadamente, como na baseline. Modelos/índices locais continuam recursos necessários para parte da suíte offline. Os erros opcionais foram simulados; isso não comprova disponibilidade atual dos provedores.
+
+Arquivos desta etapa (9): `backend/chess_engine.py` (novo serviço), `backend/agents/analista.py` (fachada/apresentação/enriquecimento), `backend/main.py` (fases/prazo/aquecimento), `backend/schemas.py` (dados/estados aditivos), `frontend/src/types.ts` (espelho do contrato), `backend/tests/test_chess_engine.py` e `backend/tests/test_analysis_resilience.py` (novos testes), README e este adendo. Revisão inclui diff rastreado completo, arquivos novos e whitespace; nenhum commit/deploy foi realizado. ETAPA 4 não iniciada.
+
+Resultado final da execução completa após esses dois casos: **711 aprovados, 60 LLM não selecionados, nenhum skip/falha, 20,39 s** (baseline 654; 57 novos casos). Frontend mantém 197/197 e build aprovado. Não foram identificadas regressões nos checks executados. `git diff --check` aprovado e `git status --short` conferido com os nove arquivos acima, incluindo três novos.

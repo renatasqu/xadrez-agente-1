@@ -40,6 +40,35 @@ class Demonstracao(BaseModel):
     descricao: str
 
 
+class DadosDoMotor(BaseModel):
+    """Fatos calculados; SAN inglês, UCI e score sempre da perspectiva white."""
+
+    fen: str
+    lado: Literal["brancas", "pretas"]
+    perspectiva: Literal["white"] = "white"
+    tipo_avaliacao: Literal["centipawn", "mate"] | None = None
+    pontos: int | None = None
+    mate: int | None = None
+    melhor_lance: str | None = None
+    melhor_lance_uci: str | None = None
+    linha: list[str] = Field(default_factory=list)
+    linha_uci: list[str] = Field(default_factory=list)
+    profundidade: int | None = None
+    status: Literal["ongoing", "checkmate", "stalemate", "insufficient_material"] = "ongoing"
+    vencedor: Literal["white", "black"] | None = None
+    fim_de_jogo: str | None = None
+    caracteristicas: list[str] = Field(default_factory=list)
+
+
+class EstadoAnalise(BaseModel):
+    """Separa disponibilidade enxadrística e da explicação opcional."""
+
+    status: Literal["available", "invalid_position", "engine_error"]
+    dados: DadosDoMotor | None = None
+    explicacao_status: Literal["available", "unavailable", "not_applicable"] = "not_applicable"
+    explicacao_erro: Literal["llm_error", "retrieval_error", "explanation_unavailable", "explanation_timeout"] | None = None
+
+
 class Resposta(BaseModel):
     """Resposta final de um agente (guardrail 6: resposta, fontes, agente, confianca)."""
 
@@ -51,6 +80,7 @@ class Resposta(BaseModel):
     demonstracao: Demonstracao | None = None
     concept_ids: list[str] = Field(default_factory=list)
     related_exercise_ids: list[str] = Field(default_factory=list)
+    analise: EstadoAnalise | None = None
 
     @model_validator(mode="after")
     def _sem_fonte_confianca_zero(self) -> "Resposta":

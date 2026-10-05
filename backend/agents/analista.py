@@ -2,7 +2,7 @@
 
 Fluxo:
     FEN válido? -> fim de jogo? -> Stockfish (1 s) -> lances validados (guardrail 5)
-    -> fatos do motor em texto fixo -> Estrategista explica com os livros -> juiz -> Resposta
+    -> fatos estruturados/texto fixo preservados -> explicação opcional -> Resposta
 
 Os números (avaliação, melhor lance, linha) vêm do motor e são escritos pelo código, nunca pelo
 LLM. O Estrategista só explica POR QUE o lance é bom, com base nos trechos do índice
@@ -12,23 +12,24 @@ calmos de abertura, como 1.e4, não aparecem num curso de tática.
 
 import html
 import logging
-import shutil
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import asdict
 
 import chess
-import chess.engine
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+import chess_engine
+from chess_engine import (Analise, StockfishAusente, ErroDoMotor, caminho_do_stockfish,
+                          abrir_motor, fechar_motor, linha_validada, fim_de_jogo,
+                          caracteristicas_do_lance)
 import guardrails
 import onde_ler
 from agents import estrategista
 from agents.base import NAO_ENCONTREI, chamar_estruturado, formatar_trechos, montar_fontes
 from config import settings
-from llm import ERROS_DE_API, criar_llm
+from llm import criar_llm
 from retrieval import Trecho, buscar
-from schemas import Demonstracao, Fonte, Resposta, RespostaAnalise, TrechoRecomendado
+from schemas import Demonstracao, Fonte, Resposta, RespostaAnalise, TrechoRecomendado, DadosDoMotor, EstadoAnalise
 
 log = logging.getLogger(__name__)
 
@@ -42,42 +43,26 @@ MOTOR_AUSENTE = (
 )
 ERRO_NO_MOTOR = "O motor de xadrez falhou ao analisar esta posição. Tente de novo."
 SEM_EXPLICACAO = "Não encontrei nos documentos uma explicação para este lance."
+EXPLICACAO_INDISPONIVEL = "A análise enxadrística está disponível, mas a explicação pedagógica está indisponível agora."
+
+
+class ErroDeRecuperacao(RuntimeError):
+    """A camada documental falhou; os fatos enxadrísticos permanecem válidos."""
+
+
+class ErroDeLinguagem(RuntimeError):
+    """Configuração, provedor ou geração indisponível."""
+
+
+def falha_explicacao(codigo: str, erro: Exception) -> None:
+    # Não imprime mensagem de SDK, pergunta, documentos ou configuração privada.
+    log.warning("%s: %s", codigo, type(erro).__name__)
+
 
 INDICES_DA_EXPLICACAO = ["estrategia", "fundamentos"]  # ordem do fallback
 
 # Letras das peças em SAN: inglês -> português (rei, dama, torre, bispo, cavalo).
 PECAS_EM_PORTUGUES = {"K": "R", "Q": "D", "R": "T", "B": "B", "N": "C"}
-NOMES_DAS_PECAS = {
-    chess.KING: "rei",
-    chess.QUEEN: "dama",
-    chess.ROOK: "torre",
-    chess.BISHOP: "bispo",
-    chess.KNIGHT: "cavalo",
-    chess.PAWN: "peão",
-}
-CENTRO = {chess.D4, chess.E4, chess.D5, chess.E5}
-
-
-class StockfishAusente(RuntimeError):
-    """O executável do Stockfish não existe no caminho configurado."""
-
-
-class ErroDoMotor(RuntimeError):
-    """O Stockfish abriu, mas falhou durante a análise."""
-
-
-@dataclass
-class Analise:
-    """Resultado do motor para uma posição. Pontos e mate são do ponto de vista das brancas."""
-
-    fen: str
-    lado: str  # "brancas" ou "pretas" (quem joga)
-    melhor_lance: str | None = None  # SAN
-    linha: list[str] = field(default_factory=list)  # linha principal em SAN (até 3 lances)
-    pontos: int | None = None  # centipeões (100 = um peão de vantagem para as brancas)
-    mate: int | None = None  # mate em N: positivo = brancas dão mate, negativo = pretas
-    fim_de_jogo: str | None = None  # texto, se a partida já acabou nesta posição
-    caracteristicas: list[str] = field(default_factory=list)  # do melhor lance, em português
 
 
 # --------------------------------------------------------------------------- notação
@@ -112,136 +97,9 @@ def descrever_avaliacao(pontos: int | None, mate: int | None) -> str:
     return f"{rotulo} das {lado} ({numero} em peões)"
 
 
-def fim_de_jogo(tabuleiro: chess.Board) -> str | None:
-    """Texto se a partida já terminou nesta posição (sem precisar do motor)."""
-    if tabuleiro.is_checkmate():
-        vencedor = "pretas" if tabuleiro.turn == chess.WHITE else "brancas"
-        return f"A posição já é xeque-mate: as {vencedor} venceram."
-    if tabuleiro.is_stalemate():
-        return "A posição é de afogamento: o lado que joga não tem lance legal e não está em xeque. É empate."
-    if tabuleiro.is_insufficient_material():
-        return "Empate: nenhum dos lados tem material suficiente para dar xeque-mate."
-    return None
-
-
-def caracteristicas_do_lance(tabuleiro: chess.Board, lance: chess.Move) -> list[str]:
-    """Fatos do lance calculados pelo python-chess, em português (usados na busca e no prompt)."""
-    peca = tabuleiro.piece_at(lance.from_square)
-    termos = [NOMES_DAS_PECAS[peca.piece_type]] if peca else []
-    if tabuleiro.is_castling(lance):
-        termos.append("roque")
-    if tabuleiro.is_capture(lance):
-        termos.append("captura")
-    if lance.promotion:
-        termos.append("promoção")
-    if peca and peca.piece_type in (chess.KNIGHT, chess.BISHOP):
-        fileira_inicial = 0 if peca.color == chess.WHITE else 7
-        if chess.square_rank(lance.from_square) == fileira_inicial:
-            termos.append("desenvolvimento")
-    if lance.to_square in CENTRO:
-        termos.append("centro")
-
-    depois = tabuleiro.copy()
-    depois.push(lance)
-    if depois.is_checkmate():
-        termos.append("xeque-mate")
-        # Mate do corredor: torre ou dama dá mate na primeira fileira do adversário.
-        fileira_do_rei = 7 if peca.color == chess.WHITE else 0
-        if peca.piece_type in (chess.ROOK, chess.QUEEN) and chess.square_rank(lance.to_square) == fileira_do_rei:
-            termos.append("mate do corredor")
-    elif depois.is_check():
-        termos.append("xeque")
-    # Garfo: a peça que moveu ataca 2 ou mais peças adversárias valiosas (ou o rei).
-    alvos = [
-        depois.piece_at(casa)
-        for casa in depois.attacks(lance.to_square)
-        if depois.piece_at(casa) and depois.piece_at(casa).color != peca.color
-    ] if peca else []
-    if sum(1 for alvo in alvos if alvo.piece_type != chess.PAWN) >= 2:
-        termos.append("garfo")
-    return termos
-
-
-# --------------------------------------------------------------------------- motor
-
-
-def caminho_do_stockfish() -> str | None:
-    """Caminho do executável, se existir (aceita caminho completo ou nome no PATH)."""
-    caminho = settings.stockfish_path
-    if Path(caminho).is_file():
-        return caminho
-    return shutil.which(caminho)
-
-
-def abrir_motor() -> chess.engine.SimpleEngine:
-    """Abre o Stockfish. Levanta StockfishAusente com instruções se ele não for encontrado."""
-    caminho = caminho_do_stockfish()
-    if caminho is None:
-        raise StockfishAusente(
-            f"Stockfish não encontrado em {settings.stockfish_path!r}. Instale com "
-            "`brew install stockfish` (macOS) ou `apt install stockfish` (Linux), ou ajuste "
-            "STOCKFISH_PATH no .env."
-        )
-    try:
-        return chess.engine.SimpleEngine.popen_uci(caminho)
-    except (OSError, chess.engine.EngineError) as erro:
-        raise StockfishAusente(f"Não foi possível abrir o Stockfish em {caminho!r}: {erro}") from erro
-
-
-def fechar_motor(motor: chess.engine.SimpleEngine) -> None:
-    """Encerra o processo do Stockfish, mesmo que ele já tenha falhado."""
-    try:
-        motor.quit()
-    except Exception:  # noqa: BLE001 - na limpeza, qualquer erro do quit é irrelevante
-        pass
-    finally:
-        motor.close()  # fecha o transporte e mata o processo se o quit não bastou
-
-
-def linha_validada(fen: str, lances: list[chess.Move]) -> list[str]:
-    """Converte a linha do motor para SAN, validando cada lance (guardrail 5).
-
-    Para no primeiro lance ilegal: o resto da linha dependeria dele.
-    """
-    tabuleiro = chess.Board(fen)
-    linha = []
-    for lance in lances:
-        san = guardrails.validar_lance(tabuleiro.fen(), lance.uci())
-        if san is None:
-            guardrails.registrar("analista", "lance_ilegal", "lance do motor descartado")
-            break
-        linha.append(san)
-        tabuleiro.push(lance)
-    return linha
-
-
 def analisar_posicao(fen: str, tempo: float | None = None) -> Analise:
-    """Roda o Stockfish na posição (tempo máximo em segundos, padrão do config)."""
-    if not guardrails.validar_fen(fen):
-        raise ValueError("FEN inválido")
-    tabuleiro = chess.Board(fen)
-    analise = Analise(fen=fen, lado="brancas" if tabuleiro.turn == chess.WHITE else "pretas")
-    analise.fim_de_jogo = fim_de_jogo(tabuleiro)
-    if analise.fim_de_jogo:
-        return analise
-
-    motor = abrir_motor()
-    try:
-        limite = chess.engine.Limit(time=tempo or settings.stockfish_tempo)
-        info = motor.analyse(tabuleiro, limite)
-    except (chess.engine.EngineError, chess.engine.EngineTerminatedError, TimeoutError) as erro:
-        raise ErroDoMotor(str(erro)) from erro
-    finally:
-        fechar_motor(motor)  # guardrail: nunca deixar processo do Stockfish aberto
-
-    placar = info["score"].white()
-    analise.mate = placar.mate()
-    analise.pontos = None if analise.mate is not None else placar.score()
-    analise.linha = linha_validada(fen, info.get("pv", [])[:3])
-    if analise.linha:
-        analise.melhor_lance = analise.linha[0]
-        analise.caracteristicas = caracteristicas_do_lance(tabuleiro, info["pv"][0])
-    return analise
+    """Compatibilidade do Analista; o serviço de engine é independente."""
+    return chess_engine.analisar_posicao(fen, tempo, abrir=abrir_motor)
 
 
 # --------------------------------------------------------------------------- explicação
@@ -327,15 +185,22 @@ def explicar_com_indice(
 
     Devolve (explicação, fontes citadas, confiança, bloco "Onde ler").
     """
-    trechos = buscar(indice, consulta_da_explicacao(analise))
+    try:
+        trechos = buscar(indice, consulta_da_explicacao(analise))
+    except Exception as erro:
+        falha_explicacao("retrieval_error", erro)
+        raise ErroDeRecuperacao from erro
     if not trechos:
         return None
     try:
         saida = chamar_estruturado(llm, montar_prompt_explicacao(analise, pergunta, trechos), RespostaAnalise)
-    except ERROS_DE_API as erro:
-        guardrails.registrar("llm", "erro_api", type(erro).__name__)
-        return None
-    if saida is None or saida.explicacao.strip() == NAO_ENCONTREI:
+    except Exception as erro:
+        falha_explicacao("llm_error", erro)
+        raise ErroDeLinguagem from erro
+    if saida is None:
+        log.warning("llm_error: invalid_output")
+        raise ErroDeLinguagem
+    if saida.explicacao.strip() == NAO_ENCONTREI:
         return None
     fontes = montar_fontes(saida.trechos_usados, trechos)
     if not fontes:
@@ -351,14 +216,26 @@ def explicar_com_indice(
         confianca=min(max(saida.confianca, 0.0), 1.0),
     )
     if settings.verificar_fundamentacao:
-        veredito = guardrails.verificar_fundamentacao(
-            resposta, llm_juiz or criar_llm(papel="juiz"), fatos_do_motor(analise)
-        )
+        try:
+            veredito = guardrails.verificar_fundamentacao(
+                resposta, llm_juiz or criar_llm(papel="juiz"), fatos_do_motor(analise)
+            )
+        except Exception as erro:
+            falha_explicacao("llm_error", erro)
+            raise ErroDeLinguagem from erro
+        if veredito is None:
+            log.warning("llm_error: judge_unavailable")
+            raise ErroDeLinguagem
         resposta = guardrails.aplicar_verificacao(resposta, veredito)
         if resposta.resposta == NAO_ENCONTREI:  # juiz: não sustentada pelos trechos
             return None
     consulta = consulta_da_explicacao(analise)
-    return resposta.resposta, resposta.fontes, resposta.confianca, onde_ler.recomendar(consulta, trechos)
+    try:
+        recomendados = onde_ler.recomendar(consulta, trechos)
+    except Exception as erro:
+        falha_explicacao("retrieval_error", erro)
+        raise ErroDeRecuperacao from erro
+    return resposta.resposta, resposta.fontes, resposta.confianca, recomendados
 
 
 def explicar_lance(
@@ -374,7 +251,11 @@ def explicar_lance(
     sempre devolve trechos, mas genéricos (ex.: para 1.e4). Por isso também passamos para o
     próximo índice quando o Estrategista não consegue explicar com os trechos recebidos.
     """
-    llm = llm or criar_llm(papel="agente")
+    try:
+        llm = llm or criar_llm(papel="agente")
+    except Exception as erro:
+        falha_explicacao("llm_error", erro)
+        raise ErroDeLinguagem from erro
     for indice in INDICES_DA_EXPLICACAO:
         resultado = explicar_com_indice(indice, analise, pergunta, llm, llm_juiz)
         if resultado:
@@ -445,50 +326,97 @@ def conceitos_da_analise(analise: Analise) -> list[str]:
     return ids
 
 
-def responder(
-    pergunta: str,
-    fen: str | None = None,
-    llm: BaseChatModel | None = None,
-    llm_juiz: BaseChatModel | None = None,
-) -> Resposta:
-    """Analisa a posição da pergunta (ou do campo fen) e explica o melhor lance."""
+def dados_do_motor(analise: Analise) -> DadosDoMotor:
+    dados = asdict(analise)
+    dados["tipo_avaliacao"] = "mate" if analise.mate is not None else "centipawn" if analise.pontos is not None else None
+    return DadosDoMotor(**dados)
+
+
+def preparar_resposta(pergunta: str, fen: str | None = None) -> tuple[Analise | None, Resposta]:
+    """Produz resposta determinística completa antes de qualquer RAG ou LLM."""
     fen = fen or guardrails.extrair_fen(pergunta)
     if not fen:
-        return resposta_simples(PEDIR_FEN)
+        return None, resposta_simples(PEDIR_FEN)
     if not guardrails.validar_fen(fen):
         guardrails.registrar("entrada", "fen_invalido")
-        return resposta_simples(guardrails.FEN_INVALIDO)
-
+        log.warning("invalid_position")
+        return None, resposta_simples(guardrails.FEN_INVALIDO).model_copy(update={
+            "analise": EstadoAnalise(status="invalid_position")})
     try:
         analise = analisar_posicao(fen)
-    except StockfishAusente as erro:
-        log.error("%s", erro)  # detalhe (caminho, como instalar) no terminal do servidor
+    except StockfishAusente:
+        log.error("engine_error: StockfishAusente; verifique STOCKFISH_PATH; "
+                  "instale com brew install stockfish ou apt install stockfish")
         guardrails.registrar("analista", "stockfish_ausente")
-        return resposta_simples(MOTOR_AUSENTE)
+        return None, erro_engine(MOTOR_AUSENTE)
     except ErroDoMotor as erro:
-        log.error("Erro do Stockfish: %s", erro)
+        log.error("engine_error: %s", type(erro).__name__)
         guardrails.registrar("analista", "erro_motor")
-        return resposta_simples(ERRO_NO_MOTOR)
-
+        return None, erro_engine(ERRO_NO_MOTOR)
+    estado = EstadoAnalise(status="available", dados=dados_do_motor(analise))
     if analise.fim_de_jogo:
-        return resposta_simples(analise.fim_de_jogo)
+        return analise, resposta_simples(analise.fim_de_jogo).model_copy(update={"analise": estado})
     if not analise.melhor_lance:
         guardrails.registrar("analista", "sem_lance")
-        return resposta_simples(ERRO_NO_MOTOR)
-
-    explicacao, fontes, confianca, trechos_para_ler = explicar_lance(analise, pergunta, llm, llm_juiz)
+        return None, erro_engine(ERRO_NO_MOTOR)
     from conceitos import exercicios
-
     concept_ids = conceitos_da_analise(analise)
-    texto = fatos_do_motor(analise) + "\n\nPor que esse lance: " + (explicacao or SEM_EXPLICACAO)
+    estado.explicacao_status = "unavailable"
+    texto = fatos_do_motor(analise) + "\n\nPor que esse lance: " + SEM_EXPLICACAO
     if concept_ids:
         texto += "\n\nPrática relacionada: os exercícios treinam conceitos identificados; não reproduzem sua posição."
-    return Resposta(
-        concept_ids=concept_ids, related_exercise_ids=exercicios(concept_ids),
+    return analise, Resposta(
         resposta=texto,
-        fontes=[fonte_do_motor(analise)] + fontes,
-        agente="analista",
-        confianca=confianca if explicacao else 0.0,
-        onde_ler=trechos_para_ler,
-        demonstracao=demonstracao_da_linha(analise),
+        fontes=[fonte_do_motor(analise)], agente="analista", confianca=0,
+        concept_ids=concept_ids, related_exercise_ids=exercicios(concept_ids),
+        demonstracao=demonstracao_da_linha(analise), analise=estado,
     )
+
+
+def erro_engine(texto: str = ERRO_NO_MOTOR) -> Resposta:
+    return resposta_simples(texto).model_copy(update={"analise": EstadoAnalise(status="engine_error")})
+
+
+def sem_explicacao(resposta: Resposta, codigo: str) -> Resposta:
+    """Cópia: a thread da explicação nunca modifica os fatos já entregues."""
+    estado = resposta.analise.model_copy(update={"explicacao_status": "unavailable", "explicacao_erro": codigo})
+    texto = resposta.resposta.replace(SEM_EXPLICACAO, EXPLICACAO_INDISPONIVEL) if codigo != "explanation_unavailable" else resposta.resposta
+    return resposta.model_copy(update={"analise": estado, "resposta": texto})
+
+
+def enriquecer_resposta(analise: Analise, resposta: Resposta, pergunta: str,
+                       llm: BaseChatModel | None = None, llm_juiz: BaseChatModel | None = None) -> Resposta:
+    """Enriquece fatos preservados; fronteiras opcionais distinguem recuperação/linguagem."""
+    if analise.fim_de_jogo:
+        return resposta
+    try:
+        explicacao, fontes, confianca, trechos = explicar_lance(analise, pergunta, llm, llm_juiz)
+    except ErroDeRecuperacao:
+        return sem_explicacao(resposta, "retrieval_error")
+    except ErroDeLinguagem:
+        return sem_explicacao(resposta, "llm_error")
+    except Exception as erro:
+        # Inclui validação/pós-processamento de saída malformada da camada opcional.
+        falha_explicacao("llm_error", erro)
+        return sem_explicacao(resposta, "llm_error")
+    if not explicacao:
+        return sem_explicacao(resposta, "explanation_unavailable")
+    # Checa somente linguagem antes de reuni-la aos fatos do motor.
+    linguagem = guardrails.checar_saida(Resposta(resposta=explicacao, fontes=fontes, agente="analista", confianca=confianca))
+    if linguagem.resposta == guardrails.RESPOSTA_BLOQUEADA:
+        return sem_explicacao(resposta, "explanation_unavailable")
+    texto = fatos_do_motor(analise) + "\n\nPor que esse lance: " + linguagem.resposta
+    if resposta.concept_ids:
+        texto += "\n\nPrática relacionada: os exercícios treinam conceitos identificados; não reproduzem sua posição."
+    estado = resposta.analise.model_copy(update={"explicacao_status": "available", "explicacao_erro": None})
+    return resposta.model_copy(update={"resposta": texto, "fontes": resposta.fontes + fontes,
+                                      "confianca": linguagem.confianca, "onde_ler": trechos, "analise": estado})
+
+
+def responder(pergunta: str, fen: str | None = None, llm: BaseChatModel | None = None,
+              llm_juiz: BaseChatModel | None = None) -> Resposta:
+    """Compatibilidade do tutor: fatos primeiro, explicação opcional depois."""
+    analise, resposta = preparar_resposta(pergunta, fen)
+    if analise is None or analise.fim_de_jogo:
+        return resposta
+    return enriquecer_resposta(analise, resposta, pergunta, llm, llm_juiz)
