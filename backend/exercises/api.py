@@ -1,4 +1,4 @@
-"""Validação stateless; progresso opcional por adaptador instalado pela aplicação.
+"""Validação stateless autenticada; progresso da conta via adaptador da aplicação.
 
 O catálogo do servidor é a autoridade, nunca o payload do cliente.
 """
@@ -7,7 +7,9 @@ import chess
 from uuid import UUID
 from collections.abc import Awaitable, Callable
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from auth import require_user
+import progresso
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
@@ -80,7 +82,7 @@ class ExerciseRoute(APIRoute):
         return handle
 
 
-router = APIRouter(prefix="/exercises", tags=["exercises"], route_class=ExerciseRoute,
+router = APIRouter(prefix="/exercises", tags=["exercises"], route_class=ExerciseRoute, dependencies=[Depends(require_user)],
                    responses={status: {"model": ExerciseError} for status in (404, 409, 422, 500)})
 
 
@@ -101,19 +103,20 @@ def read_exercise(exercise_id: str) -> Exercise:
 
 @router.post("/{exercise_id}/validate", response_model=ValidationResult)
 def validate_exercise(exercise_id: str, request: ValidationRequest,
-                      http_request: Request = None, usuario_id: UUID | None = None) -> ValidationResult:
+                      http_request: Request = None, usuario_id: UUID | None = None, user: dict = Depends(require_user)) -> ValidationResult:
     exercise = get_exercise(exercise_id)
     if request.version != exercise.version:
         raise ExerciseClientError("version_mismatch", "Versão incompatível")
     # Somente erros explícitos de protocolo viram 4xx no adaptador da rota.
     recorder = None
-    if usuario_id is not None:
+    if usuario_id is not None or (http_request is not None and getattr(http_request.app.state, "exercise_recorder", None) is not None):
         recorder = getattr(http_request.app.state, "exercise_recorder", None) if http_request else None
         if recorder is None:
             raise ExerciseClientError("invalid_request", "Progresso indisponível neste adaptador")
+    identity = progresso.identidade(user["email"], str(usuario_id) if usuario_id else None) if recorder is not None else None
     result = validate(exercise, request.action, request.history)
     if recorder is not None:
-        recorder(str(usuario_id), exercise.id, result.status)
+        recorder(identity, exercise.id, result.status)
     return result
 
 

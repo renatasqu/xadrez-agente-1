@@ -1,3 +1,5 @@
+import { SESSION_EXPIRED } from "./sessionEvents";
+import { apagarUsuarioId } from "../armazenamento";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { authApi, type SessionUser } from "./authApi";
 
@@ -16,21 +18,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
+    let expired = false;
+    const invalidate = () => {
+      expired = true;
+      setUser(null);
+      apagarUsuarioId();
+      window.location.hash = "/login";
+    };
+    window.addEventListener(SESSION_EXPIRED, invalidate);
+    apagarUsuarioId();
     // Remove the old demo session; only the backend can restore authentication.
     try { localStorage.removeItem("xadrez-multiagente:demo-session:v1"); } catch { /* storage may be blocked */ }
-    authApi.session().then(user => { if (active) setUser(user); }).catch(() => {}).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    authApi.session().then(user => { if (active && !expired) setUser(user); }).catch(() => {}).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; window.removeEventListener(SESSION_EXPIRED, invalidate); };
   }, []);
   return <AuthContext value={{
     currentUser, isAuthenticated: currentUser !== null, loading,
     login: async (email, password) => {
       const user = await authApi.login(email, password);
-      setUser(user); window.location.hash = "/partida";
+      apagarUsuarioId(); setUser(user); window.location.hash = "/partida";
     },
     register: async () => { throw new Error("O cadastro está desativado neste teste pessoal. Entre com sua conta configurada."); },
     logout: async () => {
       await authApi.logout();
-      setUser(null); window.location.hash = "/login";
+      apagarUsuarioId(); setUser(null); window.location.hash = "/login";
     },
   }}>{children}</AuthContext>;
 }

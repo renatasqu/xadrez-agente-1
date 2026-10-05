@@ -145,3 +145,11 @@ def test_contexto_de_documento_fora_da_lista(cliente, chunk_do_txt):
 def test_contexto_sem_chunk_id_da_erro_amigavel(cliente):
     resposta = cliente.get("/documentos/capablanca_chess_fundamentals.txt/contexto")
     assert resposta.status_code == 422 and resposta.json()["resposta"] == main.MSG_INVALIDO
+
+
+@pytest.fixture(autouse=True)
+def authenticated_protocol():
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
+    yield
+    main.app.dependency_overrides.pop(require_user, None)

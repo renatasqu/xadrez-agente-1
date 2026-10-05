@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 function servidor(lesson: unknown) {
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => new URL(url).pathname === "/licao/atual" ? new Response("{}", { status: 404 }) : new Response(JSON.stringify(
     new URL(url).pathname === "/health" ? { status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" } : lesson,
   ))));
 }

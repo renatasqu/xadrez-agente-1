@@ -12,6 +12,8 @@ from exercises.models import Exercise
 @pytest.fixture
 def client():
     app = FastAPI()
+    from auth import require_user
+    app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
     app.include_router(router)
     return TestClient(app)
 

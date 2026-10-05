@@ -56,3 +56,27 @@ it("url do documento: PDF com página, TXT sem, nome codificado", () => {
   expect(urlDoDocumento("livro.txt", 3)).toMatch(/\/documentos\/livro\.txt$/);
   expect(urlDoDocumento("../.env")).toContain("/documentos/..%2F.env");
 });
+
+it("transporta cookie HttpOnly nas chamadas privadas", async () => {
+  responder(200, {});
+  await api.perguntar("roque");
+  expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");
+});
+
+it.each(["chat", "exercise"])("sinaliza sessão expirada mesmo com corpo inválido em %s", async (kind) => {
+  const listener = vi.fn();
+  window.addEventListener("xadrez:session-expired", listener);
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 401 })));
+  try {
+    await expect(kind === "chat" ? api.perguntar("roque") : api.exercicio("a1-cavalo")).rejects.toThrow();
+    expect(listener).toHaveBeenCalledOnce();
+  } finally { window.removeEventListener("xadrez:session-expired", listener); }
+});
+
+it("401 público não encerra a sessão", async () => {
+  const listener = vi.fn();
+  window.addEventListener("xadrez:session-expired", listener);
+  responder(401, {});
+  try { await expect(api.saude()).rejects.toThrow(); expect(listener).not.toHaveBeenCalled(); }
+  finally { window.removeEventListener("xadrez:session-expired", listener); }
+});

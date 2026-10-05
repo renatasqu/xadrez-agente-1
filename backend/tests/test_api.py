@@ -44,6 +44,8 @@ def cliente(tmp_path, monkeypatch, llms):
     busca = lambda indice, pergunta: [trecho(1)]  # noqa: E731
     for modulo in (router, base, analista):
         monkeypatch.setattr(modulo, "buscar", busca)
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
     main.limiter.reset()
     main.app.dependency_overrides[main.obter_llms] = lambda: llms
     with TestClient(main.app) as c:
@@ -140,6 +142,8 @@ def test_erro_inesperado_vira_500_amigavel(llms, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "aquecer_na_inicializacao", False)
     monkeypatch.setattr(settings, "db_progresso", tmp_path / "p.sqlite")
     monkeypatch.setattr(router, "responder", lambda *a, **k: 1 / 0)
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
     main.limiter.reset()
     main.app.dependency_overrides[main.obter_llms] = lambda: llms
     with TestClient(main.app, raise_server_exceptions=False) as c:
@@ -250,7 +254,10 @@ def test_licao_sem_fonte_nao_avanca(cliente, llms):
 
 def test_segundo_usuario_recebe_a_licao_do_cache(cliente, llms):
     llms.agente = agente(n=1)  # só uma resposta disponível: a 2ª geração daria erro
-    primeiro, segundo = proxima(cliente), proxima(cliente)
+    primeiro = proxima(cliente)
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Other", "email": "other@example.com"}
+    segundo = proxima(cliente)
     assert primeiro["usuario_id"] != segundo["usuario_id"]
     assert primeiro["conteudo"] == segundo["conteudo"] and len(llms.agente.chamadas) == 1
 

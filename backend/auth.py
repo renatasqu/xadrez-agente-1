@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from contextlib import closing
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -33,7 +34,7 @@ def password_hash(password: str, salt: str) -> str:
 def configure_owner(email: str, name: str, password: str):
     """Provisionamento local; nunca chamado por uma rota pública."""
     salt = secrets.token_hex(16)
-    with connect() as db:
+    with closing(connect()) as db, db:
         db.execute("INSERT OR REPLACE INTO users VALUES (?, ?, ?, ?)", (email.strip().lower(), name, salt, password_hash(password, salt)))
         db.execute("DELETE FROM sessions WHERE email = ?", (email.strip().lower(),))
     Path(settings.db_auth).chmod(0o600)
@@ -58,7 +59,7 @@ def check_origin(request: Request):
 @limiter.limit("5/minute")
 def login(request: Request, data: Login, response: Response):
     check_origin(request)
-    with connect() as db:
+    with closing(connect()) as db, db:
         user = db.execute("SELECT email, name, salt, password_hash FROM users WHERE email = ?", (data.email.strip().lower(),)).fetchone()
         salt = user[2] if user else "00" * 16
         digest = password_hash(data.password, salt)
@@ -67,7 +68,8 @@ def login(request: Request, data: Login, response: Response):
         token = secrets.token_urlsafe(32)
         db.execute("DELETE FROM sessions WHERE expires <= ?", (time.time(),))
         db.execute("INSERT INTO sessions VALUES (?, ?, ?)", (token_hash(token), user[0], time.time() + SESSION_SECONDS))
-    response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, httponly=True, secure=settings.auth_cookie_secure, samesite="lax", path="/auth")
+    response.delete_cookie(COOKIE, path="/auth", secure=settings.auth_cookie_secure, httponly=True, samesite="lax")
+    response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, httponly=True, secure=settings.auth_cookie_secure, samesite="lax", path="/")
     response.headers["Cache-Control"] = "no-store"
     return {"name": user[1], "email": user[0]}
 
@@ -75,12 +77,25 @@ def login(request: Request, data: Login, response: Response):
 @router.get("/session")
 def session(request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
+    return session_user(request)
+
+
+def session_user(request: Request) -> dict | None:
     token = request.cookies.get(COOKIE)
     if not token:
         return None
-    with connect() as db:
+    with closing(connect()) as db:
         user = db.execute("SELECT users.name, users.email FROM sessions JOIN users USING(email) WHERE token_hash = ? AND expires > ?", (token_hash(token), time.time())).fetchone()
     return {"name": user[0], "email": user[1]} if user else None
+
+
+def require_user(request: Request) -> dict:
+    user = session_user(request)
+    if user is None:
+        raise HTTPException(401, "Sessão ausente ou expirada. Entre novamente.")
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        check_origin(request)
+    return user
 
 
 @router.post("/logout")
@@ -88,7 +103,8 @@ def logout(request: Request, response: Response):
     check_origin(request)
     token = request.cookies.get(COOKIE)
     if token:
-        with connect() as db:
+        with closing(connect()) as db, db:
             db.execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
+    response.delete_cookie(COOKIE, path="/", secure=settings.auth_cookie_secure, httponly=True, samesite="lax")
     response.delete_cookie(COOKIE, path="/auth", secure=settings.auth_cookie_secure, httponly=True, samesite="lax")
     return {"ok": True}

@@ -393,3 +393,22 @@ def test_e1_terminal_configuration_returns_internal_error(monkeypatch):
                      client.post(f"/exercises/{original.id}/validate", json={"version": 1,
                                  "action": {"type": "move", "source": "c3", "destination": "a4"}})]:
         assert response.status_code == 500 and response.json()["code"] == "internal_error"
+
+
+@pytest.fixture(autouse=True)
+def authenticated_adapter(monkeypatch, tmp_path):
+    """Isola testes de protocolo; sessões reais são cobertas em test_authorization."""
+    from auth import require_user
+    import main
+    import progresso
+    from config import settings
+    monkeypatch.setattr(settings, "db_progresso", tmp_path / "progress.sqlite")
+    progresso.criar_tabelas()
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
+    original = FastAPI.include_router
+    def include(app, *args, **kwargs):
+        app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
+        return original(app, *args, **kwargs)
+    monkeypatch.setattr(FastAPI, "include_router", include)
+    yield
+    main.app.dependency_overrides.pop(require_user, None)

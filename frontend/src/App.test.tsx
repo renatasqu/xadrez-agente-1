@@ -37,11 +37,11 @@ it("retoma a lição atual ao abrir quando há id guardado", async () => {
   expect(await screen.findByText("Servidor disponível")).toBeTruthy();
 });
 
-it("sem id guardado não chama /licao/atual", async () => {
+it("sem id guardado consulta lição pela sessão", async () => {
   const chamadas = servidor({ "/health": [200, SAUDE] });
   render(<App />);
   await screen.findByText("Servidor disponível");
-  expect(chamadas.some((c) => c.startsWith("/licao/atual"))).toBe(false);
+  expect(chamadas).toContain("/licao/atual");
 });
 
 it("id inválido é apagado", async () => {

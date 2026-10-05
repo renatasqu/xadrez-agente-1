@@ -24,6 +24,7 @@ function servidor(key: string, respostas: string[], operational = false, withDem
     let body: unknown; let status = 200;
     if (path === "/health") body = { status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" };
     else if (path === "/chat" || path === "/analisar") body = resposta;
+    else if (path === "/licao/atual" && !new URL(url).search) { status = 404; body = { resposta: "Nenhuma lição" }; }
     else if (path === "/licao/proxima" || path === "/licao/atual") body = lesson;
     else if (path === "/progresso/exercicios") body = payloads.length ? [{ exercise_id: exercise.id,
       concept_id: "movimento_cavalo", status: "completed", attempts: payloads.length, updated_at: "2026-10-04T00:00:00Z" }] : [];

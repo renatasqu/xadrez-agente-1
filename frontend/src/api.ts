@@ -1,3 +1,4 @@
+import { sessionExpired } from "./auth/sessionEvents";
 import type { HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
@@ -55,6 +56,7 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
   try {
     resposta = await fetch(URL_DA_API + caminho, {
       ...opcoes,
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...opcoes.headers },
       signal: controle.signal,
     });
@@ -64,6 +66,7 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
     clearTimeout(relogio);
   }
 
+  if (resposta.status === 401 && caminho !== "/health" && caminho !== "/masters/ratings") sessionExpired();
   let corpo: unknown = null;
   try {
     corpo = await resposta.json();
@@ -98,15 +101,15 @@ export const api = {
     return chamar<ValidationResult>(`/exercises/${encodeURIComponent(id)}/validate${query}`, post(payload), true);
   },
   // O endpoint real de progresso usa ErroDaApi (Resposta), fora do namespace /exercises.
-  progressoExercicios: (usuarioId: string) =>
-    chamar<ExerciseProgress[]>(`/progresso/exercicios?usuario_id=${encodeURIComponent(usuarioId)}`),
+  progressoExercicios: (usuarioId?: string) =>
+    chamar<ExerciseProgress[]>(usuarioId ? `/progresso/exercicios?usuario_id=${encodeURIComponent(usuarioId)}` : "/progresso/exercicios"),
   saude: () => chamar<Saude>("/health"),
   perguntar: (mensagem: string, fen?: string) => chamar<Resposta>("/chat", post({ mensagem, fen: fen ?? null })),
   analisar: (fen: string) => chamar<Resposta>("/analisar", post({ fen })),
   proximaLicao: (usuarioId: string | null) =>
     chamar<RespostaLicao>("/licao/proxima", post({ usuario_id: usuarioId })),
-  licaoAtual: (usuarioId: string) =>
-    chamar<RespostaLicao>(`/licao/atual?usuario_id=${encodeURIComponent(usuarioId)}`),
+  licaoAtual: (usuarioId?: string) =>
+    chamar<RespostaLicao>(usuarioId ? `/licao/atual?usuario_id=${encodeURIComponent(usuarioId)}` : "/licao/atual"),
   recomendar: (mensagem: string) => chamar<Resposta>("/recomendar", post({ mensagem })),
   contexto: (documento: string, chunkId: string) =>
     chamar<ContextoDoTrecho>(

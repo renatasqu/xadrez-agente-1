@@ -95,3 +95,22 @@ it("falha de rede mantém formulário sem abrir arena", async () => {
   await start(); submitLogin(); await screen.findByText("Servidor indisponível.");
   expect(screen.queryByRole("region", { name: "Arena existente" })).toBeNull();
 });
+
+it("401 privado desmonta arena, limpa UUID e retorna ao login sem reconsultas", async () => {
+  const { api } = await import("../api");
+  vi.mocked(authApi.session).mockResolvedValue(user);
+  render(<AuthProvider><AuthGate /></AuthProvider>);
+  await screen.findByRole("region", { name: "Arena existente" });
+  localStorage.setItem("xadrez-agente:usuario_id", "old-id");
+  const fetchMock = vi.fn(async () => new Response("{}", { status: 401 }));
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    await api.perguntar("roque").catch(() => {});
+    await screen.findByRole("heading", { name: "Entrar na arena:" });
+    expect(window.location.hash).toBe("#/login");
+    expect(localStorage.getItem("xadrez-agente:usuario_id")).toBeNull();
+    expect(authApi.session).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(authApi.logout).not.toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); }
+});

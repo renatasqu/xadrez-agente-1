@@ -88,3 +88,11 @@ def test_rota_recomendar(buscas, tmp_path, monkeypatch):
         main.app.dependency_overrides.clear()
     assert dados["onde_ler"][0]["chunk_id"] == "fundamentos-c1" and dados["onde_ler"][0]["autor"] == ""
     assert vazio.status_code == 422 and vazio.json()["resposta"] == main.MSG_INVALIDO
+
+
+@pytest.fixture(autouse=True)
+def authenticated_protocol():
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
+    yield
+    main.app.dependency_overrides.pop(require_user, None)

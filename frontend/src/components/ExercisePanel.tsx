@@ -42,8 +42,8 @@ export function ExercisePanel({ state, visual, onAction, onHint, onClose, onRetr
   useEffect(() => {
     let vigente = true;
     setProgress(null); setProgressError(false);
-    if (!usuarioId || !exercise) return;
-    api.progressoExercicios(usuarioId).then((rows) => {
+    if (!exercise) return;
+    api.progressoExercicios(usuarioId ?? undefined).then((rows) => {
       if (vigente) setProgress(rows.find((row) => row.exercise_id === exercise.id) ?? null);
     }).catch(() => { if (vigente) setProgressError(true); });
     return () => { vigente = false; };

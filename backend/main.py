@@ -47,7 +47,7 @@ import conceitos
 from agents import analista, router
 from agents.licoes import LICOES
 from config import INDICES, settings
-from auth import router as auth_router, limiter
+from auth import router as auth_router, limiter, require_user
 from masters import router as masters_router
 from exercises.api import router as exercises_router
 from exercises.api import http_error_response, internal_error_response, is_exercise_path, request_error_response
@@ -239,7 +239,7 @@ async def health() -> Saude:
     )
 
 
-@app.post("/chat", response_model=Resposta)
+@app.post("/chat", response_model=Resposta, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def chat(request: Request, entrada: EntradaChat, llms: LLMs = Depends(obter_llms)) -> Resposta:
     """Pergunta livre: passa pelo roteador completo (guardrails, agente, juiz)."""
@@ -253,7 +253,7 @@ async def chat(request: Request, entrada: EntradaChat, llms: LLMs = Depends(obte
     )
 
 
-@app.post("/recomendar", response_model=Resposta)
+@app.post("/recomendar", response_model=Resposta, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def recomendar(request: Request, entrada: EntradaRecomendacao, llms: LLMs = Depends(obter_llms)) -> Resposta:
     """"Qual documento me ajuda?": os trechos para ler (sem resposta escrita pelo agente)."""
@@ -269,18 +269,18 @@ def analisar_fen(fen: str, llms: LLMs) -> Resposta:
     return guardrails.checar_saida(resposta)
 
 
-@app.post("/analisar", response_model=Resposta)
+@app.post("/analisar", response_model=Resposta, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def analisar(request: Request, entrada: EntradaAnalise, llms: LLMs = Depends(obter_llms)) -> Resposta:
     """Melhor lance e avaliação do Stockfish, explicados pelo Estrategista."""
     return await executar(analisar_fen, entrada.fen, llms)
 
 
-@app.get("/progresso/exercicios", response_model=list[ProgressoExercicio])
+@app.get("/progresso/exercicios", response_model=list[ProgressoExercicio], dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
-async def progresso_dos_exercicios(request: Request, usuario_id: uuid.UUID) -> list[dict]:
-    """Progresso do UUID anônimo usado em validate; leitura nunca registra tentativa."""
-    return await run_in_threadpool(progresso.ler_exercicios, str(usuario_id))
+async def progresso_dos_exercicios(request: Request, usuario_id: uuid.UUID | None = None, user: dict = Depends(require_user)) -> list[dict]:
+    """Progresso da conta; UUID opcional sempre exige propriedade."""
+    return await run_in_threadpool(progresso.ler_exercicios, progresso.identidade(user["email"], str(usuario_id) if usuario_id else None))
 
 
 # --------------------------------------------------------------------------- lições
@@ -352,30 +352,30 @@ def ler_atual(usuario_id: str, llms: LLMs) -> RespostaLicao:
     )
 
 
-@app.post("/licao/proxima", response_model=RespostaLicao)
+@app.post("/licao/proxima", response_model=RespostaLicao, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def licao_proxima(
-    request: Request, entrada: EntradaLicao, llms: LLMs = Depends(obter_llms)
+    request: Request, entrada: EntradaLicao, llms: LLMs = Depends(obter_llms), user: dict = Depends(require_user)
 ) -> RespostaLicao:
     """Entrega a próxima lição (regras → notação → aberturas → tática → finais) e avança."""
-    return await executar(entregar_proxima, validar_usuario_id(entrada.usuario_id), llms)
+    return await executar(entregar_proxima, progresso.identidade(user["email"], validar_usuario_id(entrada.usuario_id) if entrada.usuario_id else None), llms)
 
 
-@app.get("/licao/atual", response_model=RespostaLicao)
+@app.get("/licao/atual", response_model=RespostaLicao, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def licao_atual(
-    request: Request, usuario_id: str, llms: LLMs = Depends(obter_llms)
+    request: Request, usuario_id: str | None = None, llms: LLMs = Depends(obter_llms), user: dict = Depends(require_user)
 ) -> RespostaLicao:
     """Só lê a lição atual do usuário."""
-    if not usuario_id:
+    if usuario_id == "":
         raise HTTPException(status_code=400, detail=MSG_ID_INVALIDO)
-    return await executar(ler_atual, validar_usuario_id(usuario_id), llms)
+    return await executar(ler_atual, progresso.identidade(user["email"], validar_usuario_id(usuario_id) if usuario_id else None), llms)
 
 
 # --------------------------------------------------------------------------- documentos
 
 
-@app.get("/documentos/{nome}")
+@app.get("/documentos/{nome}", dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def documento(request: Request, nome: str) -> FileResponse:
     """Serve o arquivo local do documento, para abrir no navegador (PDF na página certa)."""
@@ -393,7 +393,7 @@ async def documento(request: Request, nome: str) -> FileResponse:
     )
 
 
-@app.get("/documentos/{nome}/contexto", response_model=ContextoDoTrecho)
+@app.get("/documentos/{nome}/contexto", response_model=ContextoDoTrecho, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
 async def contexto_do_trecho(request: Request, nome: str, chunk_id: str) -> ContextoDoTrecho:
     """O trecho com os parágrafos em volta (usado para os livros em TXT)."""

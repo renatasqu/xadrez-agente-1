@@ -183,12 +183,14 @@ it("páginas próprias pausam sem remontar ou apagar a partida e o logo volta ao
       window.history.replaceState(null, "", hash);
       fireEvent(window, new Event("hashchange"));
     }
-    await waitFor(() => expect(container.querySelector(`[data-page="${page}"]`)?.hasAttribute("hidden")).toBe(false));
+    // O acesso Sobre fica montado na arena; aguarde a navegação, não esse botão.
+    await waitFor(() => expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true));
+    if (page !== "about") expect(container.querySelector(`[data-page="${page}"]`)?.hasAttribute("hidden")).toBe(false);
     expect(window.location.hash).toBe(hash);
     if (link) expect(link.getAttribute("aria-current")).toBe("location");
     expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
     if (page === "about") {
-      expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO" })).toBeTruthy();
+      expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
       fireEvent.keyDown(document, { key: "Escape" });
     }
     fireEvent.click(screen.getByRole("link", { name: "XADREZ MULTIAGENTE" }));

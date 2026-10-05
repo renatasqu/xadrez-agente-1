@@ -1,8 +1,8 @@
-"""Progresso das lições em SQLite (biblioteca padrão), com id anônimo.
+"""Progresso das lições em SQLite; UUIDs autorizados pela conta autenticada.
 
 Tabelas:
 - progresso(usuario_id, proxima, atualizado): número da próxima lição de cada id (começa em 1).
-  O id é um UUID gerado pelo servidor; nenhum dado pessoal é guardado (guardrail 8).
+  O id é um UUID; progresso_owners associa IDs ao e-mail da conta.
 - licoes_cache(numero, conteudo_json): conteúdo já gerado de cada lição. As lições são iguais
   para todos, então cada uma é gerada pelo LLM só uma vez. POST /ingest limpa o cache.
 
@@ -11,6 +11,8 @@ threads que atendem as requisições.
 """
 
 import sqlite3
+import uuid
+from fastapi import HTTPException
 from contextlib import closing
 from datetime import datetime, timezone
 
@@ -27,6 +29,8 @@ def _conectar() -> sqlite3.Connection:
 def criar_tabelas() -> None:
     """Cria as tabelas, se ainda não existirem."""
     with closing(_conectar()) as con, con:
+        con.execute("CREATE TABLE IF NOT EXISTS progresso_owners (usuario_id TEXT PRIMARY KEY, email TEXT NOT NULL)")
+        con.execute("CREATE TABLE IF NOT EXISTS progresso_contas (email TEXT PRIMARY KEY, usuario_id TEXT NOT NULL UNIQUE)")
         con.execute(
             "CREATE TABLE IF NOT EXISTS progresso ("
             " usuario_id TEXT PRIMARY KEY,"
@@ -131,3 +135,35 @@ def ler_exercicios(usuario_id: str) -> list[dict]:
             "FROM progresso_exercicios WHERE usuario_id = ? ORDER BY exercise_id", (usuario_id,),
         ).fetchall()
     return [dict(linha) for linha in linhas]
+
+
+def identidade(email: str, usuario_id: str | None = None) -> str:
+    """IDs novos pertencem à sessão; IDs legados com dados exigem associação local."""
+    with closing(_conectar()) as con, con:
+        con.execute("BEGIN IMMEDIATE")
+        if usuario_id is None:
+            row = con.execute("SELECT usuario_id FROM progresso_contas WHERE email = ?", (email,)).fetchone()
+            if row:
+                return row[0]
+            usuario_id = str(uuid.uuid4())
+        owner = con.execute("SELECT email FROM progresso_owners WHERE usuario_id = ?", (usuario_id,)).fetchone()
+        if owner:
+            if owner[0] != email:
+                raise HTTPException(403, "Progresso não pertence à conta autenticada.")
+            con.execute("INSERT OR IGNORE INTO progresso_contas VALUES (?, ?)", (email, usuario_id))
+            return usuario_id
+        legacy = con.execute("SELECT 1 FROM progresso WHERE usuario_id = ? UNION ALL SELECT 1 FROM progresso_exercicios WHERE usuario_id = ?", (usuario_id, usuario_id)).fetchone()
+        if legacy:
+            raise HTTPException(403, "Progresso antigo requer associação administrativa local.")
+        con.execute("INSERT INTO progresso_owners VALUES (?, ?)", (usuario_id, email))
+        con.execute("INSERT OR IGNORE INTO progresso_contas VALUES (?, ?)", (email, usuario_id))
+        return usuario_id
+
+
+def associar_legado(usuario_id: str, email: str) -> None:
+    """Operação local explícita; nunca exposta por HTTP. Não substitui proprietário."""
+    usuario_id = str(uuid.UUID(usuario_id))
+    with closing(_conectar()) as con, con:
+        email = email.strip().lower()
+        con.execute("INSERT INTO progresso_owners VALUES (?, ?)", (usuario_id, email))
+        con.execute("INSERT INTO progresso_contas VALUES (?, ?) ON CONFLICT(email) DO UPDATE SET usuario_id = excluded.usuario_id", (email, usuario_id))

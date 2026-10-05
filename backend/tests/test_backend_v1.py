@@ -28,6 +28,8 @@ def llms(categoria="regras"):
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "db_progresso", tmp_path / "v1.sqlite")
     monkeypatch.setattr(settings, "aquecer_na_inicializacao", False)
+    from auth import require_user
+    main.app.dependency_overrides[require_user] = lambda: {"name": "Test", "email": "test@example.com"}
     main.limiter.reset()
     main.app.dependency_overrides[main.obter_llms] = lambda: llms()
     with TestClient(main.app) as client:
@@ -188,11 +190,13 @@ def test_recusa_nao_recomenda_exercicios(client):
     assert body["concept_ids"] == body["related_exercise_ids"] == []
 
 
-def test_validate_sem_uuid_nao_persiste(client, monkeypatch):
-    monkeypatch.setattr(main.app.state, "exercise_recorder", prohibit)
+def test_validate_sem_uuid_persiste_na_conta(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(main.app.state, "exercise_recorder", lambda *args: calls.append(args))
     response = client.post("/exercises/a1-cavalo/validate", json={"version": 1,
         "action": {"type": "move", "source": "b1", "destination": "c3"}})
     assert response.status_code == 200 and response.json()["status"] == "correct"
+    assert calls == [(progresso.identidade("test@example.com"), "a1-cavalo", "correct")]
 
 
 def test_analise_conservadora_nao_usa_rotulos_nem_peca_defendida():

@@ -174,9 +174,8 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
     if (retomou.current) return; // o StrictMode roda o efeito duas vezes no desenvolvimento
     retomou.current = true;
     const usuarioId = lerUsuarioId();
-    if (!usuarioId) return;
     api
-      .licaoAtual(usuarioId)
+      .licaoAtual(usuarioId ?? undefined)
       .then((dados) => aplicarLicao(dados, true))
       .catch((erro) => {
         if (erro instanceof ErroDaApi && erro.status === 400) apagarUsuarioId(); // id inválido
