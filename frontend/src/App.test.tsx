@@ -116,15 +116,16 @@ it("modo Qual documento me ajuda? chama /recomendar e mostra os trechos", async 
 it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tutor", async () => {
   window.location.hash = "partida";
   const officialFen = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2";
-  servidor({ "/health": [200, SAUDE], "/games": [201, {
+  servidor({ "/agents": [200, [{ id: "balanced", display_name: "Equilibrado", difficulty: "intermediate", style: "balanced", description: "Avaliação do motor" }]], "/health": [200, SAUDE], "/games": [201, {
     id: "ai-game", initial_fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
     current_fen: officialFen, moves: ["e2e4", "e7e5"], human_color: "white", side_to_move: "white",
-    status: "playing", winner: null, terminal: false, awaiting_agent: false, version: 2,
+    status: "playing", winner: null, terminal: false, awaiting_agent: false, version: 2, opponent: { type: "ai", agent_id: "balanced" },
   }], "/chat": [200, { resposta: "Tutor preservado", fontes: [], agente: "professor", confianca: 0 }] });
   render(<App />);
   const arena = document.getElementById("partida")!;
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
   expect(arena.hidden).toBe(true);
+  await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
   await screen.findByRole("list", { name: "Histórico oficial" });
   fireEvent.click(screen.getByRole("button", { name: "Abrir tutor" }));

@@ -154,6 +154,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
 app.include_router(exercises_router)
 app.include_router(games.router)
+app.include_router(games.agents_router)
 app.include_router(auth_router)
 app.include_router(masters_router)
 app.state.exercise_recorder = progresso.registrar_exercicio

@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from auth import require_user
 from chess_engine import reconstruir_partida, estado_tabuleiro
 import progresso
+from agent_profiles import PROFILES, resolve_profile
 
 log = logging.getLogger(__name__)
 Color = Literal['white', 'black']
@@ -29,6 +30,7 @@ GameStatus = Literal['playing', 'check', 'checkmate', 'stalemate', 'insufficient
 class CreateGame(BaseModel):
     model_config = ConfigDict(extra='forbid')
     human_color: Color = 'white'
+    agent_id: str = Field(default='stockfish', max_length=64)
 
 
 class HumanMove(BaseModel):
@@ -41,6 +43,7 @@ class HumanMove(BaseModel):
 class Opponent(BaseModel):
     type: Literal['ai'] = 'ai'
     agent_id: str = 'stockfish'
+    profile_version: int = 1
 
 
 class Game(BaseModel):
@@ -106,11 +109,15 @@ class GameRoute(APIRoute):
 def criar_tabelas() -> None:
     """Migração aditiva/idempotente no SQLite já utilizado pelo progresso."""
     with closing(progresso._conectar()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
         db.execute('''CREATE TABLE IF NOT EXISTS games (
             id TEXT PRIMARY KEY, owner TEXT NOT NULL, initial_fen TEXT NOT NULL,
             moves_json TEXT NOT NULL, human_color TEXT NOT NULL CHECK(human_color IN ('white','black')),
             agent_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
             version INTEGER NOT NULL DEFAULT 0 CHECK(version >= 0))''')
+        columns = {row[1] for row in db.execute('PRAGMA table_info(games)')}
+        if 'profile_version' not in columns:
+            db.execute('ALTER TABLE games ADD COLUMN profile_version INTEGER NOT NULL DEFAULT 1')
         db.execute('''CREATE TABLE IF NOT EXISTS game_move_requests (
             game_id TEXT NOT NULL REFERENCES games(id), request_id TEXT NOT NULL,
             move TEXT NOT NULL, expected_version INTEGER NOT NULL, response_json TEXT NOT NULL,
@@ -128,7 +135,7 @@ def game_from_row(row: sqlite3.Row) -> Game:
                 human_color=row['human_color'], side_to_move=state['turn'], status=state['status'],
                 winner=state['winner'], terminal=state['ended'],
                 awaiting_agent=not state['ended'] and state['turn'] != row['human_color'],
-                opponent=Opponent(agent_id=row['agent_id']), created_at=row['created_at'],
+                opponent=Opponent(agent_id=row['agent_id'], profile_version=row['profile_version']), created_at=row['created_at'],
                 updated_at=row['updated_at'], version=row['version'])
 
 
@@ -141,13 +148,17 @@ def owned_row(db: sqlite3.Connection, game_id: str, owner: str) -> sqlite3.Row:
     return row
 
 
-def create_game(owner: str, human_color: Color, *, initial_fen: str = chess.STARTING_FEN) -> Game:
+def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', initial_fen: str = chess.STARTING_FEN) -> Game:
     """FEN inicial é configuração interna; a API pública sempre cria posição padrão."""
+    try:
+        resolve_profile(agent_id)
+    except KeyError:
+        raise GameError('invalid_agent', 'Adversário desconhecido.', 422) from None
     reconstruir_partida(initial_fen, [])
     game_id, timestamp = str(uuid.uuid4()), now()
     with closing(progresso._conectar()) as db, db:
-        db.execute('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)',
-                   (game_id, owner, initial_fen, '[]', human_color, 'stockfish', timestamp, timestamp))
+        db.execute('INSERT INTO games (id, owner, initial_fen, moves_json, human_color, agent_id, created_at, updated_at, version, profile_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)',
+                   (game_id, owner, initial_fen, '[]', human_color, agent_id, timestamp, timestamp))
         return game_from_row(owned_row(db, game_id, owner))
 
 
@@ -245,7 +256,7 @@ router = APIRouter(prefix='/games', tags=['games'], route_class=GameRoute)
 
 @router.post('', response_model=Game, status_code=201)
 def create(data: CreateGame, user: dict = Depends(require_user), policy: AgentPolicy = Depends(get_policy)) -> Game:
-    game = create_game(user['email'], data.human_color)
+    game = create_game(user['email'], data.human_color, agent_id=data.agent_id)
     return execute_agent(game, user['email'], policy) if game.awaiting_agent else game
 
 
@@ -279,3 +290,12 @@ def agent_move(game_id: str, data: AgentMoveRequest, user: dict = Depends(requir
     if snapshot.version != data.version:
         raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
     return execute_agent(snapshot, user['email'], policy)
+
+
+# Catálogo autenticado: somente metadados, sem caminhos/comandos/orçamentos UCI.
+agents_router = APIRouter(tags=['agents'], route_class=GameRoute)
+
+
+@agents_router.get('/agents')
+def agents(user: dict = Depends(require_user)) -> list[dict]:
+    return [profile.metadata() for profile in PROFILES.values()]

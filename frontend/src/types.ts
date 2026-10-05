@@ -202,7 +202,7 @@ export interface Game {
   winner: GameColor | null;
   terminal: boolean;
   awaiting_agent: boolean;
-  opponent: { type: "ai"; agent_id: string };
+  opponent: { type: "ai"; agent_id: string; profile_version?: number };
   created_at: string;
   updated_at: string;
   version: number;
@@ -217,3 +217,9 @@ export interface HumanMoveRequest {
   client_move_id: string; // UUID estável para retry da mesma intenção
 }
 export interface GameError { code: string; message: string }
+
+export interface AgentProfile {
+  id: string; display_name: string; description: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  style: "balanced" | "aggressive" | "positional" | "tactical";
+}

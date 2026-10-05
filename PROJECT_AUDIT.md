@@ -1219,3 +1219,81 @@ Continuam pendentes listagem/retomada visual, retenção de Games/chaves, idempo
 A primeira rodada completa frontend passou 233 testes antes do último caso de integração; a rodada com 234 apresentou 232 aprovados e dois timeouts de 5 s em ExperienciaPedagogica (A1/A2). Rodada focada e nova completa passaram sem aumentar timeout, excluir casos ou mudar configuração do executor. O formulário IA agora só monta quando o modo é usado pela primeira vez e depois permanece preservado ao alternar. A causa exata dos timeouts intermediários não foi comprovada. O typecheck encontrou um mock de teste tentando renderizar a união string/PositionDataType da biblioteca como ReactNode; o mock passou a usar String, sem alteração do produto. Resultado final não identifica regressão nos checks executados; não se afirma ausência de flutuações temporais futuras. Os 60 casos LLM foram excluídos deliberadamente, como na baseline.
 
 Game persistente: sim. Adversário executa movimentos legais: sim. Brancas/pretas e múltiplos turnos: confirmados com Stockfish real. Mate completo desde criação e bloqueio terminal: confirmados com policy controlada. Revalidação, recuperação, concorrência e idempotência: cobertas. Promoção humana/IA e repetição: cobertas. Autenticação/propriedade: preservadas. LLM necessário para jogar: não. Nenhum dado real alterado, commit/deploy ou etapa 7.
+
+## Adendo — agentes configuráveis, etapa 7 (05/10/2026)
+
+O início apresentou `git status --short` vazio, após checkpoint da etapa 6. Foram inspecionados README/auditoria, Game, policy, engine, schemas/main, contratos HTTP, interface IA e testes relacionados. Diagnóstico: `get_policy` sempre instanciava StockfishPolicy; `agent_id=stockfish` era persistido sem configuração adicional; policy usava `SimpleEngine.play` com STOCKFISH_TEMPO. A assinatura da biblioteca instalada confirmou `SimpleEngine.analyse(..., multipv=...)` com resultados estruturados. Nada foi alterado antes desse diagnóstico.
+
+### Arquitetura e perfis
+
+Game continua a fonte oficial (`initial_fen` + movimentos UCI, proprietário, revisão). `AgentProfile` v1 é definição estática e frozen em `agent_profiles.py`, com identidade, nome, dificuldade, estilo, policy e descrição. `Difficulty` frozen concentra orçamento/candidatos/janela. StockfishPolicy resolve o perfil e sua policy permitida `stockfish_candidates_v1`, gera candidatos no serviço independente, filtra qualidade e aplica estilo. Engine fornece informações; policy devolve candidato; servidor revalida na reconstrução oficial e novamente sob revisão/transação antes de persistir. Nenhuma linguagem/RAG participa da decisão.
+
+| id | nome | dificuldade | estilo | comportamento |
+| --- | --- | --- | --- | --- |
+| training_beginner | Treino inicial | beginner | balanced | Busca curta, segunda alternativa elegível quando há mais de uma |
+| balanced | Equilibrado | intermediate | balanced | Ranking do motor após filtro |
+| aggressive | Agressivo | intermediate | aggressive | Atividade/pressão entre candidatos elegíveis |
+| positional | Posicional | advanced | positional | Desenvolvimento, centro, roque e segurança geométrica |
+| tactical | Tático | advanced | tactical | Xeques, capturas e ações forçantes do próprio lado na PV |
+
+Estilos são heurísticos genéricos; não reproduzem fielmente jogador real. Magnus/Hans visuais foram preservados, sem novas biografias/personas/scraping. Configurações v1 precisam permanecer disponíveis e imutáveis; mudanças futuras exigem outra versão e resolver correspondente. A implementação atual aceita somente versão 1 e falha de forma controlada em versão desconhecida.
+
+### Persistência, API e compatibilidade
+
+Migração aditiva/idempotente em `criar_tabelas`, serializada com BEGIN IMMEDIATE, acrescenta `games.profile_version INTEGER NOT NULL DEFAULT 1`, sem nova tabela nem reescrever histórico/identidade. Game/acknowledgements têm campo aditivo `opponent.profile_version`, default 1 em JSON antigo. POST /games aceita `agent_id` permitido (máximo 64 caracteres), além da cor; inválido retorna 422 invalid_agent antes de inserir. Campos extras como comandos/caminhos/depth são recusados. Nenhuma rota altera perfil da Game existente.
+
+ID legado/default da API `stockfish` permanece armazenado/respondido e resolve `balanced` v1; frontend usa balanced explicitamente. Compatibilidade conserva leitura, propriedade, histórico, retry e legalidade; não conserva necessariamente força/lances exatos do antigo `play`. GET /agents exige sessão e devolve somente id/display_name/description/difficulty/style; sem executable, comando, policy interna ou orçamento. Cache-Control no-store e reação a 401 reutilizam o transporte existente.
+
+### MultiPV, qualidade e mate
+
+`chess_engine.gerar_candidatos` utiliza analyse estruturado com MultiPV limitado a cinco candidatos e ao número legal da posição. Recebe cópia com pilha de movimentos. Candidate frozen contém UCI, CP ou mate, PV UCI validada até oito plies, rank e perspectiva **side_to_move**: positivo favorece o lado que decide. A análise pedagógica anterior continua com perspectiva branca. Candidatos ilegais/duplicados/sem score são descartados; sufixo ilegal da PV é cortado. Sem candidato utilizável gera erro recuperável, sem fallback aleatório.
+
+| dificuldade | tempo de busca | nós | candidatos | janela CP |
+| --- | --- | --- | --- | --- |
+| beginner | 0,15 s | 4.000 | 5 | 150 |
+| intermediate | 0,35 s | 15.000 | 4 | 75 |
+| advanced | 0,70 s | 50.000 | 4 | 25 |
+
+Tempo e nós são limites simultâneos: a busca termina ao atingir um deles. Orçamento v1 é interno, não recebido do cliente; STOCKFISH_TEMPO continua nos helpers antigos/análise, não nos perfis novos. Janelas foram definidas na escala CP já usada: 0,25/0,75/1,5 peão. Testes controlados verificam fronteiras e rejeição de perda excessiva, e testes UCI reais confirmam aceitação dos três orçamentos. São escolhas conservadoras iniciais, sem calibração Elo ou garantia de taxa de vitória. Mais nós/tempo e janela menor alteram concretamente a decisão, mas não asseguram monotonicidade de força em toda posição.
+
+Qualidade precede estilo. Balanced usa rank; iniciante usa segunda alternativa por rank dentro da janela. Aggressive pontua check/captura/pressão/centro/desenvolvimento; positional pontua roque/desenvolvimento/centro/defesa e penaliza exposição/peões dobrados; tactical considera check/captura e ações forçantes do próprio lado na PV. Desempate usa rank e UCI, sem RNG global ou aleatoriedade. Geometria de ataques não comprova ganho forçado.
+
+Mate é categoria separada, sem conversão artificial para CP: havendo mate vencedor anunciado, só os mais rápidos são elegíveis; sem eles, prefere candidatos sem mate perdedor; se todos perdem por mate, maximiza distância. Vale em todos os níveis, incluindo iniciante. Se há único movimento legal, escolhe-o sem engine. Proteção contra mate depende dos candidatos/informação encontrados no horizonte limitado; não garante detectar todas as táticas.
+
+### Recursos, falhas e frontend
+
+Geração de candidatos permite dois processos simultâneos **por worker**, com BoundedSemaphore e até 1 s para vaga. Sem vaga resulta em timeout recuperável. Busca máxima de perfil é 0,70 s/50 mil nós; serviço recusa tempo maior que 1 s/nós maiores que 50 mil/candidatos maiores que cinco. Protocolo usa timeout de 5 s acrescido ao limite de busca; inicialização mantém helper UCI existente. Motor é encerrado com quit/close e vaga liberada em finally, inclusive falha ao abrir. Limite não abrange análises pedagógicas nem coordena múltiplos workers. Fila distribuída, cancelamento, rate limits gerais e limites dos exercícios permanecem pendentes.
+
+Falha após commit humano preserva lance/Game/awaiting_agent e permite agent-move, sem mudar idempotência/revisão/propriedade. Policy recebe cópia, não escreve Game. Concorrentes ainda persistem no máximo um lance por revisão; perfis não substituem a barreira legal do servidor.
+
+AiGame carrega catálogo, valida metadados básicos, mostra seleção de adversário/lado e descrição curta com dificuldade/estilo. Catálogo vazio/malformado/falha bloqueia criação e permite recarregar. Game mostra a identidade retornada, inclusive fallback textual para ID desconhecido, sem substituir silenciosamente. Alterar seleção prepara a próxima criação; partida atual mantém o perfil. Promoção, busy, terminais, retry, manual/tutor e posição oficial continuam nos componentes existentes. Nenhum redesign ou mudança de App/Board funcionais.
+
+### Validação executada
+
+Baseline: 234 frontend/35 arquivos; 819 backend não-LLM/60 excluídos. Rodada backend focada inicial teve três falhas de fixtures: posição escolhida tinha zero movimentos legais e mocks antigos forneciam lista com um único lance, dispensando motor pela nova regra. Fixtures corrigidas para posição com único lance real/lista legal completa e analyse MultiPV, preservando assertions de fechamento/histórico. Rodada focada seguinte: **130 aprovados, 18,19 s** (antes dos últimos testes). Frontend focado: **32 aprovados em três arquivos, 16,16 s**.
+
+Primeira rodada completa simultânea: backend **866 aprovados/60 não selecionados, 49,70 s**; frontend **236 aprovados/3 timeouts de 5 s** (App alternância/tutor e ExperienciaPedagogica A2/A3), 54,41 s. Não foram aumentados timeouts, excluídos testes nem alterado executor. Frontend completo isolado passou **239 em 35 arquivos, 42,07 s** (+5 sobre baseline). A causa precisa das flutuações temporais não foi comprovada; execução simultânea é contexto observado, não diagnóstico causal fechado.
+
+Backend completo após revisão da migração/testes: comando em backend:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra
+```
+
+Resultado: **866 aprovados, 60 LLM não selecionados, nenhum skip/falha, 36,28 s** (+47 sobre baseline). Frontend `npm run build`: **aprovado**, tsc noEmit + Vite, JS 423,71 kB/gzip 131,41 kB; CSS 84,45 kB/gzip 25,49 kB. Depois da suíte, a assertion UCI de contagem foi reforçada para exigir todos os candidatos pedidos na posição inicial; o conjunto novo foi reexecutado separadamente, com resultado registrado abaixo.
+
+Cobertura nova inclui catálogo seguro/sessão, ID inválido/configuração arbitrária, persistência de todos os perfis/alias, schema/acknowledgement antigos, migração repetida, versões desconhecidas, três janelas/orçamentos, escolhas distintas de aggressive/positional/tactical dentro da janela, exclusão fora dela, mate positivo/negativo separado de CP em todos os perfis, único legal, candidatos inválidos/PV/duplicação/perspectiva, fechamento, vaga ocupada/liberação em erro, revalidação de policy ilegal, retry e concorrência com perfil. Três testes UCI de orçamento/candidatos e dois de mate branco/preto confirmam MultiPV, legalidade e processos encerrados. Regressão preserva idempotência e autorização anteriores. Frontend cobre catálogo, escolha enviada, identidade retornada/preservada, perfil/catálogo malformado, 401, duas cores, busy, promoção, retry, fim e alternância/tutor.
+
+### Validação funcional adicional
+
+Script em /tmp executado via TestClient real com conta/bancos exclusivamente em TemporaryDirectory, aquecimento desativado e chaves vazias no processo. Stockfish real: balanced/white fez dois turnos completos, revisão 4, sequência g1h3 d7d5 h3g5 e7e5; aggressive/white fez dois turnos completos, revisão 4, mesma sequência nesta execução; positional/black começou com IA e fez duas respostas adicionais, revisão 5, sequência g1f3 g8h6 d2d4 h8g8 b1c3. Cada resultado teve turno humano, perfil intacto e FEN conferido pela reconstrução legal integral; GET manteve identidade. Igualdade de lances nesta amostra não comprova ausência de heurística nem demonstra diferença de estilo; diferenças são verificadas em posições controladas.
+
+Outra Game aggressive/black falhou por TimeoutError simulado antes do primeiro lance; agent-move retomou usando Stockfish real, aplicando e2e4 e conservando perfil. Handshake confirmou **Stockfish 19**. Bancos temporários removidos. Nenhum banco/conta real foi lido/migrado/modificado, nenhuma dependência instalada/atualizada, nenhum .env alterado, ingestão, scraping, treinamento, FIDE ou LLM real/pago. Não houve execução integrada em navegador nem confirmação visual/CORS real.
+
+### Arquivos e pendências
+
+16 arquivos: README.md e PROJECT_AUDIT.md; novo backend/agent_profiles.py; backend/agent_policy.py, chess_engine.py, games.py, main.py; novo backend/tests/test_agent_profiles.py; testes test_agent_games.py e test_games.py; frontend/src/types.ts, api.ts, components/AiGame.tsx; testes components/AiGame.test.tsx, gamesApi.test.ts e App.test.tsx. Schemas de análise, auth/progresso, prompts/RAG/corpus, assets, App/Board funcionais foram preservados.
+
+Permanecem calibração de força/estilos, versões futuras, métricas de qualidade/latência, limites entre workers/outros serviços, cancelamento, retomada/listagem na UI, retenção/idempotência de criação, PGN e demais pendências anteriores. Não há imitação fiel de jogador, personalidade textual, treinamento, multiplayer, matchmaking ou ranking. Etapa 8 não iniciada; sem commit/deploy. Revisão final inclui diff completo/arquivos novos, git diff --check e status.
+
+Verificação final do conjunto novo após reforço da contagem MultiPV: `python -m pytest tests/test_agent_profiles.py -p no:cacheprovider -q -ra`, nas condições offline acima — **47 aprovados, 6,76 s**. Confirma cinco/quatro/quatro candidatos distintos na posição inicial nos respectivos orçamentos reais. `git diff --check` aprovado; status confere os 16 arquivos declarados, dois novos. Estado final: 239 frontend/35 arquivos, build aprovado, 866 backend/60 LLM não selecionados; nenhuma regressão identificada nos checks finais, com timeouts intermediários registrados.

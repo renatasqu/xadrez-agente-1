@@ -10,6 +10,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
+from threading import BoundedSemaphore
 
 import chess
 import chess.engine
@@ -286,3 +287,65 @@ def escolher_lance(board: chess.Board, tempo: float | None = None) -> str:
         return result.move.uci()
     finally:
         fechar_motor(motor)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    move: str
+    cp: int | None
+    mate: int | None
+    pv: tuple[str, ...]
+    rank: int
+    perspective: str = 'side_to_move'
+
+
+# Limite local por processo da API: não é coordenação entre workers.
+_CANDIDATE_SLOTS = BoundedSemaphore(2)
+
+
+def gerar_candidatos(board: chess.Board, *, tempo: float, nodes: int, quantidade: int) -> list[Candidate]:
+    """MultiPV estruturada; score do lado a jogar, PV legal até 8 plies."""
+    if not math.isfinite(tempo) or not 0 < tempo <= 1 or type(nodes) is not int or not 1 <= nodes <= 50000 or type(quantidade) is not int or not 1 <= quantidade <= 5:
+        raise ValueError('Orçamento de candidatos inválido')
+    if not board.is_valid() or estado_tabuleiro(board)['ended']:
+        raise ValueError('Posição não ativa')
+    if not _CANDIDATE_SLOTS.acquire(timeout=1):
+        raise TimeoutError('Motor ocupado')
+    try:
+        motor = abrir_motor()
+        try:
+            motor.timeout = 5.0
+            infos = motor.analyse(board.copy(stack=True), chess.engine.Limit(time=tempo, nodes=nodes),
+                                  multipv=min(quantidade, board.legal_moves.count()))
+            candidates = []
+            seen = set()
+            for info in infos:
+                score = info.get('score')
+                pv = info.get('pv', [])
+                if score is None or not pv or pv[0] not in board.legal_moves:
+                    continue
+                move = pv[0].uci()
+                if move in seen:
+                    continue
+                replay = board.copy(stack=True)
+                line = []
+                for step in pv[:8]:
+                    if step not in replay.legal_moves:
+                        break
+                    line.append(step.uci()); replay.push(step)
+                relative = score.pov(board.turn)
+                cp, mate = relative.score(), relative.mate()
+                if cp is None and mate is None:
+                    continue
+                rank = info.get('multipv', len(candidates) + 1)
+                if type(rank) is not int or not 1 <= rank <= quantidade:
+                    continue
+                candidates.append(Candidate(move, cp, mate, tuple(line), rank))
+                seen.add(move)
+            if not candidates:
+                raise ErroDoMotor('Motor não retornou candidatos válidos')
+            return sorted(candidates, key=lambda c: c.rank)
+        finally:
+            fechar_motor(motor)
+    finally:
+        _CANDIDATE_SLOTS.release()

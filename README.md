@@ -328,3 +328,35 @@ Transação curta persiste o humano e a chave; cálculo ocorre sem conexão/lock
 Stockfish usa descoberta/configuração existentes. Decisão usa STOCKFISH_TEMPO (padrão 1 s, intervalo positivo até 10 s), timeout de protocolo de 5 s somado ao limite de busca, inicialização UCI existente e quit/close em finally. Não requer chave de linguagem, RAG ou embeddings; para iniciar sem aquecimento documental, use AQUECER_NA_INICIALIZACAO=false. Não há fallback aleatório, PGN, multiplayer, personalidades ou níveis. Listagem/retomada após reload pela interface, limites globais de custo/concorrência e retenção de Games/chaves continuam pendentes. As seções das etapas 4/5 acima são registros históricos superados neste escopo pela etapa 6.
 
 Validação final da etapa 6 (05/10/2026): **234 testes frontend em 35 arquivos**, build/typecheck aprovado; **819 backend não-LLM aprovados / 60 LLM não selecionados**, nenhum skip/falha (baseline 220/774). Testes incluem policies defeituosas, concorrência/idempotência, promoções, terminais, sequência completa até mate com policy controlada e movimentos reais Stockfish. Script funcional adicional executou duas respostas reais da IA para cada cor com contas/bancos temporários, removidos ao terminar. Handshake confirmou Stockfish 19 e fechamento. Sem LLM pago, FIDE, ingestão, banco real alterado ou navegador integrado. Houve dois timeouts intermediários frontend; rodada focada e completa final passaram sem relaxar limites. Detalhes no adendo da auditoria. `git diff --check` aprovado; nenhuma etapa 7 iniciada.
+
+### Agentes configuráveis — etapa 7
+
+Em **Jogar contra IA**, escolha **Adversário** e **Seu lado** antes de criar a partida. O perfil retornado pela Game fica visível; mudar a seleção prepara uma nova partida e não altera a atual. O catálogo vem de **GET /agents**, autenticado, com somente id, nome, descrição, dificuldade e estilo. Falha/catálogo inválido bloqueia criação e permite recarregar. **POST /games** aceita `agent_id` permitido além de `human_color`; parâmetros arbitrários de motor são recusados.
+
+| ID | Nome | Dificuldade | Estilo |
+| --- | --- | --- | --- |
+| training_beginner | Treino inicial | Iniciante | Equilibrado |
+| balanced | Equilibrado | Intermediário | Equilibrado |
+| aggressive | Agressivo | Intermediário | Agressivo |
+| positional | Posicional | Avançado | Posicional |
+| tactical | Tático | Avançado | Tático |
+
+`AgentProfile` é configuração estática v1, separada de `Difficulty`, estilo, policy e engine. Game persiste `agent_id` e `profile_version`; migração aditiva atribui versão 1 a Games anteriores e aceita acknowledgements antigos. As definições v1 devem ser preservadas; futuras mudanças de configuração precisam de outra versão e resolução correspondente. O ID legado/default da API `stockfish` permanece armazenado como tal e resolve o perfil `balanced` v1. Compatibilidade preserva histórico/retry/legalidade; não promete repetir decisões ou força da antiga busca `play`. A interface escolhe `balanced` explicitamente.
+
+StockfishPolicy usa `SimpleEngine.analyse(..., multipv=...)` do python-chess, sem parsing de texto, LLM ou RAG. Cada candidato contém UCI, CP **ou** mate, PV legal de até oito plies, ranking do motor e perspectiva **side_to_move** (positivo favorece quem está jogando). A análise pedagógica continua com sua perspectiva branca; são contratos distintos. Candidatos ilegais, sem score ou duplicados são descartados. Sem candidato válido há falha recuperável, sem lance inventado.
+
+| Dificuldade | Tempo máximo de busca | Nós máximos | Candidatos máximos | Perda permitida em CP |
+| --- | --- | --- | --- | --- |
+| Iniciante | 0,15 s | 4.000 | 5 | 150 |
+| Intermediário | 0,35 s | 15.000 | 4 | 75 |
+| Avançado | 0,70 s | 50.000 | 4 | 25 |
+
+A busca termina pelo limite de tempo ou nós atingido primeiro. Orçamentos são internos ao perfil; `STOCKFISH_TEMPO` continua nos serviços anteriores de análise/decisão, mas não controla os novos perfis. Janela compara avaliação do candidato com a melhor avaliação, em centésimos de peão: 25/75/150 CP representam 0,25/0,75/1,5 peão na escala do motor. Os limites foram verificados em testes controlados e os três orçamentos aceitos pelo Stockfish real; são escolhas conservadoras v1, **sem calibração Elo ou garantia de desempenho contra humanos**. Busca curta pode deixar passar táticas.
+
+Equilibrado respeita ranking após filtro; Treino inicial escolhe a segunda alternativa dentro da janela quando disponível, sem aleatoriedade. Agressivo favorece xeques, capturas, pressão geométrica, centro e desenvolvimento. Posicional favorece roque, desenvolvimento, centro e defesa, penalizando exposição e peões dobrados. Tático favorece xeques/capturas e ações forçantes do próprio lado na PV. Empates de heurística usam ranking e UCI. Estilo só atua dentro da janela; são heurísticas locais, sem imitação fiel de Magnus, Hans ou outro jogador. Identidades visuais existentes permanecem.
+
+Mate não vira CP: se houver mate vencedor anunciado, só mates mais rápidos ficam elegíveis; sem ele, candidatos sem mate perdedor precedem os perdedores; se todos anunciam derrota, prefere maior distância até mate. Essa regra vale para todos os níveis. Um único movimento legal dispensa engine. A proteção depende do que o motor encontrou no conjunto limitado; não certifica ausência de mate além do horizonte.
+
+Servidor continua revalidando o candidato na reconstrução oficial e novamente sob revisão/transação antes de persistir. Propriedade, turno, término, idempotência, concorrência e retry da etapa 6 são preservados. Falha após lance humano mantém esse lance e permite retomar o agente. A geração usa no máximo **dois processos simultâneos por worker**, espera vaga por até 1 s e falha recuperável se ocupado; busca tem timeout de protocolo de 5 s somado ao orçamento e inicialização UCI existente. `quit/close` e liberação da vaga ocorrem em `finally`. Limite não cobre outros serviços de análise nem é distribuído entre workers; rate limit global/cancelamento continuam pendentes. Não houve upgrade, scraping, treinamento ou alteração de corpus. Resultados e limites da validação estão no adendo da auditoria.
+
+Validação final da etapa 7: **239 testes frontend em 35 arquivos**, build/typecheck aprovado; **866 backend aprovados/60 LLM não selecionados**, nenhum skip/falha (+5/+47 frente à etapa 6). O conjunto novo confirmou MultiPV real com cinco/quatro/quatro candidatos e processos encerrados, mates, seleção controlada, migração/retry/concorrência. Script funcional com bancos temporários confirmou dois turnos completos contra balanced/aggressive, humano preto contra positional e retry com Stockfish real após timeout simulado. Stockfish 19 confirmado. Primeira execução simultânea teve três timeouts frontend; completa isolada passou sem mudar limites. Sem browser integrado ou calibração Elo. `git diff --check` aprovado; sem commit/deploy ou etapa seguinte.

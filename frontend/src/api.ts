@@ -1,5 +1,5 @@
 import { sessionExpired } from "./auth/sessionEvents";
-import type { Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
+import type { AgentProfile, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
 // Rotas legadas e progresso usam Resposta nos erros. /exercises usa code/message.
@@ -103,7 +103,8 @@ export interface MastersRatings {
 }
 
 export const api = {
-  createGame: (human_color: GameColor) => chamar<Game>("/games", post({ human_color }), false, true),
+  agents: () => chamar<AgentProfile[]>("/agents", {}, false, true),
+  createGame: (human_color: GameColor, agent_id?: string) => chamar<Game>("/games", post({ human_color, ...(agent_id ? { agent_id } : {}) }), false, true),
   getGame: (id: string) => chamar<Game>(`/games/${encodeURIComponent(id)}`, {}, false, true),
   submitHumanMove: (id: string, payload: HumanMoveRequest) =>
     chamar<Game>(`/games/${encodeURIComponent(id)}/moves`, post(payload), false, true),

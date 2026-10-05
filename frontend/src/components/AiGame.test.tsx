@@ -23,12 +23,19 @@ function drop(source: string, target: string) {
 async function start(next = game()) {
   vi.spyOn(api, "createGame").mockResolvedValue(next);
   render(<AiGame onPosition={vi.fn()} />);
+  await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
   await screen.findByTestId("official-fen");
 }
-beforeEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(api, "agents").mockResolvedValue([
+    { id: "balanced", display_name: "Equilibrado", difficulty: "intermediate", style: "balanced", description: "Melhor avaliação" },
+    { id: "aggressive", display_name: "Agressivo", difficulty: "intermediate", style: "aggressive", description: "Atividade" },
+  ]);
+});
 it("cria de brancas e aplica somente o estado oficial humano + IA", async () => {
-  await start(); expect(api.createGame).toHaveBeenCalledWith("white");
+  await start(); expect(api.createGame).toHaveBeenCalledWith("white", "balanced");
   let resolve!: (g: Game) => void;
   const send = vi.spyOn(api, "submitHumanMove").mockImplementation(() => new Promise(r => { resolve = r; }));
   drop("e2", "e4"); drop("d2", "d4");
@@ -46,9 +53,10 @@ it("pretas recebem primeiro lance e podem responder, com nova resposta da IA", a
   const send = vi.spyOn(api, "submitHumanMove").mockResolvedValue(game(["e2e4", "e7e5", "g1f3"], { human_color: "black", awaiting_agent: false }));
   render(<AiGame onPosition={vi.fn()} />);
   fireEvent.change(screen.getByLabelText("Seu lado"), { target: { value: "black" } });
+  await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
   await screen.findByTestId("official-fen");
-  expect(api.createGame).toHaveBeenCalledWith("black"); expect(board.options?.boardOrientation).toBe("black");
+  expect(api.createGame).toHaveBeenCalledWith("black", "balanced"); expect(board.options?.boardOrientation).toBe("black");
   drop("e7", "e5"); await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5", "g1f3"]).current_fen));
 });
@@ -80,4 +88,28 @@ it.each(["check", "checkmate", "repetition"] as const)("mostra estado oficial %s
 it("nova partida cria novo recurso", async () => {
   await start(); fireEvent.click(screen.getByText("Nova partida contra IA"));
   await waitFor(() => expect(api.createGame).toHaveBeenCalledTimes(2));
+});
+
+it("mostra perfis, envia escolha e mantém identidade da Game ao mudar próxima seleção", async () => {
+  await start(game([], { opponent: { type: "ai", agent_id: "aggressive" } }));
+  expect(screen.getByRole("option", { name: "Agressivo" })).toBeTruthy();
+  expect(screen.getByText("Adversário da partida: Agressivo")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Adversário"), { target: { value: "aggressive" } });
+  fireEvent.click(screen.getByText("Nova partida contra IA"));
+  await waitFor(() => expect(api.createGame).toHaveBeenLastCalledWith("white", "aggressive"));
+  fireEvent.change(screen.getByLabelText("Adversário"), { target: { value: "balanced" } });
+  expect(screen.getByText("Adversário da partida: Agressivo")).toBeTruthy();
+});
+it("catálogo malformado não quebra tela e permite recarregar", async () => {
+  vi.mocked(api.agents).mockResolvedValueOnce([null, { id: "bad", difficulty: "impossible" }] as never);
+  render(<AiGame onPosition={vi.fn()} />);
+  expect((await screen.findByRole("alert")).textContent).toContain("carregar os adversários");
+  expect((screen.getByText("Iniciar partida contra IA") as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByText("Recarregar adversários"));
+  await screen.findByRole("option", { name: "Equilibrado" });
+  await waitFor(() => expect((screen.getByText("Iniciar partida contra IA") as HTMLButtonElement).disabled).toBe(false));
+});
+it("perfil retornado desconhecido é exibido sem substituir identidade", async () => {
+  await start(game([], { opponent: { type: "ai", agent_id: "future_profile" } }));
+  expect(screen.getByText("Adversário da partida: future_profile")).toBeTruthy();
 });

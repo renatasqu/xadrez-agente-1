@@ -191,8 +191,6 @@ def test_resume_auth_owner_turn_schema(client, policy):
 def test_real_stockfish_functional(client, monkeypatch, color):
     monkeypatch.setattr('llm.criar_llm', lambda *a, **kw: pytest.fail('LLM forbidden'))
     monkeypatch.setattr('retrieval.buscar', lambda *a, **kw: pytest.fail('RAG forbidden'))
-    from config import settings
-    monkeypatch.setattr(settings, 'stockfish_tempo', 0.02)
     processes = []
     original = chess_engine.abrir_motor
     def opening():
@@ -215,12 +213,12 @@ def test_real_stockfish_functional(client, monkeypatch, color):
 @pytest.mark.parametrize('failure', [TimeoutError(), RuntimeError()])
 def test_engine_closed_on_failure(monkeypatch, failure):
     class Engine:
-        def play(self, *args): raise failure
+        def analyse(self, *args, **kwargs): raise failure
         def quit(self): self.quit_called = True
         def close(self): self.close_called = True
     engine = Engine()
     monkeypatch.setattr(chess_engine, 'abrir_motor', lambda: engine)
-    with pytest.raises(type(failure)): StockfishPolicy().choose_move(chess.Board(), ('e2e4',), games.Opponent())
+    with pytest.raises(type(failure)): StockfishPolicy().choose_move(chess.Board(), tuple(m.uci() for m in chess.Board().legal_moves), games.Opponent())
     assert engine.quit_called and engine.close_called
 
 
@@ -319,11 +317,10 @@ def test_engine_policy_preserves_history(monkeypatch):
     moves = ['g1f3', 'g8f6', 'f3g1', 'f6g8', 'g1f3', 'g8f6', 'f3g1']
     board = chess_engine.reconstruir_partida(chess.STARTING_FEN, moves)
     class Engine:
-        def play(self, snapshot, limit):
+        def analyse(self, snapshot, limit, **kwargs):
             assert snapshot is not board
             assert [m.uci() for m in snapshot.move_stack] == moves
-            class Result: move = chess.Move.from_uci('f6g8')
-            return Result()
+            return [{'pv': [chess.Move.from_uci('f6g8')], 'score': chess.engine.PovScore(chess.engine.Cp(0), snapshot.turn)}]
         def quit(self): pass
         def close(self): pass
     monkeypatch.setattr(chess_engine, 'abrir_motor', lambda: Engine())

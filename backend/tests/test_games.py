@@ -63,7 +63,7 @@ def test_create_read(client,color):
     assert game['moves'] == [] and game['version'] == 0
     assert game['human_color'] == color and game['side_to_move'] == 'white'
     assert game['awaiting_agent'] == (color == 'black')
-    assert game['opponent'] == {'type':'ai','agent_id':'stockfish'}
+    assert game['opponent'] == {'type':'ai','agent_id':'stockfish','profile_version':1}
     assert game['status'] == 'playing' and not game['terminal'] and game['winner'] is None
     assert game['created_at'] == game['updated_at']
     assert 'owner' not in game and 'email' not in game

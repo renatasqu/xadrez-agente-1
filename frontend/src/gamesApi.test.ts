@@ -53,3 +53,19 @@ it("401 na retomada invalida sessão", async () => {
   try { await expect(api.resumeAgent("game", 1)).rejects.toBeInstanceOf(ErroDePartida); expect(listener).toHaveBeenCalledTimes(1); }
   finally { window.removeEventListener("xadrez:session-expired", listener); }
 });
+
+it("envia agent_id escolhido com credenciais", async () => {
+  responder(201); await api.createGame("white", "aggressive");
+  const options = vi.mocked(fetch).mock.calls[0][1];
+  expect(JSON.parse(options?.body as string)).toEqual({ human_color: "white", agent_id: "aggressive" });
+  expect(options?.credentials).toBe("include");
+});
+it("consulta catálogo autenticado e invalida sessão em 401", async () => {
+  responder(200, []); expect(await api.agents()).toEqual([]);
+  expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/agents$/);
+  expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");
+  const listener = vi.fn(); window.addEventListener("xadrez:session-expired", listener);
+  responder(401, {});
+  try { await expect(api.agents()).rejects.toBeInstanceOf(ErroDePartida); expect(listener).toHaveBeenCalledTimes(1); }
+  finally { window.removeEventListener("xadrez:session-expired", listener); }
+});
