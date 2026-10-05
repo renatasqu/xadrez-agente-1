@@ -203,6 +203,7 @@ export interface Game {
   terminal: boolean;
   awaiting_agent: boolean;
   opponent: { type: "ai"; agent_id: string; profile_version?: number };
+  profile?: AgentProfile | null;
   created_at: string;
   updated_at: string;
   version: number;
@@ -223,3 +224,10 @@ export interface AgentProfile {
   difficulty: "beginner" | "intermediate" | "advanced";
   style: "balanced" | "aggressive" | "positional" | "tactical";
 }
+
+export interface GameSummary {
+  id: string; human_color: GameColor; opponent: Game["opponent"]; profile: AgentProfile | null;
+  created_at: string; updated_at: string; status: Game["status"]; winner: GameColor | null;
+  terminal: boolean; side_to_move: GameColor; awaiting_agent: boolean; move_count: number; version: number;
+}
+export interface GameList { games: GameSummary[]; next_offset: number | null }

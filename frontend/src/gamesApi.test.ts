@@ -69,3 +69,16 @@ it("consulta catálogo autenticado e invalida sessão em 401", async () => {
   try { await expect(api.agents()).rejects.toBeInstanceOf(ErroDePartida); expect(listener).toHaveBeenCalledTimes(1); }
   finally { window.removeEventListener("xadrez:session-expired", listener); }
 });
+
+it("lista com filtro/paginação e credenciais", async () => {
+  responder(200,{games:[],next_offset:null}); await api.listGames("finished",20);
+  expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/games\?status=finished&limit=20&offset=20$/);
+  expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");
+});
+it("criação envia chave estável e listagem 401 invalida sessão", async () => {
+  responder(201); await api.createGame("black","aggressive","key");
+  expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string).client_game_id).toBe("key");
+  const listener=vi.fn();window.addEventListener("xadrez:session-expired",listener);responder(401,{});
+  try { await expect(api.listGames()).rejects.toBeInstanceOf(ErroDePartida);expect(listener).toHaveBeenCalledTimes(1); }
+  finally { window.removeEventListener("xadrez:session-expired",listener); }
+});

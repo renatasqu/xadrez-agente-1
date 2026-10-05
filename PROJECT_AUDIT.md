@@ -1297,3 +1297,62 @@ Outra Game aggressive/black falhou por TimeoutError simulado antes do primeiro l
 Permanecem calibração de força/estilos, versões futuras, métricas de qualidade/latência, limites entre workers/outros serviços, cancelamento, retomada/listagem na UI, retenção/idempotência de criação, PGN e demais pendências anteriores. Não há imitação fiel de jogador, personalidade textual, treinamento, multiplayer, matchmaking ou ranking. Etapa 8 não iniciada; sem commit/deploy. Revisão final inclui diff completo/arquivos novos, git diff --check e status.
 
 Verificação final do conjunto novo após reforço da contagem MultiPV: `python -m pytest tests/test_agent_profiles.py -p no:cacheprovider -q -ra`, nas condições offline acima — **47 aprovados, 6,76 s**. Confirma cinco/quatro/quatro candidatos distintos na posição inicial nos respectivos orçamentos reais. `git diff --check` aprovado; status confere os 16 arquivos declarados, dois novos. Estado final: 239 frontend/35 arquivos, build aprovado, 866 backend/60 LLM não selecionados; nenhuma regressão identificada nos checks finais, com timeouts intermediários registrados.
+
+## Adendo — continuidade de partidas, etapa 8 (05/10/2026)
+
+Início com `git status --short` vazio. Foram conferidos documentação/auditoria, Game/owner/timestamps/regras/perfis, auth e integração frontend. Game já persistia initial_fen + UCI, e-mail proprietário da sessão, created_at/updated_at UTC, revisão, agent_id/profile_version. Terminal/turno/vencedor eram derivados, não duplicados no banco. Não havia listagem; AiGame mantinha Game em useState e perdia a referência no reload. Criação não tinha idempotência. As definições de perfis/policy/engine e heurísticas foram preservadas.
+
+### Modelo de continuidade e contrato
+
+GET /games é autenticado e usa exclusivamente e-mail da sessão como proprietário. Query owner não seleciona outra conta; não existe parâmetro confiável de identidade fornecido pelo cliente. Retorna GameList `{games,next_offset}` e resumos com id/human_color/opponent/profile/datas/status/winner/terminal/side_to_move/awaiting_agent/move_count/version. Sem owner, FEN ou histórico completo. GET individual continua retornando Game oficial reconstruída, agora com metadados seguros de perfil resolvidos por ID/versão (null para definição desconhecida). Alias stockfish v1 mantém ID e resolve balanced. A seleção atual da UI não altera uma retomada.
+
+Ativa significa `terminal=false`. Filtros status=all/active/finished; limit padrão 20, intervalo 1–50; offset 0–10000; resposta inclui next_offset quando há mais resultados dentro desse limite. Ordenação updated_at DESC, id DESC como desempate. Migração adiciona índice games_owner_updated; leitura em streaming deriva status do histórico e aplica offset após filtro. Não há status duplicado, novo banco ou segunda arquitetura. Filtro inválido/limites fora do intervalo retornam 422 invalid_game_filter/invalid_pagination; valores não inteiros usam invalid_request do handler existente. No-store e 401 preservados. Paginação por offset não é snapshot estável durante escritas concorrentes; filtros podem precisar percorrer/reconstruir muitos históricos do proprietário.
+
+UI consulta a lista ao montar a área IA, mostra múltiplas Games para escolha, destaca mais recente, permite atualizar/filtrar/paginar, apresenta vazio/erro recuperável. Continuar partida/Ver resultado usa GET individual e substitui posição/histórico/turno/cor/perfil pelo estado oficial. Não consulta/grava ID ou Game em localStorage: referências antigas locais são ignoradas. Não cria Game automaticamente ao montar/remontar. Após reload, usuário abre área IA e escolhe explicitamente. Partida pendente exibe retry e bloqueia humano; GET não executa agente. Terminal exibe resultado/posição final, bloqueia novas jogadas/IA e permite outra criação. Manual/tutor/promoção/busy existentes foram preservados.
+
+### Idempotência de criação e isolamento
+
+CreateGame aceita client_game_id UUID opcional. Nova tabela game_create_requests possui chave composta owner/request_id e grava cor/agent_id/game_id. BEGIN IMMEDIATE cria recurso e associação atomicamente, serializando concorrentes. Mesma conta/chave/payload normalizado retorna mesma Game **no estado atual**, não snapshot histórico da criação. Mudança de cor ou agent_id com chave reutilizada retorna 409 duplicate_request_conflict. A chave pode ser usada por outra conta sem revelar/reutilizar recurso alheio. Clientes sem chave mantêm criação independente, sem mudança incompatível.
+
+Só criação nova executa turno inicial do agente; retry de criação não joga outro lance automaticamente. Game pendente continua recuperável por agent-move. Cliente gera UUID por intenção, desabilita botão e usa lock síncrono; erro ambíguo conserva chave/cor/perfil, bloqueia mudança de parâmetros e permite confirmar a mesma criação. Erros definitivos 409/422 liberam a intenção; reload perde essa intenção em memória, mas a Game persistida continua encontrável na lista. Criação, listagem e retomada não adicionam LLM/RAG.
+
+Propriedade foi testada em duas contas: lista somente próprias, GET/moves/agent-move de outra conta retornam o mesmo 404 de recurso ausente. Sem proprietário nas respostas. Migração é aditiva/idempotente e preserva tabelas/dados anteriores e chaves novas ao repetir. Nenhuma migração foi executada no banco real desta máquina.
+
+### Navegador realmente executado
+
+**SIM: Google Chrome instalado, em modo headless, com perfil isolado em /tmp e automação DevTools/CDP.** A skill Browser foi lida e o bootstrap do navegador integrado tentou iab; retornou indisponível. Orientação de troubleshooting foi lida antes do fallback. Chrome local foi usado com websocket já instalado, sem instalar dependências. Servidores local-only e Chrome precisaram executar fora da restrição de bind do sandbox; revisão automática permitiu. API serviu conta/bancos em TemporaryDirectory, aquecimento desativado e chaves vazias no processo; frontend Vite usou URL local de QA. Não foram usados navegador pessoal, cookies/contas reais ou APIs pagas. Health em QA recebeu contagem simulada, sem consulta de corpus; seleção de jogadas usou Stockfish real.
+
+Fluxos executados por formulário/controles/DOM reais:
+
+- Login com conta sintética → Jogar contra IA → balanced/brancas → dois turnos completos: e2e4 e7e5 g1f3 g8f6.
+- Reload real → sessão restaurada → abrir área IA → lista do servidor → escolher mesma Game → histórico intacto → novo turno f1c4 f6e4. Antes da escolha, nenhum tabuleiro IA/novo recurso foi criado.
+- Nova Game aggressive/pretas → IA abre com e2e4 → dois turnos completos: e7e5 d2d4 g8f6 d4e5. Perfil Agressivo v1 permaneceu.
+- Fixture Game positional/pretas pendente (zero lances) → continuar → humano bloqueado/retomada oferecida → retry Stockfish real aplica g1f3, sem criar outra Game; perfil Posicional permanece apesar da seleção Agressivo.
+- Fixture Game terminal stockfish/pretas → Ver resultado → xeque-mate das brancas visível, peças na posição final, aria-disabled=true e sem botão de retry. Captura PNG foi aberta e inspecionada em viewport desktop 1280×1000.
+- Voltar à partida manual → arena visível → abrir tutor → modal e formulário disponíveis. Nenhuma pergunta foi enviada a provedor real.
+
+Fixtures pendente/terminal foram criadas localmente só no banco temporário, sem novo endpoint de importação de FEN. Primeira automação tentou origem/destino no mesmo ciclo de render e não emitiu lance; cliques separados por atualização DOM funcionaram. Não foi diagnosticado bug do produto nesse comportamento de automação. Não houve redesign/refatoração ampla nem alteração de heurísticas. Não se afirma validação móvel, acessibilidade completa ou produção TLS/proxy.
+
+### Testes e revisão
+
+Baseline etapa 7: 239 frontend/35 arquivos, 866 backend/60 LLM excluídos. Novos testes backend usam bancos temporários/sessões reais, lista privada/ordem/filtros/limites/vazio/alias/perfil/versão, retomada/FEN/history, pending/retry, terminal bloqueado, cross-account nas três operações, criação idempotente/payload conflitante/namespaces por conta/migração repetida e criação concorrente. Dois testes com Stockfish real jogam dois turnos para cada cor, fecham/recriam TestClient, listam/recuperam mesmo ID/perfil/histórico/FEN e jogam terceiro turno. Casos finais verificam limite padrão/máximo, leitura sem LLM/RAG/engine e chave inválida sem inserção.
+
+Frontend acrescenta testes de remount completo com movimento posterior, lista/vazio, referência local inválida ignorada, perfil/cor/estado oficiais, pending/retry, terminal, erro de lista/ID desaparecido, duplo clique e retry com mesma chave/payload, transporte de listagem/chave/401. Casos anteriores de promoção, busy, manual/tutor e duas cores continuam na regressão. Nenhum timeout relaxado ou caso excluído.
+
+Resultados realmente executados antes dos dois últimos casos backend: backend focado **158 aprovados, 21,32 s**; frontend focado **31 aprovados em dois arquivos, 1,25 s**; frontend completo **247 aprovados em 35 arquivos, 42,80 s** (+8), sem timeouts nessa rodada; backend completo **884 aprovados, 60 LLM não selecionados, nenhum skip/falha, 43,08 s**. Resultado final após os dois casos adicionais registrado abaixo. Frontend build/typecheck aprovado: JS 426,82 kB/gzip 132,32 kB; CSS 84,45 kB/gzip 25,49 kB. As suítes completas foram executadas sequencialmente; ausência de timeouts não prova causa dos timeouts anteriores.
+
+Comando backend completo em backend:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra
+```
+
+Frontend: `cd frontend && npm test` e `npm run build`. Checks Git: diff rastreado/arquivo novo, git diff --check e git status --short. Sem dependência instalada/upgrade, .env alterado, ingestão, FIDE, LLM real/pago, scraping ou dado real consultado/modificado.
+
+### Arquivos e pendências
+
+Nove arquivos: backend/games.py (listagem, summaries/perfil, índice/migração e criação idempotente); novo backend/tests/test_game_continuity.py; frontend/src/api.ts, types.ts, components/AiGame.tsx; testes components/AiGame.test.tsx e gamesApi.test.ts; README.md e PROJECT_AUDIT.md. Auth, propriedade anterior, engine/policy/perfis, regras, App/Board funcionais, prompts/RAG e assets preservados.
+
+Pendências: retenção/limpeza de partidas/chaves, custo de reconstrução em acervos grandes, paginação estável sob concorrência, intenção de criação persistente entre reloads, limites/cancelamento globais, cenários multiworker/TLS/mobile e demais achados anteriores. Sem PGN, multiplayer, matchmaking, ranking, persona, novos jogadores ou recalibração. Sem commit/deploy ou início da etapa 9.
+
+Resultado final backend após os dois casos adicionais: **886 aprovados, 60 LLM não selecionados, nenhum skip/falha, 42,41 s** (+20 sobre baseline). Frontend mantém **247 aprovados/35 arquivos** (+8) e build/typecheck aprovado. Nenhum timeout frontend observado nesta etapa. Chrome isolado e servidores locais de QA encerrados; verificação encontrou zero diretórios restantes dos bancos temporários de navegador. `git diff --check` aprovado; status confere nove arquivos, incluindo um novo. Nenhuma regressão identificada nos checks finais. Sem commit/deploy ou etapa seguinte.

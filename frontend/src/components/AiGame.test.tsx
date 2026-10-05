@@ -29,13 +29,14 @@ async function start(next = game()) {
 }
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.spyOn(api, "listGames").mockResolvedValue({ games: [], next_offset: null });
   vi.spyOn(api, "agents").mockResolvedValue([
     { id: "balanced", display_name: "Equilibrado", difficulty: "intermediate", style: "balanced", description: "Melhor avaliação" },
     { id: "aggressive", display_name: "Agressivo", difficulty: "intermediate", style: "aggressive", description: "Atividade" },
   ]);
 });
 it("cria de brancas e aplica somente o estado oficial humano + IA", async () => {
-  await start(); expect(api.createGame).toHaveBeenCalledWith("white", "balanced");
+  await start(); expect(api.createGame).toHaveBeenCalledWith("white", "balanced", expect.any(String));
   let resolve!: (g: Game) => void;
   const send = vi.spyOn(api, "submitHumanMove").mockImplementation(() => new Promise(r => { resolve = r; }));
   drop("e2", "e4"); drop("d2", "d4");
@@ -56,7 +57,7 @@ it("pretas recebem primeiro lance e podem responder, com nova resposta da IA", a
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
   await screen.findByTestId("official-fen");
-  expect(api.createGame).toHaveBeenCalledWith("black", "balanced"); expect(board.options?.boardOrientation).toBe("black");
+  expect(api.createGame).toHaveBeenCalledWith("black", "balanced", expect.any(String)); expect(board.options?.boardOrientation).toBe("black");
   drop("e7", "e5"); await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5", "g1f3"]).current_fen));
 });
@@ -93,12 +94,12 @@ it("nova partida cria novo recurso", async () => {
 it("mostra perfis, envia escolha e mantém identidade da Game ao mudar próxima seleção", async () => {
   await start(game([], { opponent: { type: "ai", agent_id: "aggressive" } }));
   expect(screen.getByRole("option", { name: "Agressivo" })).toBeTruthy();
-  expect(screen.getByText("Adversário da partida: Agressivo")).toBeTruthy();
+  expect(screen.getByText(/Adversário da partida: Agressivo/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Adversário"), { target: { value: "aggressive" } });
   fireEvent.click(screen.getByText("Nova partida contra IA"));
-  await waitFor(() => expect(api.createGame).toHaveBeenLastCalledWith("white", "aggressive"));
+  await waitFor(() => expect(api.createGame).toHaveBeenLastCalledWith("white", "aggressive", expect.any(String)));
   fireEvent.change(screen.getByLabelText("Adversário"), { target: { value: "balanced" } });
-  expect(screen.getByText("Adversário da partida: Agressivo")).toBeTruthy();
+  expect(screen.getByText(/Adversário da partida: Agressivo/)).toBeTruthy();
 });
 it("catálogo malformado não quebra tela e permite recarregar", async () => {
   vi.mocked(api.agents).mockResolvedValueOnce([null, { id: "bad", difficulty: "impossible" }] as never);
@@ -111,5 +112,79 @@ it("catálogo malformado não quebra tela e permite recarregar", async () => {
 });
 it("perfil retornado desconhecido é exibido sem substituir identidade", async () => {
   await start(game([], { opponent: { type: "ai", agent_id: "future_profile" } }));
-  expect(screen.getByText("Adversário da partida: future_profile")).toBeTruthy();
+  expect(screen.getByText(/Adversário da partida: future_profile/)).toBeTruthy();
+});
+
+function summary(next = game()): import("../types").GameSummary {
+  return { ...next, profile: null, move_count: next.moves.length };
+}
+it("remount lista e retoma mesma Game oficial, preserva perfil e continua", async () => {
+  const created = game([], { opponent: { type: "ai", agent_id: "positional", profile_version: 1 } });
+  vi.spyOn(api, "createGame").mockResolvedValue(created);
+  const send = vi.spyOn(api, "submitHumanMove").mockResolvedValue(game(["e2e4", "e7e5"], { opponent: created.opponent }));
+  const first = render(<AiGame onPosition={vi.fn()} />);
+  await waitFor(() => expect((screen.getByText("Iniciar partida contra IA") as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByText("Iniciar partida contra IA")); await screen.findByTestId("official-fen");
+  drop("e2", "e4"); await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5"]).current_fen));
+  first.unmount();
+  const saved = game(["e2e4", "e7e5"], { opponent: created.opponent });
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(saved)], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(saved);
+  render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.change(await screen.findByLabelText("Adversário"), { target: { value: "aggressive" } });
+  fireEvent.click(await screen.findByRole("button", { name: /Continuar partida/ }));
+  await screen.findByTestId("official-fen");
+  expect(board.options?.position).toBe(saved.current_fen);
+  expect(screen.getByText(/Adversário da partida: positional/)).toBeTruthy();
+  expect(api.createGame).toHaveBeenCalledTimes(1);
+  send.mockResolvedValue(game(["e2e4", "e7e5", "g1f3", "b8c6"], { opponent: created.opponent }));
+  drop("g1", "f3");
+  await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5", "g1f3", "b8c6"]).current_fen));
+});
+it("lista vazia e referência local inválida não criam partida", async () => {
+  localStorage.setItem("xadrez:game_id", "not-owned");
+  const create = vi.spyOn(api, "createGame"); const get = vi.spyOn(api, "getGame");
+  render(<AiGame onPosition={vi.fn()} />); await screen.findByText("Nenhuma partida encontrada.");
+  expect(create).not.toHaveBeenCalled(); expect(get).not.toHaveBeenCalled(); localStorage.removeItem("xadrez:game_id");
+});
+it("retomada pendente bloqueia humano e usa retry existente", async () => {
+  const pending = game(["e2e4"], { human_color: "white" });
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(pending)], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(pending);
+  const retry = vi.spyOn(api, "resumeAgent").mockResolvedValue(game(["e2e4", "e7e5"]));
+  render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("button", { name: /Continuar partida/ }));
+  await screen.findByTestId("official-fen"); expect(board.options?.allowDragging).toBe(false);
+  fireEvent.click(screen.getByText("Tentar novamente o turno da IA"));
+  await waitFor(() => expect(retry).toHaveBeenCalledWith("one", 1));
+  await waitFor(() => expect(board.options?.allowDragging).toBe(true));
+});
+it("retoma terminal sem jogar, perfil e orientação vêm do servidor", async () => {
+  const terminal = game([], { status: "checkmate", winner: "white", terminal: true, human_color: "black" });
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(terminal)], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(terminal); const retry = vi.spyOn(api, "resumeAgent");
+  render(<AiGame onPosition={vi.fn()} />); fireEvent.click(await screen.findByRole("button", { name: /Ver resultado/ }));
+  await screen.findByTestId("official-fen"); expect(board.options?.allowDragging).toBe(false);
+  expect(board.options?.boardOrientation).toBe("black"); expect(retry).not.toHaveBeenCalled();
+  expect(screen.getByText("Nova partida contra IA")).toBeTruthy();
+});
+it("erro de listagem e ID desaparecido são recuperáveis", async () => {
+  vi.mocked(api.listGames).mockRejectedValueOnce(new Error("offline"));
+  render(<AiGame onPosition={vi.fn()} />); await screen.findByText(/Não foi possível listar/);
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary()], next_offset: null });
+  fireEvent.click(screen.getByText("Atualizar partidas"));
+  vi.spyOn(api,"getGame").mockRejectedValue(new (await import("../api")).ErroDePartida({ code:"game_not_found",message:"Partida não encontrada." },404));
+  fireEvent.click(await screen.findByRole("button",{name:/Continuar partida/}));
+  await screen.findByText("Partida não encontrada."); expect(screen.queryByTestId("official-fen")).toBeNull();
+});
+it("double click cria uma intenção e falha de transporte reutiliza chave/payload", async () => {
+  let reject!: (e: Error) => void;
+  const create = vi.spyOn(api,"createGame").mockImplementationOnce(() => new Promise((_,r) => { reject=r; })).mockResolvedValue(game());
+  render(<AiGame onPosition={vi.fn()} />);
+  await waitFor(() => expect((screen.getByText("Iniciar partida contra IA") as HTMLButtonElement).disabled).toBe(false));
+  const button = screen.getByText("Iniciar partida contra IA"); fireEvent.click(button); fireEvent.click(button);
+  expect(create).toHaveBeenCalledTimes(1);
+  await act(async () => reject(new Error("transport")));
+  fireEvent.click(screen.getByText("Confirmar criação da partida"));
+  await screen.findByTestId("official-fen"); expect(create.mock.calls[0]).toEqual(create.mock.calls[1]);
 });

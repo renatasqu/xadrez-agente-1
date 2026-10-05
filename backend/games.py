@@ -9,7 +9,7 @@ from typing import Literal, Protocol
 from collections.abc import Awaitable, Callable
 
 import chess
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
@@ -31,6 +31,7 @@ class CreateGame(BaseModel):
     model_config = ConfigDict(extra='forbid')
     human_color: Color = 'white'
     agent_id: str = Field(default='stockfish', max_length=64)
+    client_game_id: uuid.UUID | None = None
 
 
 class HumanMove(BaseModel):
@@ -58,6 +59,7 @@ class Game(BaseModel):
     terminal: bool
     awaiting_agent: bool
     opponent: Opponent
+    profile: dict | None = None
     created_at: str
     updated_at: str
     version: int
@@ -118,6 +120,11 @@ def criar_tabelas() -> None:
         columns = {row[1] for row in db.execute('PRAGMA table_info(games)')}
         if 'profile_version' not in columns:
             db.execute('ALTER TABLE games ADD COLUMN profile_version INTEGER NOT NULL DEFAULT 1')
+        db.execute('CREATE INDEX IF NOT EXISTS games_owner_updated ON games(owner, updated_at DESC, id DESC)')
+        db.execute('''CREATE TABLE IF NOT EXISTS game_create_requests (
+            owner TEXT NOT NULL, request_id TEXT NOT NULL, human_color TEXT NOT NULL,
+            agent_id TEXT NOT NULL, game_id TEXT NOT NULL REFERENCES games(id),
+            PRIMARY KEY(owner, request_id))''')
         db.execute('''CREATE TABLE IF NOT EXISTS game_move_requests (
             game_id TEXT NOT NULL REFERENCES games(id), request_id TEXT NOT NULL,
             move TEXT NOT NULL, expected_version INTEGER NOT NULL, response_json TEXT NOT NULL,
@@ -131,7 +138,11 @@ def now() -> str:
 def game_from_row(row: sqlite3.Row) -> Game:
     moves = json.loads(row['moves_json'])
     state = estado_tabuleiro(reconstruir_partida(row['initial_fen'], moves))
-    return Game(id=row['id'], initial_fen=row['initial_fen'], current_fen=state['fen'], moves=moves,
+    try:
+        profile = resolve_profile(row['agent_id'], row['profile_version']).metadata()
+    except KeyError:
+        profile = None
+    return Game(profile=profile, id=row['id'], initial_fen=row['initial_fen'], current_fen=state['fen'], moves=moves,
                 human_color=row['human_color'], side_to_move=state['turn'], status=state['status'],
                 winner=state['winner'], terminal=state['ended'],
                 awaiting_agent=not state['ended'] and state['turn'] != row['human_color'],
@@ -148,7 +159,7 @@ def owned_row(db: sqlite3.Connection, game_id: str, owner: str) -> sqlite3.Row:
     return row
 
 
-def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', initial_fen: str = chess.STARTING_FEN) -> Game:
+def create_or_reuse(owner: str, human_color: Color, *, client_game_id: uuid.UUID | None = None, agent_id: str = 'stockfish', initial_fen: str = chess.STARTING_FEN) -> tuple[Game, bool]:
     """FEN inicial é configuração interna; a API pública sempre cria posição padrão."""
     try:
         resolve_profile(agent_id)
@@ -157,9 +168,22 @@ def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', 
     reconstruir_partida(initial_fen, [])
     game_id, timestamp = str(uuid.uuid4()), now()
     with closing(progresso._conectar()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        if client_game_id is not None:
+            previous = db.execute('SELECT human_color, agent_id, game_id FROM game_create_requests WHERE owner=? AND request_id=?', (owner, str(client_game_id))).fetchone()
+            if previous:
+                if previous[0] != human_color or previous[1] != agent_id:
+                    raise GameError('duplicate_request_conflict', 'Chave de criação reutilizada com dados diferentes.', 409)
+                return game_from_row(owned_row(db, previous[2], owner)), False
         db.execute('INSERT INTO games (id, owner, initial_fen, moves_json, human_color, agent_id, created_at, updated_at, version, profile_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)',
                    (game_id, owner, initial_fen, '[]', human_color, agent_id, timestamp, timestamp))
-        return game_from_row(owned_row(db, game_id, owner))
+        if client_game_id is not None:
+            db.execute('INSERT INTO game_create_requests VALUES (?, ?, ?, ?, ?)', (owner, str(client_game_id), human_color, agent_id, game_id))
+        return game_from_row(owned_row(db, game_id, owner)), True
+
+
+def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', initial_fen: str = chess.STARTING_FEN) -> Game:
+    return create_or_reuse(owner, human_color, agent_id=agent_id, initial_fen=initial_fen)[0]
 
 
 def get_game(game_id: str, owner: str) -> Game:
@@ -256,8 +280,63 @@ router = APIRouter(prefix='/games', tags=['games'], route_class=GameRoute)
 
 @router.post('', response_model=Game, status_code=201)
 def create(data: CreateGame, user: dict = Depends(require_user), policy: AgentPolicy = Depends(get_policy)) -> Game:
-    game = create_game(user['email'], data.human_color, agent_id=data.agent_id)
-    return execute_agent(game, user['email'], policy) if game.awaiting_agent else game
+    game, created = create_or_reuse(user['email'], data.human_color, agent_id=data.agent_id, client_game_id=data.client_game_id)
+    return execute_agent(game, user['email'], policy) if created and game.awaiting_agent else game
+
+
+
+class GameSummary(BaseModel):
+    id: str
+    human_color: Color
+    opponent: Opponent
+    profile: dict | None
+    created_at: str
+    updated_at: str
+    status: GameStatus
+    winner: Color | None
+    terminal: bool
+    side_to_move: Color
+    awaiting_agent: bool
+    move_count: int
+    version: int
+
+
+class GameList(BaseModel):
+    games: list[GameSummary]
+    next_offset: int | None
+
+
+def list_games(owner: str, status: str, limit: int, offset: int) -> GameList:
+    if status not in ('all', 'active', 'finished'):
+        raise GameError('invalid_game_filter', 'Filtro de partidas inválido.', 422)
+    if not 1 <= limit <= 50 or not 0 <= offset <= 10000:
+        raise GameError('invalid_pagination', 'Limite deve ser 1–50 e offset 0–10000.', 422)
+    results = []
+    matched = 0
+    with closing(progresso._conectar()) as db:
+        db.row_factory = sqlite3.Row
+        rows = db.execute('SELECT * FROM games WHERE owner=? ORDER BY updated_at DESC, id DESC', (owner,))
+        # Estado é derivado do histórico, sem duplicá-lo no banco. Leitura em streaming.
+        for row in rows:
+            game = game_from_row(row)
+            if status == 'active' and game.terminal or status == 'finished' and not game.terminal:
+                continue
+            matched += 1
+            if matched <= offset:
+                continue
+            try:
+                profile = resolve_profile(game.opponent.agent_id, game.opponent.profile_version).metadata()
+            except KeyError:
+                profile = None
+            results.append(GameSummary(**{**game.model_dump(), "profile": profile}, move_count=len(game.moves)))
+            if len(results) > limit:
+                break
+    return GameList(games=results[:limit], next_offset=offset + limit if len(results) > limit and offset + limit <= 10000 else None)
+
+
+@router.get('', response_model=GameList)
+def listing(status: str = 'all', limit: int = Query(default=20), offset: int = Query(default=0), user: dict = Depends(require_user)) -> GameList:
+    return list_games(user['email'], status, limit, offset)
 
 
 @router.get('/{game_id}', response_model=Game)
