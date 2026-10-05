@@ -93,3 +93,9 @@ it.each(["gamePgn","gameReplay","reviewGame"] as const)("401 de %s invalida sess
  const listener=vi.fn();window.addEventListener("xadrez:session-expired",listener);responder(401,{});
  try {await expect(api[method]("g",0,0)).rejects.toBeInstanceOf(ErroDePartida);expect(listener).toHaveBeenCalledTimes(1);}finally {window.removeEventListener("xadrez:session-expired",listener);}
 });
+
+it("comentário read-only envia snapshot com credenciais e 401 preservado",async()=>{
+ responder();await api.gameCommentary("a/b",4,2);expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/games\/a%2Fb\/commentary\?version=4&ply=2$/);expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");
+ const listener=vi.fn();window.addEventListener("xadrez:session-expired",listener);responder(401,{});
+ try {await expect(api.gameCommentary("g",4,2)).rejects.toBeInstanceOf(ErroDePartida);expect(listener).toHaveBeenCalledTimes(1);}finally {window.removeEventListener("xadrez:session-expired",listener);}
+});

@@ -1415,3 +1415,69 @@ Round-trip PGN confirmou UCI e FEN final em cinco cenários clássicos/alternati
 Revisão final dos diffs rastreados e quatro fontes/testes novos realizada; `git diff --check` aprovado e `git status --short` confere **14 arquivos**. Nenhum banco real lido/migrado/modificado, commit/deploy ou início da próxima etapa.
 
 Handshake final pelo helper UCI confirmou **Stockfish 19**, com encerramento/código0 em finally. Conferência final de whitespace/status permaneceu aprovada após registrar os resultados.
+
+## Adendo — identidade e persona pedagógica, etapa 10 (05/10/2026)
+
+Início com Git limpo, HEAD820c2ed. Baseline260 frontend/36 arquivos, 920 backend não-LLM/60 excluídos, Stockfish19. Foram conferidos documentação/auditoria, profiles/policy/engine/Game/main/schemas, análise/explicação documental, revisão/continuidade e interfaces/testes atuais. Game oficial usa initial_fen + UCI, dono/datas/revisão/profile_version. Policy já separava MultiPV/qualidade/estilo e revalidação/CAS; AgentProfile não possuía persona. Análise pedagógica LLM/RAG e Masters são sistemas separados, preservados.
+
+### Arquitetura e versionamento
+
+Engine/Policy/Style/Difficulty conservam comportamento da etapa7. AgentProfile frozen ganha persona_id/persona_version/inspiration e metadados aditivos. Novo agent_personas.py define Persona/MoveFacts frozen e templates puros, sem engine/Game/banco/LLM/ferramentas. Profile v1 persistido fixa referência à persona v1 em definição estática; não foi criada coluna/migração. Definições e aliases v1 devem permanecer disponíveis/imutáveis; versões futuras exigem implementação correspondente. Genéricos recebem apresentação didática training v1, preservando força/heurísticas/IDs anteriores. Erro ao resolver metadados da persona retorna null, sem impedir leitura/criação/jogo. GET /agents não expõe pergunta interna, prompt, paths, pesos ou budgets.
+
+| ID inspirado | Nome seguro | Difficulty / Style | Persona / foco |
+| --- | --- | --- | --- |
+| magnus_inspired | Perfil inspirado em Magnus | advanced / positional | structure v1, analítico/estrutura e desenvolvimento |
+| hans_inspired | Perfil inspirado em Hans | advanced / aggressive | initiative v1, direto/iniciativa e respostas concretas |
+| judit_inspired | Perfil inspirado em Judit | advanced / tactical | threats v1, energético/ameaças concretas |
+
+Cinco genéricos training_beginner/balanced/aggressive/positional/tactical preservados. Inspirados usam exatamente difficulty advanced existente: tempo0,70/nós50000/candidatos4/janela25 CP e policy stockfish_candidates_v1. Testes confirmam budgets recebidos e seleção equivalente ao estilo correspondente dentro da janela, sem teste frágil de abertura fixa. São interpretações criativas do produto, não inferência científica/fidelidade/persona privada dos jogadores. Descrições explícitas educacionais/sem imitação/endosso. Não houve scraping/treinamento/citações/primeira pessoa atribuída aos jogadores.
+
+### Comentário separado e somente leitura
+
+Novo GET `/games/{id}/commentary?version=V&ply=P`, modelo Pydantic Commentary: snapshot/version/ply/profile_version/persona_id/persona_version, facts congelados e texto/status available/fallback. Rota exige require_user/proprietário, mantém 404 indistinguível/no-store. Versão corrente exigida409; ply inexistente/humano422; persona não resolvida503. Nenhum prompt/posição/histórico/configuração confiável vem do cliente. Game lida, conexão fechada, prefixo reconstruído e fatos calculados só a partir do lance da IA persistido. Não chama policy/execute_agent/Stockfish/LLM nem escreve SQLite.
+
+Templates recebem Persona e MoveFacts (valores imutáveis), nunca Game/Board/persistência; devolvem string sem canal de intenção UCI. Texto contendo UCI ilegal ou legal diferente é inofensivo: nenhum parser/executor liga texto a moves. Fatos incluem captura, xeque, roque, promoção, terminal/vencedor e SAN/UCI, sem número de avaliação inventado. Linguagem apresenta fato e foco/pergunta, sem afirmar ganho de peça, melhor lance, vantagem decisiva ou fonte inexistente. Mate final usa estado python-chess; não há CP/mate/PV textual. Contratos de scores/revisão permanecem com perspectiva white e mate separado, candidatos continuam side_to_move.
+
+Falha de template, TimeoutError simulado ou saída vazia/tipo inválido/>700 caracteres retorna fallback local `Lance oficial: SAN.`. Rota independente significa que falha/timeout HTTP não muda Game nem exige retry do lance. Templates atuais são finitos, sem I/O; não se implementou prazo/cancelamento para código Python arbitrário pesado. Resolução de persona ausente torna comentário indisponível, sem impedir próximos movimentos. Repetir mesma versão/ply/persona é estável, sem RNG/cache/LLM. Não há segunda análise Stockfish para frase; limites anteriores de motor são preservados. Reconstrução tem custo proporcional ao histórico e não foi feito benchmark de acervo grande.
+
+### Interface, continuidade e PGN
+
+AiGame mantém seleção, cor, oficial/replay/busy/retry/promoção. Opções agrupadas Perfis de treino/Perfis inspirados, descrição curta e persona/tom/versão atuais. Seleção não altera Game existente. Novo AgentComment inicia GET após resposta oficial, sem travar Board/turno; encontra último ply da IA considerando cor da posição inicial e da pessoa. Ao retomar, reconstrói comentário estável. Painel identifica número do lance e mantém último comentário da Game mesmo durante replay de outro ply; metadata não é avaliação da posição histórica mostrada. Respostas de Game/version/ply diferentes ou efeito antigo são descartadas; erro operacional é neutro. 401 usa evento de sessão existente. Texto é renderizado por React, sem HTML executável.
+
+AgentProfile persistido aparece na Game/lista e segue para replay/PGN/revisão; não há substituição pela seleção da próxima partida. Nome PGN inspirado é “Perfil inspirado em…”, sem fingir participante real. Cabeçalhos PersonaId/PersonaVersion foram acrescentados quando metadados estão disponíveis; fonte oficial e round-trip permanecem. Compatibilidade stockfish→balanced v1 e cache/acknowledgements antigos preservada; campos públicos de persona são aditivos/opcionais/null. Masters, seus assets/biografias/ratings e Magnus/Hans da arena manual não receberam alteração.
+
+### Validação real
+
+**Navegador realmente usado: SIM — Google Chrome headless local via DevTools/CDP**, perfil isolado /tmp, conta stage10 sintética e auth/progresso exclusivamente em TemporaryDirectory. Skill Browser já lida nesta conversa; nova conexão iab novamente indisponível e fallback Chrome explicitamente solicitado utilizado. Servidores/Chrome locais foram permitidos pela revisão automática fora da restrição de bind. Sem navegador/cookie/conta pessoal. Chaves vazias/aquecimento desligado/health QA sem consulta de corpus, Stockfish real.
+
+Fluxos por formulários/controles reais: login → Jogar contra IA → optgroups com5 genéricos/3 inspirados. A Magnus/brancas: e4 e5 Nf3 Nc6, revisão4, structure v1/analítico e comentário referenciando Nc6. B Hans/pretas: IA abriu e4; e5 d4 Nf6 dxe5, revisão5, initiative v1/direto e captura verificada no comentário. C Judit/brancas: e4 c5 Nf3 d6, revisão4, threats v1/energético; reload real → sessão restaurada → lista/mesmo ID → retomada com histórico e identidade/persona preservados. D clique SAN e4 → replay1/4 read-only → exportar PGN visível, Black="Perfil inspirado em Judit"/Agent=judit_inspired, sem identidade de jogador real. E voltar à manual → arena visível → abrir tutor, sem pergunta real. Lances observados dependem de busca temporal e não provam fidelidade estilística.
+
+Captura1280×1000 aberta e inspecionada: comentário identificado como lance4 e tabuleiro replay1; layout existente/controles preservados. Não houve visual mobile/TLS/acessibilidade completa nem inspeção do diretório de download. Browser QA foi iniciado antes da adição dos dois headers opcionais PersonaId/PersonaVersion; esses headers finais foram validados nos testes PGN, não afirmados como observados no Chrome. API/Vite/Chrome encerrados; zero diretórios restantes dos bancos stage10-browser, perfil Chrome removido. Nenhum banco real consultado/migrado/modificado.
+
+Três casos automatizados adicionais com Stockfish real: Magnus/brancas, Hans/pretas e Judit/brancas, dois turnos completos por caso, posição legal reconstruída após cada resposta, perfil/versões, GET retomada/histórico e comentário. Sem LLM/RAG. Estas amostras não calibram força/fidelidade. Sessões/SQLite temporários, sem chamada paga. Encerramento UCI permanece coberto pela regressão real existente.
+
+### Cobertura, resultados intermediários e escopo
+
+Novo test_personas.py cobre catálogo/IDs/versões/metadados seguros/alias; budgets e equivalência de estilo; persistência/GET/PGN round-trip/início clássico/identidade e rejeição de alteração de perfil; comentário apenas após commit; frozen payload; UCI ilegal/legal diferente/HTML sem mutação; falha/timeout/saída inválida/fallback repetível; ausência de lock SQLite durante render; comentário alheio/auth/terminal sem motor/LLM/agente; version/ply; prompt/path/nodes/depth/pesos/version arbitrários recusados; falha de metadados/resolução de persona não impede Game; três casos reais. Comentários não oferecem avaliação/PV/fonte; testes da etapa9 preservam perspectiva/mate. Teste antigo de catálogo atualiza só campos aditivos/contagem8; demais parametrizações existentes agora incluem inspirados.
+
+Frontend cobre cinco genéricos/três inspirados/grupos/descrição/envio de cadaID/perfil oficial/replay/remount sem recriação; comentário/loading/falha neutra/primeiro lance de pretas/resultado tardio/texto com UCI e HTML sem executar; credenciais/401. Regressão completa preserva promoção, retry, pensar, terminal, manual/tutor, criação idempotente, continuidade, SAN/PGN/replay/revisão/propriedade.
+
+Rodadas focadas: backend inicial79 aprovados,11,72s; após headers/casos adicionais117 aprovados,17,32s (inclui34 históricos). Frontend inicial45 aprovados em3 arquivos,1,31s; após último remount/caso de texto47 aprovados,1,24s. Suíte frontend intermediária269 em37 arquivos,41,95s; caso final de remount adicionado depois, exigindo nova completa. Nenhuma falha/timeout dessas rodadas. Backend completo final959/60,52,85s, nenhum skip/falha. Build/typecheck final passou, JS433,17kB/gzip134,46kB; CSS84,65kB/gzip25,54kB. Resultado frontend final abaixo.
+
+Arquivos desta etapa: backend/agent_profiles.py, novo agent_personas.py, novo game_commentary.py, games.py, game_history.py; testes test_agent_profiles.py e novo test_personas.py. Frontend/src/api.ts/types.ts, components/AiGame.tsx e AiGame.test.tsx, novo components/AgentComment.tsx e AgentComment.test.tsx, gamesApi.test.ts. README.md/PROJECT_AUDIT.md. São16 arquivos, cinco novos. Policy/chess_engine/auth/progresso/main/schemas/prompt/RAG/assets/App/Board não foram alterados. Sem dependência instalada/upgrade, .env, ingestão, FIDE, scraping, treinamento, LLM real/pago, commit/deploy ou etapa11.
+
+Pendências: enriquecimento LLM opcional, comentários por seleção de replay, calibração/validações de tom, futuras versões/resolvers, cancelamento/limites globais, acervos grandes e demais achados anteriores. Persona local prova separação arquitetural, sem imitação estatística dos jogadores reais.
+
+### Resultados finais da etapa 10
+
+| Comando | Resultado real |
+| --- | --- |
+| `cd frontend && npm test` — após último caso remount | **270 aprovados em37 arquivos,41,69s**; baseline260, +10; nenhuma falha/timeout |
+| `cd frontend && npm run build` | **Aprovado**, tsc noEmit + Vite; JS433,17kB/gzip134,46kB; CSS84,65kB/gzip25,54kB |
+| Em backend: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra` | **959 aprovados,60 LLM não selecionados,nenhum skip/falha,52,85s**; baseline920, +39 |
+| Handshake UCI final | **Stockfish19**, encerrado em finally/código0 |
+| Revisão Git | Diff rastreado e cinco arquivos novos revisados; `git diff --check` aprovado; status confere16 arquivos |
+
+Criação/duas cores/agente/retry/promoção/terminal/reload/retomada/listagem/idempotência/SAN/PGN round-trip/replay/revisão Stockfish/propriedade/perfis genéricos seguem cobertos pela regressão executada. Round-trip inspirado confirmou nome seguro, PersonaId/PersonaVersion e FEN final; genéricos/posições alternativas permanecem na suíte. As completas finais foram executadas sequencialmente; focadas podem ter coincidido com trabalho local de QA. Nenhum timeout frontend observado nesta etapa, sem relaxar prazos/excluir casos. Nenhuma regressão identificada nos checks realizados; não se certifica ausência de flutuações futuras.
+
+LLM para jogar: NÃO. LLM para persona: NÃO. LLM necessário para estes fluxos: NÃO; tutor documental continua dependente dos provedores/corpus como antes. A suíte offline ainda usa recursos locais/corpus/modelo cacheado anteriores e Stockfish; 60 casos LLM excluídos deliberadamente. Sem upgrade, dados reais, commit/deploy ou etapa11.

@@ -220,6 +220,7 @@ export interface HumanMoveRequest {
 export interface GameError { code: string; message: string }
 
 export interface AgentProfile {
+  profile_version?: number; inspiration?: string | null; persona?: { id: string; version: number; tone: string; focus: string } | null;
   id: string; display_name: string; description: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   style: "balanced" | "aggressive" | "positional" | "tactical";
@@ -242,4 +243,10 @@ export interface GameEvaluation {
 export interface GameReviewResult {
   game_id: string; version: number; ply: number; played: { uci: string; san: string; color: GameColor } | null;
   before: GameEvaluation; after: GameEvaluation; cp_delta_white: number | null;
+}
+
+export interface GameCommentary {
+  game_id: string; version: number; ply: number; profile_version: number;
+  persona_id: string; persona_version: number; text: string; status: "available" | "fallback";
+  facts: { uci: string; san: string; capture: boolean; check: boolean; castling: boolean; promotion: boolean; terminal: boolean; winner: GameColor | null };
 }

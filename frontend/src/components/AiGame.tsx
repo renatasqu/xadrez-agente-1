@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ErroDePartida } from "../api";
 import type { AgentProfile, Game, GameColor, GameSummary, HumanMoveRequest } from "../types";
 import { GameHistory } from "./GameHistory";
+import { AgentComment } from "./AgentComment";
 import { Board } from "./Board";
 
 export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
@@ -101,11 +102,13 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   return <section aria-label="Partida contra IA" className="board-workspace max-w-[680px] mx-auto p-4">
     <h2>Partida contra IA</h2>
     <label>Adversário <select aria-label="Adversário" value={agent} disabled={busy || loadingProfiles || Boolean(creation.current)} onChange={e => setAgent(e.target.value)}>
-      {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+      {[false, true].map(inspired => <optgroup key={String(inspired)} label={inspired ? "Perfis inspirados" : "Perfis de treino"}>
+        {profiles.filter(p => Boolean(p.inspiration) === inspired).map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+      </optgroup>)}
     </select></label>
-    <p>{selectedProfile && `${difficultyLabels[selectedProfile.difficulty]} · estilo ${styleLabels[selectedProfile.style]}. ${selectedProfile.description}`} Estilos são heurísticos, sem imitação de jogadores reais.</p>
+    <p>{selectedProfile && `${difficultyLabels[selectedProfile.difficulty]} · estilo ${styleLabels[selectedProfile.style]}. ${selectedProfile.description}`} {selectedProfile && !selectedProfile.inspiration && "Estilos são heurísticos, sem imitação de jogadores reais."}</p>
     {catalogError && <p role="alert">Não foi possível carregar os adversários. <button onClick={() => setCatalogAttempt(n => n + 1)}>Recarregar adversários</button></p>}
-    {game && <p>Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {currentProfile?.display_name ?? game.opponent.agent_id}{currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}</p>}
+    {game && <p>Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {currentProfile?.display_name ?? game.opponent.agent_id}{currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}{currentProfile?.persona && ` · Persona v${currentProfile.persona.version} (${currentProfile.persona.tone})`}</p>}
     <label>Seu lado <select aria-label="Seu lado" value={color} disabled={busy || Boolean(creation.current)} onChange={e => setColor(e.target.value as GameColor)}>
       <option value="white">Brancas</option><option value="black">Pretas</option>
     </select></label>
@@ -130,6 +133,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
     </section>
     {game && !replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
     {game && !replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
+    {game && <AgentComment game={game} />}
     {game && <Board fen={replayPosition?.fen ?? game.current_fen} orientation={game.human_color} estadoTexto={replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : status} terminado={game.terminal}
       ocupado={busy || game.awaiting_agent || Boolean(pending.current) || Boolean(creation.current) || Boolean(replayPosition)} hideControls podeDesfazer={false}
       onMoveIntent={move} onLance={() => {}} onDesfazer={() => {}} onReiniciar={start} onAnalisar={() => {}} />}

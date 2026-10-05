@@ -93,6 +93,9 @@ def pgn(game: 'Game') -> str:
                           Result=result(game), Agent=game.opponent.agent_id, AgentProfile=opponent,
                           ProfileVersion=str(game.opponent.profile_version), HumanColor=game.human_color,
                           GameTermination=game.status)
+    if game.profile and game.profile.get('persona'):
+        persona = game.profile['persona']
+        export.headers.update(PersonaId=persona['id'], PersonaVersion=str(persona['version']))
     node = export
     for uci in game.moves:
         move = chess.Move.from_uci(uci)

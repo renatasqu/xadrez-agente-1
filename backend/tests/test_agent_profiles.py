@@ -21,8 +21,8 @@ def test_profile_api_auth_and_safe_metadata(client):
     assert client.get('/agents').status_code == 401
     login(client)
     data = client.get('/agents').json()
-    assert len(data) == 5
-    assert all(set(p) == {'id','display_name','difficulty','style','description'} for p in data)
+    assert len(data) == 8
+    assert all(set(p) == {'id','display_name','difficulty','style','description','inspiration','profile_version','persona'} for p in data)
     assert {p['difficulty'] for p in data} == set(DIFFICULTIES)
     assert {p['style'] for p in data} == {'balanced','aggressive','positional','tactical'}
 

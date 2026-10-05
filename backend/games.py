@@ -22,6 +22,7 @@ from chess_engine import reconstruir_partida, estado_tabuleiro
 import progresso
 from agent_profiles import PROFILES, resolve_profile
 from game_history import Replay, Review
+from game_commentary import Commentary
 
 log = logging.getLogger(__name__)
 Color = Literal['white', 'black']
@@ -413,3 +414,21 @@ def review_move(game_id: str, data: ReviewRequest, user: dict = Depends(require_
         return review(snapshot, data.ply)
     except (StockfishAusente, ErroDoMotor, TimeoutError):
         raise GameError('review_unavailable', 'Não foi possível analisar este lance. Tente novamente.', 503) from None
+
+
+@router.get('/{game_id}/commentary', response_model=Commentary)
+def read_commentary(game_id: str, version: int = Query(ge=0), ply: int = Query(ge=1),
+                    user: dict = Depends(require_user)) -> Commentary:
+    from game_commentary import commentary
+    snapshot = get_game(game_id, user['email'])
+    if snapshot.version != version:
+        raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+    if ply > len(snapshot.moves):
+        raise GameError('invalid_ply', 'Lance fora do histórico.', 422)
+    before = reconstruir_partida(snapshot.initial_fen, snapshot.moves[:ply-1])
+    if ('white' if before.turn else 'black') == snapshot.human_color:
+        raise GameError('not_agent_move', 'Este lance pertence ao humano.', 422)
+    try:
+        return commentary(snapshot, ply)
+    except KeyError:
+        raise GameError('persona_unavailable', 'Comentário indisponível para este perfil.', 503) from None

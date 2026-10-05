@@ -214,3 +214,35 @@ it("SAN abre replay bloqueado; somente retorno explícito permite continuar", as
   fireEvent.click(screen.getByText("Voltar à posição atual")); expect(board.options?.allowDragging).toBe(true);
   drop("g1","f3");await waitFor(()=>expect(send).toHaveBeenCalledTimes(1));
 });
+
+const inspiredProfiles = [
+ {id:"magnus_inspired",display_name:"Perfil inspirado em Magnus",difficulty:"advanced",style:"positional",description:"Perfil educacional inspirado: interpretação heurística, sem imitação fiel.",inspiration:"Magnus",profile_version:1,persona:{id:"structure",version:1,tone:"analítico",focus:"estrutura"}},
+ {id:"hans_inspired",display_name:"Perfil inspirado em Hans",difficulty:"advanced",style:"aggressive",description:"Perfil educacional inspirado: interpretação heurística, sem imitação fiel.",inspiration:"Hans",profile_version:1,persona:{id:"initiative",version:1,tone:"direto",focus:"iniciativa"}},
+ {id:"judit_inspired",display_name:"Perfil inspirado em Judit",difficulty:"advanced",style:"tactical",description:"Perfil educacional inspirado: interpretação heurística, sem imitação fiel.",inspiration:"Judit",profile_version:1,persona:{id:"threats",version:1,tone:"energético",focus:"ameaças"}},
+] as import("../types").AgentProfile[];
+it.each(inspiredProfiles)("escolhe $id mantendo grupos, perfil persistido e replay",async(profile)=>{
+ const generic=[{id:"training_beginner",display_name:"Treino inicial",difficulty:"beginner",style:"balanced",description:"Treino"},{id:"balanced",display_name:"Equilibrado",difficulty:"intermediate",style:"balanced",description:"Equilíbrio"},{id:"aggressive",display_name:"Agressivo",difficulty:"intermediate",style:"aggressive",description:"Atividade"},{id:"positional",display_name:"Posicional",difficulty:"advanced",style:"positional",description:"Estrutura"},{id:"tactical",display_name:"Tático",difficulty:"advanced",style:"tactical",description:"Tática"}] as import("../types").AgentProfile[];
+ vi.mocked(api.agents).mockResolvedValue([...generic,...inspiredProfiles]);
+ const official=game([], {profile,opponent:{type:"ai",agent_id:profile.id,profile_version:1}});
+ vi.spyOn(api,"createGame").mockResolvedValue(official);
+ render(<AiGame onPosition={vi.fn()}/>);
+ await screen.findByRole("option",{name:profile.display_name});
+ expect(screen.getByRole("group",{name:"Perfis de treino"})).toBeTruthy();expect(screen.getByRole("group",{name:"Perfis inspirados"})).toBeTruthy();
+ for(const p of generic)expect(screen.getByRole("option",{name:p.display_name})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText("Adversário"),{target:{value:profile.id}});
+ expect(screen.getByText(/Perfil educacional inspirado/)).toBeTruthy();
+ fireEvent.click(screen.getByText("Iniciar partida contra IA"));await screen.findByTestId("official-fen");
+ expect(api.createGame).toHaveBeenCalledWith("white",profile.id,expect.any(String));
+ fireEvent.change(screen.getByLabelText("Adversário"),{target:{value:"balanced"}});
+ expect(screen.getByText(new RegExp("Adversário da partida: "+profile.display_name))).toBeTruthy();
+ fireEvent.click(await screen.findByText("Fim do histórico"));expect(board.options?.allowDragging).toBe(false);
+ expect(screen.getByText(new RegExp("Adversário da partida: "+profile.display_name))).toBeTruthy();
+});
+it("remount retoma identidade/persona inspirada oficial sem nova criação",async()=>{
+ const profile=inspiredProfiles[2];const saved=game(["e2e4","e7e5"],{profile,opponent:{type:"ai",agent_id:profile.id,profile_version:1}});
+ vi.mocked(api.agents).mockResolvedValue(inspiredProfiles);vi.mocked(api.listGames).mockResolvedValue({games:[summary(saved)],next_offset:null});
+ const get=vi.spyOn(api,"getGame").mockResolvedValue(saved);const create=vi.spyOn(api,"createGame");
+ const first=render(<AiGame onPosition={vi.fn()}/>);fireEvent.click(await screen.findByRole("button",{name:/Continuar partida/}));await screen.findByTestId("official-fen");first.unmount();
+ render(<AiGame onPosition={vi.fn()}/>);fireEvent.click(await screen.findByRole("button",{name:/Continuar partida/}));await screen.findByTestId("official-fen");
+ expect(get).toHaveBeenCalledTimes(2);expect(create).not.toHaveBeenCalled();expect(screen.getByText(/Persona v1 \(energético\)/)).toBeTruthy();expect(board.options?.position).toBe(saved.current_fen);
+});

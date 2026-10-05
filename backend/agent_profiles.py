@@ -1,6 +1,7 @@
 """Perfis estáticos v1. Identidade, dificuldade e estilo não são o executável UCI."""
 from dataclasses import dataclass
 from typing import Literal
+from agent_personas import resolve_persona
 
 DifficultyName = Literal['beginner', 'intermediate', 'advanced']
 Style = Literal['balanced', 'aggressive', 'positional', 'tactical']
@@ -31,9 +32,17 @@ class AgentProfile:
     description: str
     policy: str = 'stockfish_candidates_v1'
     version: int = 1
+    persona_id: str = 'training'
+    persona_version: int = 1
+    inspiration: str | None = None
 
     def metadata(self) -> dict:
-        return {key: getattr(self, key) for key in ('id', 'display_name', 'difficulty', 'style', 'description')}
+        try:
+            persona = resolve_persona(self.persona_id, self.persona_version).metadata()
+        except Exception:
+            persona = None  # Apresentação indisponível nunca impede leitura/jogo.
+        return {**{key: getattr(self, key) for key in ('id', 'display_name', 'difficulty', 'style', 'description', 'inspiration')},
+                'profile_version': self.version, 'persona': persona}
 
 
 PROFILES = {p.id: p for p in (
@@ -42,6 +51,15 @@ PROFILES = {p.id: p for p in (
     AgentProfile('aggressive', 'Agressivo', 'intermediate', 'aggressive', 'Favorece atividade e pressão dentro da janela de qualidade.'),
     AgentProfile('positional', 'Posicional', 'advanced', 'positional', 'Busca mais ampla; favorece desenvolvimento e segurança.'),
     AgentProfile('tactical', 'Tático', 'advanced', 'tactical', 'Busca mais ampla; favorece xeques e linhas concretas.'),
+    AgentProfile('magnus_inspired', 'Perfil inspirado em Magnus', 'advanced', 'positional',
+                 'Perfil educacional inspirado em Magnus: interpretação heurística do projeto, sem imitação fiel ou endosso.',
+                 persona_id='structure', inspiration='Magnus'),
+    AgentProfile('hans_inspired', 'Perfil inspirado em Hans', 'advanced', 'aggressive',
+                 'Perfil educacional inspirado em Hans: interpretação heurística do projeto, sem imitação fiel ou endosso.',
+                 persona_id='initiative', inspiration='Hans'),
+    AgentProfile('judit_inspired', 'Perfil inspirado em Judit', 'advanced', 'tactical',
+                 'Perfil educacional inspirado em Judit: interpretação heurística do projeto, sem imitação fiel ou endosso.',
+                 persona_id='threats', inspiration='Judit'),
 )}
 
 
