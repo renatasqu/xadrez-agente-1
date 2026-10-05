@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const links = [
   ["#partida", "Partida"], ["#historico-partida", "Histórico"],
-  ["#agentes", "Masters"], ["#/licoes", "Lições"],
+  ["#/masters", "Masters"], ["#/licoes", "Lições"],
   ["#/sobre", "Sobre"],
 ] as const;
 

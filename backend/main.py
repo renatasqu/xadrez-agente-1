@@ -48,6 +48,7 @@ from agents import analista, router
 from agents.licoes import LICOES
 from config import INDICES, settings
 from auth import router as auth_router, limiter
+from masters import router as masters_router
 from exercises.api import router as exercises_router
 from exercises.api import http_error_response, internal_error_response, is_exercise_path, request_error_response
 from schemas import (
@@ -146,6 +147,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
 app.include_router(exercises_router)
 app.include_router(auth_router)
+app.include_router(masters_router)
 app.state.exercise_recorder = progresso.registrar_exercicio
 app.state.limiter = limiter
 app.add_middleware(

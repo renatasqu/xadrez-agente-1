@@ -62,7 +62,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       <img className="auth-logo" src={`${import.meta.env.BASE_URL}images/logo-xadrez-multiagente.png`} alt="Xadrez Multiagente" width="1983" height="793" />
       <span className="auth-eyebrow">CHESS. SMOOTHIE. BURRITOS</span>
       <h1>Seu próximo<br />grande lance.</h1>
-      <p>Uma homenagem aos meus grandmasters favoritos: Hans e Judit. Além disso, o projeto reúne muita informação sobre xadrez, AlphaZero, Transformers, Stockfish e outros temas, além de um tabuleiro online interativo, tutor de estratégias, curiosidades e, por enquanto, é isso.</p>
+      <p>Uma homenagem aos meus grandes mestres favoritos: Hans e Judit. O projeto também reúne informações sobre xadrez, AlphaZero, Transformers, Stockfish e outros temas, além de oferecer um tabuleiro online interativo, um tutor de estratégias e diversas curiosidades. Por enquanto, é isso!</p>
       <div className="auth-art" aria-hidden="true">
         <img src={authIllustration} alt="" width="1672" height="941" />
       </div>

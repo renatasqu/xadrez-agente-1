@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { api } from "../api";
@@ -17,9 +17,9 @@ it("mantém branding, avatar, todos os destinos e status no header sem sidebar o
   expect(header.queryByText("XADREZ")).toBeNull();
   expect(header.queryByText("MULTIAGENTE")).toBeNull();
   const nav = within(header.getByRole("navigation", { name: "Navegação principal" }));
-  for (const [name, href] of [["Partida", "#partida"], ["Histórico", "#historico-partida"], ["Masters", "#agentes"], ["Sobre", "#/sobre"]]) {
+  for (const [name, href] of [["Partida", "#partida"], ["Histórico", "#historico-partida"], ["Masters", "#/masters"], ["Sobre", "#/sobre"]]) {
     expect(nav.getByRole("link", { name }).getAttribute("href")).toBe(href);
-    expect(container.querySelector(href === "#/sobre" ? "[data-page=about]" : href)).toBeTruthy();
+    expect(container.querySelector(href === "#/sobre" ? "[data-page=about]" : href === "#/masters" ? "[data-page=masters]" : href)).toBeTruthy();
   }
   expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Partida", "Histórico", "Masters", "Lições", "Sobre", "Sair"]);
   for (const name of ["Agentes", "Curiosidades", "Configurações"]) expect(nav.queryByText(name)).toBeNull();
@@ -41,4 +41,23 @@ it("destaca a seleção e fecha o menu móvel ao navegar", () => {
   expect(screen.getByRole("link", { name: "Partida" }).hasAttribute("aria-current")).toBe(false);
   expect(menu.getAttribute("aria-expanded")).toBe("false");
 
+});
+
+
+it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () => {
+  apagarUsuarioId();
+  vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
+  const { container } = render(<App />);
+  const board = container.querySelector("#match-board");
+  fireEvent.click(screen.getByRole("link", { name: "Masters" }));
+  const gallery = await screen.findByRole("region", { name: "MASTERS:" });
+  expect(window.location.hash).toBe("#/masters");
+  expect(within(gallery).getAllByRole("article").map(profile => profile.getAttribute("aria-labelledby"))).toEqual(["master-hans", "master-magnus", "master-judit"]);
+  expect(within(gallery).getAllByRole("img")).toHaveLength(3);
+  expect(within(gallery).getAllByRole("heading", { name: "VOCÊ SABIA?" })).toHaveLength(3);
+  expect(within(gallery).queryByRole("button")).toBeNull();
+  expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
+  fireEvent.click(screen.getByRole("link", { name: "Partida" }));
+  await waitFor(() => expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(false));
+  expect(container.querySelector("#match-board")).toBe(board);
 });

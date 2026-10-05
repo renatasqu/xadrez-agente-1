@@ -80,7 +80,15 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
 
 const post = (corpo: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(corpo) });
 
+export interface MasterRating {
+  name: string; fide_id: string; rating: number; world_rank: number | null; active: boolean;
+}
+export interface MastersRatings {
+  updated_at: string | null; masters: MasterRating[]; stale: boolean; source: string;
+}
+
 export const api = {
+  mastersRatings: () => chamar<MastersRatings>("/masters/ratings"),
   dicaExercicio: (id: string, payload: HintRequest) =>
     chamar<HintResponse>(`/exercises/${encodeURIComponent(id)}/hint`, post(payload), true),
   exercicio: (id: string) => chamar<Exercise>(`/exercises/${encodeURIComponent(id)}`, {}, true),

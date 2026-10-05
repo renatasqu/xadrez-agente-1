@@ -1,5 +1,7 @@
 // Rodapé "Sobre": documentos usados e aviso de que as respostas são geradas por IA.
 
+import { useState } from "react";
+
 const DOCUMENTOS = [
   ["FIDE Laws of Chess", "FIDE"],
   ["Chess Fundamentals", "J. R. Capablanca"],
@@ -8,6 +10,9 @@ const DOCUMENTOS = [
 ];
 
 export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTMLElement) => void; section?: "about" | "documentation"; onAnalyses?: () => void } = {}) {
+  const [sourcesHovered, setSourcesHovered] = useState(false);
+  const [sourcesFocused, setSourcesFocused] = useState(false);
+  const sourcesTooltipVisible = sourcesHovered || sourcesFocused;
   return (
     <footer className="game-footer text-xs text-slate-600">
       {section !== "documentation" && <section className="about-project">
@@ -52,8 +57,20 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
             <span id="documentation-analyses-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Consultar as análises de Magnus e Hans</span>
           </span>
           {onTutor && <span className="documentation-action">
-            <button type="button" onClick={event => onTutor(event.currentTarget)} aria-describedby="documentation-sources-tip">Consultar fontes no tutor</button>
-            <span id="documentation-sources-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Abrir fontes e documentos no tutor</span>
+            <button type="button" onClick={event => onTutor(event.currentTarget)} aria-describedby="documentation-sources-tip"
+              onClickCapture={() => { setSourcesHovered(false); setSourcesFocused(false); }}
+              onMouseEnter={() => setSourcesHovered(true)}
+              onMouseLeave={() => setSourcesHovered(false)}
+              onFocus={event => {
+                const dialog = event.currentTarget.closest('[role="dialog"]');
+                // The modal's initial automatic focus must not open this tooltip.
+                const insideDialog = !dialog || (event.relatedTarget instanceof Node && dialog.contains(event.relatedTarget));
+                setSourcesFocused(insideDialog && event.currentTarget.matches(":focus-visible"));
+              }}
+              onBlur={() => setSourcesFocused(false)}
+            >Consultar fontes no tutor</button>
+            <span id="documentation-sources-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip"
+              style={{ visibility: sourcesTooltipVisible ? "visible" : "hidden", opacity: sourcesTooltipVisible ? 1 : 0, pointerEvents: "none", animation: "none" }}>Abrir fontes e documentos no tutor</span>
           </span>}
         </div>
       </section>}

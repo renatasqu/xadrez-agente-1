@@ -18,6 +18,7 @@ import { ContentModal } from "./components/ContentModal";
 import { RespostaDoAgente } from "./components/Mensagem";
 import { Carregando } from "./components/Carregando";
 import { Licao } from "./components/Licao";
+import { Masters } from "./components/Masters";
 import { Sobre } from "./components/Sobre";
 import { BrandLogo } from "./components/BrandLogo";
 import { HeaderNavigation } from "./components/HeaderNavigation";
@@ -41,9 +42,9 @@ function tituloDaLicao(licao: InfoLicao, retomando = false): string {
   return `${retomando ? "Retomando · " : ""}Lição ${licao.numero}/${licao.total} · ${licao.modulo} · ${licao.titulo}`;
 }
 
-type AppPage = "match" | "lessons" | "curiosities" | "about" | "home";
+type AppPage = "masters" | "match" | "lessons" | "curiosities" | "about" | "home";
 function pageFromHash(): AppPage {
-  const pages: Record<string, AppPage> = { "#/licoes": "lessons", "#/curiosidades": "curiosities", "#/sobre": "about", "#/": "home" };
+  const pages: Record<string, AppPage> = { "#/masters": "masters", "#/licoes": "lessons", "#/curiosidades": "curiosities", "#/sobre": "about", "#/": "home" };
   return pages[window.location.hash] ?? "match";
 }
 
@@ -364,6 +365,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
           <div className="mobile-access-row" ref={setMobileAccessHost} />
         </main>
+        <section className="masters-page" data-page="masters" aria-labelledby="masters-title" hidden={page !== "masters"}>
+          <Masters visible={page === "masters"} />
+        </section>
         <section className="standalone-page" data-page="lessons" aria-label="Lições de xadrez" hidden={page !== "lessons"}>
           {page === "lessons" && modal !== "lessons" && lessonsContent}
         </section>
