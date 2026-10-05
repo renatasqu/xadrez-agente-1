@@ -22,6 +22,10 @@ import { Sobre } from "./components/Sobre";
 import { BrandLogo } from "./components/BrandLogo";
 import { HeaderNavigation } from "./components/HeaderNavigation";
 import { StatusSaude } from "./components/StatusSaude";
+import { InteractiveCard } from "./components/InteractiveCard";
+import { FloatingAction } from "./components/FloatingAction";
+import tutorIcon from "./assets/tutor-computador.png";
+import lessonsIcon from "./assets/licoes-smoothie-transparente.png";
 import { FEN_INICIAL, situacao } from "./lances";
 import { passosDaDemo } from "./demonstracao";
 import { Reprodutor } from "./components/Reprodutor";
@@ -43,7 +47,7 @@ function pageFromHash(): AppPage {
   return pages[window.location.hash] ?? "match";
 }
 
-export function App() {
+export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [page, setPage] = useState<AppPage>(pageFromHash);
   const { layoutRef, mobile } = useMatchLayout(page === "match");
   const [desktopTutorHost, setDesktopTutorHost] = useState<HTMLDivElement | null>(null);
@@ -275,7 +279,7 @@ export function App() {
       }}>
         <header className="game-header">
           <BrandLogo />
-          <HeaderNavigation onExit={goHome} />
+          <HeaderNavigation onExit={onLogout ?? goHome} />
           <div className="header-server-status">
             <StatusSaude />
           </div>
@@ -351,10 +355,10 @@ export function App() {
                 <AgentThinking side="w" analysis={analyses.w?.resposta} stale={Boolean(analyses.w && analyses.w.fen !== fen)} busy={esperando === "analise" && matchSide === "w"} />
                 <AgentThinking side="b" analysis={analyses.b?.resposta} stale={Boolean(analyses.b && analyses.b.fen !== fen)} busy={esperando === "analise" && matchSide === "b"} />
               </div>
-              <button type="button" className="content-trigger comment-trigger" aria-haspopup="dialog" aria-controls="comment-modal" onClick={event => openArea("comment", event.currentTarget)}><span>DEIXE SEU COMENTÁRIO / LIKE</span><small>Abra seu espaço de comentários</small></button>
+              <InteractiveCard action="Abrir espaço de comentários" type="button" className="content-trigger comment-trigger" aria-haspopup="dialog" aria-controls="comment-modal" onClick={event => openArea("comment", event.currentTarget)}><span>DEIXE SEU COMENTÁRIO / LIKE</span><small>Abra seu espaço de comentários</small></InteractiveCard>
               <div id="sobre-projeto" data-page="about" className="project-access">
-                <button type="button" className="content-trigger" aria-haspopup="dialog" aria-controls="about-modal" onClick={event => openArea("about", event.currentTarget)}><span>SOBRE O PROJETO</span></button>
-                <button type="button" className="content-trigger" aria-haspopup="dialog" aria-controls="documentation-modal" onClick={event => openArea("documentation", event.currentTarget)}><span>DOCUMENTAÇÃO</span></button>
+                <InteractiveCard action="Ver informações sobre o projeto" type="button" className="content-trigger" aria-haspopup="dialog" aria-controls="about-modal" onClick={event => openArea("about", event.currentTarget)}><span>SOBRE O PROJETO</span></InteractiveCard>
+                <InteractiveCard action="Abrir documentação" type="button" className="content-trigger" aria-haspopup="dialog" aria-controls="documentation-modal" onClick={event => openArea("documentation", event.currentTarget)}><span>DOCUMENTAÇÃO</span></InteractiveCard>
               </div>
             </aside>
           </div>
@@ -372,12 +376,12 @@ export function App() {
         </section>
       </div>
       {(mobile ? mobileAccessHost : desktopTutorHost) && createPortal(
-        <button type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></button>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
+        <InteractiveCard action="Abrir tutor" type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></InteractiveCard>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
       {desktopLessonsHost && createPortal(
-        <button type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></button>, desktopLessonsHost)}
+        <InteractiveCard action="Abrir lições" type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></InteractiveCard>, desktopLessonsHost)}
       <div className="floating-actions" aria-label="Atalhos" hidden={modal !== null}>
-        <button type="button" aria-label="Abrir tutor" onClick={event => openArea("tutor", event.currentTarget)}>♟</button>
-        <button type="button" aria-label="Abrir lições" onClick={event => openArea("lessons", event.currentTarget)}>▤</button>
+        <FloatingAction title="Seu Tutor" label="Abrir tutor" icon={tutorIcon} onClick={event => openArea("tutor", event.currentTarget)} />
+        <FloatingAction title="Lições" label="Abrir lições" icon={lessonsIcon} onClick={event => openArea("lessons", event.currentTarget)} />
       </div>
       <ContentModal id="tutor-modal" title="SEU TUTOR" open={modal === "tutor"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <Chat itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
@@ -388,13 +392,13 @@ export function App() {
       <ContentModal id="curiosities-modal" title="CURIOSIDADES" open={modal === "curiosities"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <p>Este espaço vai reunir curiosidades sobre o xadrez.</p>
       </ContentModal>
-      <ContentModal id="comment-modal" title="COMENTÁRIO / LIKE" open={modal === "comment"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+      <ContentModal id="comment-modal" title="COMENTÁRIO / LIKE:" open={modal === "comment"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <CommentLike />
       </ContentModal>
-      <ContentModal id="about-modal" title="SOBRE O PROJETO" open={modal === "about"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+      <ContentModal id="about-modal" title="SOBRE O PROJETO:" open={modal === "about"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <Sobre section="about" />
       </ContentModal>
-      <ContentModal id="documentation-modal" title="DOCUMENTAÇÃO" open={modal === "documentation"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+      <ContentModal id="documentation-modal" title="DOCUMENTAÇÃO:" open={modal === "documentation"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <Sobre section="documentation" onTutor={() => setModal("tutor")} onAnalyses={() => setModal(null)} />
       </ContentModal>
     </div>

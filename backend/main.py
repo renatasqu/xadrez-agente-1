@@ -36,9 +36,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from langchain_core.language_models.chat_models import BaseChatModel
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as ErroHttpDoStarlette
 
@@ -49,6 +47,7 @@ import conceitos
 from agents import analista, router
 from agents.licoes import LICOES
 from config import INDICES, settings
+from auth import router as auth_router, limiter
 from exercises.api import router as exercises_router
 from exercises.api import http_error_response, internal_error_response, is_exercise_path, request_error_response
 from schemas import (
@@ -144,14 +143,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
-limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
 app.include_router(exercises_router)
+app.include_router(auth_router)
 app.state.exercise_recorder = progresso.registrar_exercicio
 app.state.limiter = limiter
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origens,
+    allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "X-Admin-Token"],
 )

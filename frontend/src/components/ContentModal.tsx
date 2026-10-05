@@ -54,7 +54,7 @@ export function ContentModal({ id, title, open, onClose, returnFocusRef, childre
 
   return <div className="match-modal-backdrop" hidden={!open} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section ref={panel} id={id} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} tabIndex={-1} className="match-modal">
-      <header className="modal-heading"><h2 id={`${id}-title`}>{title}</h2><button type="button" onClick={onClose} aria-label={`Fechar ${title.toLowerCase()}`}>Fechar <span aria-hidden="true">×</span></button></header>
+      <header className="modal-heading"><h2 id={`${id}-title`}>{title}</h2><button type="button" onClick={onClose} aria-label={`Fechar ${title.toLowerCase().replace(/:$/, "")}`}>Fechar <span aria-hidden="true">×</span></button></header>
       <div className="modal-body">{children}</div>
     </section>
   </div>;

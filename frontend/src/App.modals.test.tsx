@@ -92,11 +92,18 @@ it("novas entradas abrem páginas próprias e preservam rascunho e like ao reabr
   fireEvent.click(screen.getByRole("link", { name: "Partida" }));
   await waitFor(() => expect(screen.getByRole("button", { name: /^DEIXE SEU COMENTÁRIO/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /^DEIXE SEU COMENTÁRIO/ }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Seu comentário" }), { target: { value: "Gostei!" } });
+  expect(screen.getByRole("dialog", { name: "COMENTÁRIO / LIKE:" })).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Enviar" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByRole("textbox", { name: /Escreva aqui\./ }), { target: { value: "   " } });
+  expect((screen.getByRole("button", { name: "Enviar" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByRole("textbox", { name: /Escreva aqui\./ }), { target: { value: "Gostei!" } });
+  fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  expect(screen.getByText("Envio demonstrativo: seu comentário não foi publicado nem salvo em um servidor.")).toBeTruthy();
+  expect(screen.queryByText("Seu rascunho fica nesta sessão. Ainda não é publicado.")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Like" }));
   fireEvent.keyDown(document, { key: "Escape" });
   fireEvent.click(screen.getByRole("button", { name: /^DEIXE SEU COMENTÁRIO/ }));
-  expect((screen.getByRole("textbox", { name: "Seu comentário" }) as HTMLTextAreaElement).value).toBe("Gostei!");
+  expect((screen.getByRole("textbox", { name: /Escreva aqui\./ }) as HTMLTextAreaElement).value).toBe("Gostei!");
   expect(screen.getByRole("button", { name: "Like" }).getAttribute("aria-pressed")).toBe("true");
 });
 
@@ -114,6 +121,36 @@ it("atalhos flutuantes mantêm Tutor e Lições inclusive na página de lições
   expect(within(screen.getByRole("region", { name: "Lições de xadrez" })).getByRole("button", { name: "Começar lições" })).toBeTruthy();
 });
 
+it("atalhos usam os assets corretos e mostram tooltips no hover e no foco", () => {
+  start();
+  for (const [label, title, asset] of [
+    ["Abrir tutor", "Seu Tutor", "tutor-computador.png"],
+    ["Abrir lições", "Lições", "licoes-smoothie-transparente.png"],
+  ]) {
+    const button = screen.getByRole("button", { name: label });
+    expect(button.querySelector("img")?.getAttribute("src")).toContain(asset);
+    expect(button.querySelector("img")?.getAttribute("alt")).toBe("");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.pointerEnter(button, { pointerType: "mouse" });
+    const tooltip = screen.getByRole("tooltip");
+    expect(within(tooltip).getByText(title)).toBeTruthy();
+    expect(button.getAttribute("aria-describedby")).toBe(tooltip.id);
+    expect(within(tooltip).getByText(label)).toBeTruthy();
+    fireEvent.pointerLeave(button, { pointerType: "mouse" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    const focusVisible = vi.spyOn(button, "matches").mockReturnValue(true);
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.pointerEnter(button, { pointerType: "mouse" });
+    fireEvent.pointerLeave(button, { pointerType: "mouse" });
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.blur(button);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(button.hasAttribute("aria-describedby")).toBe(false);
+    focusVisible.mockRestore();
+  }
+});
+
 it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem foco", () => {
   const { container } = start();
   expect(container.querySelector('.arena-shell .game-footer')).toBeNull();
@@ -124,7 +161,7 @@ it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem fo
   expect(container.querySelectorAll(".project-access")).toHaveLength(1);
   const about = screen.getByRole("button", { name: "SOBRE O PROJETO" });
   fireEvent.click(about);
-  const content = within(screen.getByRole("dialog", { name: "SOBRE O PROJETO" }));
+  const content = within(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" }));
   fireEvent.click(content.getByText("Documentos da biblioteca"));
   for (const title of ["FIDE Laws of Chess", "Chess Fundamentals", "The Blue Book of Chess", "Ten Steps to Learn Chess Tactics and Combinations"]) expect(content.getByText(title)).toBeTruthy();
   expect(content.getByText(/Nenhum dado pessoal é coletado/)).toBeTruthy();
@@ -135,7 +172,7 @@ it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem fo
   fireEvent.click(screen.getByRole("button", { name: "Fechar sobre o projeto" }));
   const documentation = screen.getByRole("button", { name: "DOCUMENTAÇÃO" });
   fireEvent.click(documentation);
-  const docs = within(screen.getByRole("dialog", { name: "DOCUMENTAÇÃO" }));
+  const docs = within(screen.getByRole("dialog", { name: "DOCUMENTAÇÃO:" }));
   expect(docs.getByText(/As fontes citadas e os trechos dos documentos estão disponíveis no tutor/)).toBeTruthy();
   expect(docs.getByRole("link", { name: "Ver análises dos agentes" })).toBeTruthy();
   expect(docs.getByRole("button", { name: "Consultar fontes no tutor" })).toBeTruthy();
@@ -151,8 +188,8 @@ it("menu Sobre abre o modal e permite reabrir no mesmo destino", async () => {
   start();
   const link = screen.getByRole("link", { name: "Sobre" });
   fireEvent.click(link);
-  expect(await screen.findByRole("dialog", { name: "SOBRE O PROJETO" })).toBeTruthy();
+  expect(await screen.findByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
   fireEvent.keyDown(document, { key: "Escape" });
   fireEvent.click(link);
-  expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO" })).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
 });

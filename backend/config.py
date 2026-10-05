@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     cors_origens: list[str] = ["http://localhost:5173"]
     admin_token: str = ""  # vazio = POST /ingest desativado
     db_progresso: Path = BASE_DIR / "progresso.sqlite"  # progresso das lições (id anônimo)
+    db_auth: Path = BASE_DIR / "auth.sqlite"
+    auth_cookie_secure: bool = False  # True ao servir por HTTPS
     aquecer_na_inicializacao: bool = True  # carregar embeddings e ChromaDB ao subir a API
 
     # Stockfish

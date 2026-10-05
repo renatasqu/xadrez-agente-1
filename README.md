@@ -90,6 +90,16 @@ uvicorn main:app --reload         # API em http://localhost:8000 (documentação
 
 Teste rápido no terminal: `python testar_agente.py roteador "Como funciona o roque?"`.
 
+O login usa uma conta pessoal provisionada no backend. Para configurar ou trocar
+as credenciais, execute `python configure_owner.py` dentro de `backend` e informe
+nome, e-mail e senha. O banco local `backend/auth.sqlite` guarda o hash da senha
+e está excluído do Git. As sessões usam cookies HttpOnly, duram sete dias e são
+revogadas ao sair. O cadastro público está desativado neste modo de teste.
+Ao hospedar por HTTPS, defina `AUTH_COOKIE_SECURE=true` e ajuste `CORS_ORIGENS`.
+Esta autenticação controla a entrada na interface; as rotas de xadrez continuam
+com o controle de acesso original e exigem proteção adicional antes de uma
+publicação privada.
+
 ### Frontend
 
 ```bash

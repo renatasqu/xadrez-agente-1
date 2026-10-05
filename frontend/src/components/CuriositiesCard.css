@@ -1,0 +1,40 @@
+.curiosities-carousel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  flex: none;
+  overflow: hidden;
+}
+.curiosities-slide {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  visibility: hidden;
+}
+/* A próxima imagem entra pela direita enquanto a anterior sai pela esquerda. */
+.curiosities-slide[data-active="true"] { visibility: visible; }
+.curiosities-slide[data-active="true"][data-animated="true"] {
+  animation: curiosity-enter 400ms ease both;
+}
+.curiosities-slide[data-previous="true"] {
+  animation: curiosity-leave 400ms ease both;
+}
+@keyframes curiosity-enter {
+  from { visibility: visible; transform: translateX(100%); }
+  to { visibility: visible; transform: translateX(0); }
+}
+@keyframes curiosity-leave {
+  from { visibility: visible; transform: translateX(0); }
+  to { visibility: hidden; transform: translateX(-100%); }
+}
+.curiosities-card:focus-visible {
+  outline: 2px solid var(--magnus-dark);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .curiosities-carousel .curiosities-slide { animation: none; }
+}

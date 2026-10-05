@@ -11,7 +11,18 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
   return (
     <footer className="game-footer text-xs text-slate-600">
       {section !== "documentation" && <section className="about-project">
-      <h2 className="mb-2 font-pixel text-[0.6rem] text-gelo-escuro">SOBRE</h2>
+      <div className="about-project-intro">
+        <p>Xadrez Multiagente é uma experiência interativa que combina xadrez, agentes de inteligência artificial e aprendizagem.</p>
+        <p>No tabuleiro, Magnus e Hans jogam entre si enquanto o usuário acompanha a partida, o turno atual, análises, possíveis jogadas, curiosidades e explicações relacionadas às decisões no tabuleiro.</p>
+        <p>O projeto também reúne recursos de aprendizagem, como tutor, lições, exercícios, curiosidades e documentos de referência, criando uma experiência que vai além de simplesmente jogar uma partida.</p>
+        <p>A análise das posições combina Stockfish, recuperação de informações e modelos de linguagem, com o objetivo de tornar conceitos e decisões do xadrez mais fáceis de explorar e compreender.</p>
+        <p>A proposta não é substituir plataformas tradicionais de xadrez, mas oferecer uma forma diferente de observar e aprender com o jogo: acompanhando dois agentes em ação e usando a própria partida como ponto de partida para o aprendizado.</p>
+        <p>O projeto também surgiu a partir de uma atividade acadêmica relacionada à inteligência artificial e acabou evoluindo para uma experiência mais ampla.</p>
+        <h3>OBJETIVO:</h3>
+        <p>Transformar uma partida de xadrez em uma experiência visual, interativa e pedagógica, aproximando o usuário dos conceitos do jogo e das análises realizadas pelos agentes.</p>
+        <h3>TECNOLOGIAS:</h3>
+        <p>React · TypeScript · FastAPI · Python · Stockfish · Anthropic · RAG · Embeddings</p>
+      </div>
       <details><summary>Documentos da biblioteca</summary><p>As respostas vêm destes documentos:</p>
       <ul className="my-2 list-inside list-disc">
         {DOCUMENTOS.map(([titulo, autor]) => (
@@ -27,10 +38,24 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
       </p>
       </section>}
       {section !== "about" && <section className="project-documentation" aria-label="Documentação">
-        <h2 className="mb-2 font-pixel text-[0.6rem] text-gelo-escuro">DOCUMENTAÇÃO</h2>
-        <p>A análise de posições usa o motor Stockfish. As fontes citadas e os trechos dos documentos estão disponíveis no tutor.</p>
-        <a href="#agentes" onClick={onAnalyses}>Ver análises dos agentes</a>
-        {onTutor && <button type="button" onClick={event => onTutor(event.currentTarget)}>Consultar fontes no tutor</button>}
+        <div className="documentation-block">
+          <h3>MOTOR DE ANÁLISE:</h3>
+          <p>A análise de posições usa o motor Stockfish.</p>
+        </div>
+        <div className="documentation-block documentation-references">
+          <h3>FONTES E REFERÊNCIAS:</h3>
+          <p>As fontes citadas e os trechos dos documentos estão disponíveis no tutor.</p>
+        </div>
+        <div className="documentation-actions">
+          <span className="documentation-action">
+            <a href="#agentes" onClick={onAnalyses} aria-describedby="documentation-analyses-tip">Ver análises dos agentes</a>
+            <span id="documentation-analyses-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Consultar as análises de Magnus e Hans</span>
+          </span>
+          {onTutor && <span className="documentation-action">
+            <button type="button" onClick={event => onTutor(event.currentTarget)} aria-describedby="documentation-sources-tip">Consultar fontes no tutor</button>
+            <span id="documentation-sources-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Abrir fontes e documentos no tutor</span>
+          </span>}
+        </div>
       </section>}
     </footer>
   );
