@@ -127,3 +127,29 @@ it("faixa de contexto reposicionada acompanha o modo sem duplicar textos", () =>
   view.unmount();
   host.remove();
 });
+
+it.each(["Dama", "Torre", "Bispo", "Cavalo"])("aguarda escolha de promoção: %s", name => {
+  const normal = { ...props(), fen: "7k/P7/8/8/8/8/8/7K w - - 0 1" };
+  render(<Board {...normal} />);
+  act(() => { board.options?.onPieceDrop?.({ sourceSquare: "a7", targetSquare: "a8",
+    piece: { pieceType: "wP", position: "a7", isSparePiece: false } }); });
+  expect(normal.onLance).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog", { name: "Escolha a promoção" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name }));
+  expect(normal.onLance).toHaveBeenCalledTimes(1);
+});
+it("cancelar promoção preserva posição", () => {
+  const normal = { ...props(), fen: "7k/P7/8/8/8/8/8/7K w - - 0 1" };
+  render(<Board {...normal} />);
+  act(() => { board.options?.onPieceDrop?.({ sourceSquare: "a7", targetSquare: "a8",
+    piece: { pieceType: "wP", position: "a7", isSparePiece: false } }); });
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar promoção" }));
+  expect(normal.onLance).not.toHaveBeenCalled();
+});
+it("estado terminal impede mover", () => {
+  const normal = props();
+  render(<Board {...normal} terminado />);
+  click("e2", "e4");
+  expect(normal.onLance).not.toHaveBeenCalled();
+  expect(board.options?.allowDragging).toBe(false);
+});

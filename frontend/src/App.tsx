@@ -27,7 +27,7 @@ import { InteractiveCard } from "./components/InteractiveCard";
 import { FloatingAction } from "./components/FloatingAction";
 import tutorIcon from "./assets/tutor-computador.png";
 import lessonsIcon from "./assets/licoes-smoothie-transparente.png";
-import { FEN_INICIAL, situacao } from "./lances";
+import { FEN_INICIAL, jogoDoHistorico, estadoPartida, textoEstado } from "./lances";
 import { passosDaDemo } from "./demonstracao";
 import { Reprodutor } from "./components/Reprodutor";
 import type { Demonstracao, InfoLicao, RespostaLicao, Resposta } from "./types";
@@ -66,7 +66,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const exerciseId = useRef<string | null>(null);
   const [refutacao, setRefutacao] = useState<Exibicao | null>(null);
   const retomou = useRef(false);
-  const fen = historico[historico.length - 1];
+  const jogo = useMemo(() => jogoDoHistorico(historico), [historico]);
+  const estado = useMemo(() => estadoPartida(jogo), [jogo]);
+  const fen = jogo.fen();
   const [matchPaused, setMatchPaused] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [historyPlaying, setHistoryPlaying] = useState(false);
@@ -85,7 +87,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [tocando, setTocando] = useState(false);
   const passos = demo ? passosDaDemo(demo.fen_inicial, demo.lances) : [];
   useEffect(() => {
-    if (historico.length < 2 || matchPaused || selectedPosition !== null || exercicio.exercise || esperando || demo || /^(Xeque-mate|Afogamento|Empate)/.test(situacao(fen))) return;
+    if (historico.length < 2 || matchPaused || selectedPosition !== null || exercicio.exercise || esperando || demo || estado.ended) return;
     const timer = setInterval(() => setActivity(value => ({ ...value, [matchSide]: value[matchSide] + 1 })), 1000);
     return () => clearInterval(timer);
   }, [historico.length, matchPaused, selectedPosition, exercicio.exercise, esperando, matchSide, demo, fen]);
@@ -290,7 +292,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             <div className="desktop-tutor-slot" ref={setDesktopTutorHost} />
             <MoveHistory moves={moves} selected={historyIndex} disabled={Boolean(exercicio.exercise || demo)} onSelect={index => { setSelectedPosition(index); setHistoryPlaying(false); }} />
           </div>
-          <div className="match-context-strip" ref={setBoardContextHost} hidden />
+          <div className="match-context-strip" ref={setBoardContextHost} />
           <div className="match-central">
             <div className="match-game-column">
             <div className="board-workspace arena-board-main" id="match-board">
@@ -300,9 +302,11 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
                 hideControls
                 contextContainer={boardContextHost}
                 fen={fen}
+                estadoTexto={textoEstado(estado)}
+                terminado={estado.ended}
                 ocupado={esperando !== null || exercicio.loading || (matchPaused && !exercicio.exercise && !demo)}
                 podeDesfazer={historico.length > 1}
-                onLance={(novo) => { setSelectedPosition(null); setHistorico((h) => [...h, novo]); }}
+                onLance={(novo) => { if (estado.ended || selectedPosition !== null) return; setHistorico((h) => { const proximo = [...h, novo]; try { jogoDoHistorico(proximo); return proximo; } catch { return h; } }); }}
                 onDesfazer={() => setHistorico((h) => (h.length > 1 ? h.slice(0, -1) : h))}
                 onReiniciar={resetMatch}
                 onAnalisar={analisar}

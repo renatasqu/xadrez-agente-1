@@ -232,3 +232,41 @@ def analisar_posicao(fen: str, tempo: float | None = None, *,
     except (KeyError, ValueError, TypeError, AttributeError) as error:
         raise ErroDoMotor("Resultado inválido do motor") from error
     return analise
+
+
+def estado_tabuleiro(board: chess.Board) -> dict:
+    """Política local: encerra na terceira repetição ou cinquenta lances já atingidos."""
+    status = ('checkmate' if board.is_checkmate() else 'stalemate' if board.is_stalemate()
+              else 'insufficient_material' if board.is_insufficient_material()
+              else 'repetition' if board.is_repetition(3) else 'fifty_move' if board.is_fifty_moves()
+              else 'draw' if board.is_game_over() else 'check' if board.is_check() else 'playing')
+    return dict(status=status, turn='white' if board.turn else 'black',
+                winner=('black' if board.turn else 'white') if status == 'checkmate' else None,
+                ended=status not in ('playing', 'check'), fen=board.fen())
+
+
+def reconstruir_partida(fen_inicial: str, movimentos: list[str]) -> chess.Board:
+    """Reconstrói histórico UCI legal sem persistência nem alteração das entradas."""
+    board = tabuleiro_validado(fen_inicial)
+    for uci in movimentos:
+        if estado_tabuleiro(board)['ended']:
+            raise ValueError('Partida encerrada')
+        move = chess.Move.from_uci(uci)
+        if move not in board.legal_moves:
+            raise ValueError('Movimento ilegal')
+        board.push(move)
+    return board
+
+
+def estado_posicao(fen: str) -> dict:
+    """FEN isolado não permite confirmar repetição."""
+    return estado_tabuleiro(tabuleiro_validado(fen))
+
+
+def lances_legais(fen_inicial: str, movimentos: list[str] | None = None) -> list[str]:
+    board = reconstruir_partida(fen_inicial, movimentos or [])
+    return [] if estado_tabuleiro(board)['ended'] else [m.uci() for m in board.legal_moves]
+
+
+def aplicar_na_partida(fen_inicial: str, movimentos: list[str], uci: str) -> dict:
+    return estado_tabuleiro(reconstruir_partida(fen_inicial, [*movimentos, uci]))

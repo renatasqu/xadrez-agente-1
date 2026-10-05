@@ -1099,3 +1099,29 @@ Não houve instalação/upgrade, alteração de `.env`, ingestão ou associaçã
 Arquivos desta etapa (9): `backend/chess_engine.py` (novo serviço), `backend/agents/analista.py` (fachada/apresentação/enriquecimento), `backend/main.py` (fases/prazo/aquecimento), `backend/schemas.py` (dados/estados aditivos), `frontend/src/types.ts` (espelho do contrato), `backend/tests/test_chess_engine.py` e `backend/tests/test_analysis_resilience.py` (novos testes), README e este adendo. Revisão inclui diff rastreado completo, arquivos novos e whitespace; nenhum commit/deploy foi realizado. ETAPA 4 não iniciada.
 
 Resultado final da execução completa após esses dois casos: **711 aprovados, 60 LLM não selecionados, nenhum skip/falha, 20,39 s** (baseline 654; 57 novos casos). Frontend mantém 197/197 e build aprovado. Não foram identificadas regressões nos checks executados. `git diff --check` aprovado e `git status --short` conferido com os nove arquivos acima, incluindo três novos.
+
+## Adendo — histórico e regras da partida, etapa 4 (05/10/2026)
+
+O início desta etapa apresentou Git limpo. A inspeção confirmou chess.js 1.4.0 instalado e recriação por FEN em `tentarLance`/`situacao`, perdendo a pilha necessária à repetição. As etapas anteriores foram preservadas.
+
+### Modelo e política implementados
+
+App mantém snapshots em memória, mas reconstrói todos os movimentos legais desde o primeiro FEN com `jogoDoHistorico`; a instância reconstruída conserva a pilha de movimentos e é memoizada. Novos snapshots são aceitos apenas quando correspondem a movimento legal da sequência oficial. Estado estruturado contém status, turno, vencedor e encerramento. Status distingue playing/check/checkmate/stalemate/insufficient_material/repetition/fifty_move/draw. O motivo de término é o próprio status; não há vencedor em empate. Xeque permite continuação. Mate, afogamento e empates bloqueiam entrada e contagem de atividade.
+
+A política do produto encerra automaticamente na terceira repetição e após cinquenta lances sem captura/movimento de peão, quando o critério já foi atingido. Não implementa reclamação FIDE nem previsão de reclamação pelo próximo lance. FEN sozinho não confirma repetição. Histórico inválido/continuação terminal é rejeitado; partida inicial pode ser reconstruída após reset. Não houve entidade persistente Game nem novo endpoint.
+
+Replay usa índice/exibição separados e bloqueia movimentação; não reconstrói o estado oficial a partir do snapshot selecionado. Voltar à posição atual conserva resultado. Desfazer existente remove explicitamente o último snapshot e recalcula resultado; reset limpa histórico, seleção, atividade e análises como antes. Demonstração/prática mantêm suas posições próprias e contratos anteriores.
+
+Promoção normal abre escolha de dama/torre/bispo/cavalo antes de emitir FEN. Cancelar/Escape preserva posição. Mudança de posição/modo/ocupação dispensa escolha pendente; candidato é revalidado ao confirmar. O helper mantém padrão dama para consumidores antigos, mas a arena exige escolha. Contexto/status antes oculto agora fica visível em região aria-live, sem alteração de CSS ou redesign.
+
+Backend acrescenta primitivas sem LLM: estado de tabuleiro/posição, reconstrução de histórico UCI, enumeração legal e aplicação em cópia reconstruída. Entradas não são mutadas. História inválida, turno incorreto, UCI/promoção ilegal e continuação terminal são recusados. Primitivas antigas de posição e análise Stockfish continuam recebendo FEN; legalidade de posição não constitui prova de histórico de partida. Uma futura Game poderá usar FEN inicial + movimentos, id/proprietário, estado/turno/vencedor e datas; aplicação deverá verificar sessão/propriedade. Ainda não existe adversário IA.
+
+### Verificação e limites
+
+Backend completo offline: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra`, executado em backend: **726 aprovados, 60 não selecionados, nenhum skip/falha, 28,54 s**. Os 15 novos casos cobrem repetição real/FEN isolado, bloqueio terminal, quatro promoções, entradas ilegais, estados, mate e lista legal. Suíte preserva autorização e Stockfish locais. Sem chamada real LLM/FIDE, instalação, ingestão ou alteração de dados privados.
+
+Frontend recebeu testes de regras/estados, quatro escolhas de promoção, cancelamento, bloqueio terminal e integração de repetição/replay/desfazer/reset. A primeira execução simultânea com backend teve cinco timeouts; a segunda isolada aprovou 213/214, com única expectativa antiga de contexto oculto. Essa expectativa foi atualizada para estado visível. Nenhum timeout foi relaxado.
+
+Arquivos: backend/chess_engine.py; novo backend/tests/test_game_rules.py; frontend/src/lances.ts; App.tsx; components/Board.tsx; components/Board.test.tsx; App.modals.test.tsx; novo gameRules.test.ts; README.md; este adendo. Persistência/PGN, jogo contra IA, multiplayer, cancelamento global, limites dos exercícios, ingestão/cache, peso dos assets e textos de privacidade seguem pendentes. Não houve teste integrado em navegador; responsividade visual real não foi confirmada. Sem commit/deploy e sem etapa 5.
+
+Resultado final frontend: `cd frontend && npm test` — **215 aprovados em 33 arquivos, 37,68 s** (baseline 197/32). Verificação final focada `npm test -- src/App.modals.test.tsx` — **10 aprovados, 3,44 s**, incluindo integração completa de repetição, bloqueio, replay, desfazer e reset. `npm run build` — **aprovado**, TypeScript noEmit + Vite; JS 417,90 kB / gzip 130,00 kB; CSS 84,39 kB / gzip 25,48 kB. Revisão do diff e arquivos novos realizada; `git diff --check` sem erros; status final contém os dez arquivos listados. Não foram identificadas regressões funcionais nos checks finais; timeouts intermediários ficaram registrados acima.

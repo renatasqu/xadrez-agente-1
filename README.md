@@ -281,3 +281,11 @@ Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, armazen
 ## Licença e créditos
 
 [GPL-3.0](LICENSE). O projeto usa `python-chess`; Stockfish é instalado separadamente e não distribuído neste repositório. Documentos de terceiros têm licenças próprias. Inter e Pixelify Sans têm arquivos OFL em `frontend/public/fonts/`; Press Start 2P vem de `@fontsource`. A documentação histórica registra o uso de Claude/Claude Code no desenvolvimento, sem que esta auditoria valide a autoria individual dos assets.
+
+### Regras da partida local — etapa 4
+
+A partida manual reconstrói o histórico legal completo em chess.js 1.4.0; os FENs continuam como snapshots de apresentação. O estado oficial distingue turno, xeque, mate/vencedor, afogamento, material insuficiente, repetição tripla e cinquenta lances. Nesta aplicação os dois últimos encerram automaticamente ao atingir o critério, sem formulário de reclamação ou antecipação de lance futuro. Movimentos ficam bloqueados após o fim. Desfazer altera explicitamente o histórico; reiniciar limpa a partida. Navegação/replay não alteram o resultado oficial.
+
+Promoção na arena aguarda escolha de dama, torre, bispo ou cavalo; cancelar/Escape preserva a posição. Demonstrações e exercícios mantêm seus contratos próprios. O contexto da arena agora apresenta avisos de estado.
+
+No backend, `reconstruir_partida`, `estado_tabuleiro`, `estado_posicao`, `lances_legais` e `aplicar_na_partida` são primitivas locais sem persistência. Histórico UCI é revalidado e não aceita continuação após o fim. As funções anteriores de posição/análise seguem recebendo FEN isolado: não confirmam repetição. Nenhum endpoint de partida ou adversário IA foi criado. Uma futura entidade Game deverá guardar identidade/proprietário, FEN inicial, movimentos, estado atual e datas; sessão/propriedade devem ser verificadas pela aplicação.

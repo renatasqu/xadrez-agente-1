@@ -18,9 +18,9 @@ it("estrutura separa faixas, tabuleiro, análises e controles sem conteúdo aber
   expect(container.querySelector(".match-upper-strip > .agent-headers")).toBeTruthy();
   expect(container.querySelector(".match-upper-strip > #historico-partida")).toBeTruthy();
   expect(container.querySelector(".match-context-strip")).toBeTruthy();
-  expect(container.querySelector(".match-context-strip")?.hasAttribute("hidden")).toBe(true);
+  expect(container.querySelector(".match-context-strip")?.hasAttribute("hidden")).toBe(false);
   expect(screen.queryByText("Explore uma posição")).toBeTruthy();
-  expect(screen.queryByLabelText("Contexto do tabuleiro")?.closest("[hidden]")).toBeTruthy();
+  expect(screen.queryByLabelText("Contexto do tabuleiro")?.closest("[hidden]")).toBeNull();
   expect(container.querySelector(".match-game-column > #match-board")).toBeTruthy();
   expect(container.querySelector(".match-sidebar > .arena-reasoning")).toBeTruthy();
   expect(container.querySelector(".match-lower-strip > .arena-control-strip")).toBeTruthy();
@@ -192,4 +192,26 @@ it("menu Sobre abre o modal e permite reabrir no mesmo destino", async () => {
   fireEvent.keyDown(document, { key: "Escape" });
   fireEvent.click(link);
   expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
+});
+
+it("repetição encerra partida; replay preserva resultado e reinício limpa histórico", () => {
+  const { container } = start();
+  const mover = (de: string, para: string) => {
+    fireEvent.click(container.querySelector(`[data-square="${de}"]`)!);
+    fireEvent.click(container.querySelector(`[data-square="${para}"]`)!);
+  };
+  for (let i = 0; i < 2; i++) {
+    mover("g1","f3"); mover("g8","f6"); mover("f3","g1"); mover("f6","g8");
+  }
+  expect(screen.getByText("Empate por repetição tripla.")).toBeTruthy();
+  mover("e2","e4");
+  expect(screen.getByText("Empate por repetição tripla.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Primeira posição/ }));
+  mover("e2", "e4");
+  fireEvent.click(screen.getByRole("button", { name: "Voltar à posição atual" }));
+  expect(screen.getByText("Empate por repetição tripla.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+  expect(screen.queryByText("Empate por repetição tripla.")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Reiniciar" }));
+  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
 });

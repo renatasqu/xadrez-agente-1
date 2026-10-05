@@ -4,9 +4,10 @@ import { createPortal } from "react-dom";
 import { BoardControls } from "./BoardControls";
 import { descricaoVisual } from "../exercises/pedagogia";
 import { observarIdiomaDoTabuleiro } from "../acessibilidadeTabuleiro";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import type { ExerciseAction, ExerciseGoal, ExerciseSquare } from "../types";
 import type { ExerciseVisual } from "../exercises/visual";
+import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { PECAS_DO_TABULEIRO } from "../pixel/pecas";
 import { destinosLegais, ladoDaPeca, situacao, tentarLance, vezDe } from "../lances";
@@ -21,6 +22,8 @@ export interface Exibicao {
 
 interface BaseProps {
   hideControls?: boolean;
+  estadoTexto?: string;
+  terminado?: boolean;
   contextContainer?: HTMLElement | null;
   fen: string;
   ocupado: boolean;
@@ -72,9 +75,12 @@ export function Board(props: BoardProps) {
   const fenExibido = exercicio?.preview?.fen ?? exercicio?.fen ?? exibicao?.fen ?? fen;
   const emDemo = modo === "demonstration";
   const emExercicio = modo === "exercise";
-  const bloqueado = ocupado || emDemo || Boolean(exercicio && (
+  const fimDaPosicao = useMemo(() => new Chess(fen).isGameOver(), [fen]);
+  const bloqueado = ocupado || Boolean(modo === "normal" && (props.terminado || fimDaPosicao)) || emDemo || Boolean(exercicio && (
     exercicio.concluido || exercicio.preview || exercicio.goal.type === "answer_position_question"));
   const controlesBloqueados = ocupado || modo !== "normal";
+  const [promocao, setPromocao] = useState<{ de: string; para: string; fen: string } | null>(null);
+  useEffect(() => setPromocao(null), [fenExibido, modo, ocupado]);
   const [selecionada, setSelecionada] = useState<string | null>(null);
   useEffect(() => setSelecionada(null), [fenExibido, modo]);
   const destinos = selecionada ? destinosLegais(fenExibido, selecionada) : [];
@@ -89,6 +95,8 @@ export function Board(props: BoardProps) {
       // Não move de forma otimista: só resulting_fen pode alterar a posição exibida.
       return false;
     }
+    const candidatos = new Chess(fen).moves({ verbose: true }).filter(m => m.from === de && m.to === para);
+    if (candidatos.some(m => m.promotion)) { setPromocao({ de, para, fen }); return false; }
     const novo = tentarLance(fen, de, para);
     if (!novo) return false;
     onLance(novo);
@@ -155,13 +163,25 @@ export function Board(props: BoardProps) {
         <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : "Explore uma posição"}</span>
       </div>
       <p className="text-center font-pixel text-[0.6rem] leading-relaxed" aria-live="polite">
-        {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : situacao(fen)}
+        {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : props.estadoTexto ?? situacao(fen)}
       </p>
   </>;
 
   return (
     <section ref={boardRoot} aria-label="Tabuleiro" className="board-stage flex flex-col gap-4">
       {props.contextContainer ? createPortal(context, props.contextContainer) : context}
+      {promocao && <div role="dialog" aria-modal="false" aria-label="Escolha a promoção" onKeyDown={event => { if (event.key === "Escape") setPromocao(null); }}>
+        <p>Promover peão para:</p>
+        {(["q", "r", "b", "n"] as const).map((peca, i) => <button key={peca} type="button" autoFocus={i === 0}
+          onClick={() => {
+            if (!bloqueado && promocao.fen === fen) {
+              const novo = tentarLance(fen, promocao.de, promocao.para, peca);
+              if (novo) onLance(novo);
+            }
+            setPromocao(null);
+          }}>{["Dama", "Torre", "Bispo", "Cavalo"][i]}</button>)}
+        <button type="button" onClick={() => setPromocao(null)}>Cancelar promoção</button>
+      </div>}
       <div className="moldura-tabuleiro w-full">
         <Chessboard
           options={{
@@ -172,10 +192,10 @@ export function Board(props: BoardProps) {
             lightSquareStyle: CASA_CLARA,
             darkSquareStyle: CASA_ESCURA,
             squareStyles: estilos,
-            allowDragging: !bloqueado,
+            allowDragging: !bloqueado && !promocao,
             onPieceDrop: ({ sourceSquare, targetSquare }) =>
-              !bloqueado && targetSquare ? jogar(sourceSquare, targetSquare) : false,
-            onSquareClick: ({ square }) => !bloqueado && tocar(square),
+              !bloqueado && !promocao && targetSquare ? jogar(sourceSquare, targetSquare) : false,
+            onSquareClick: ({ square }) => !bloqueado && !promocao && tocar(square),
           }}
         />
       </div>
