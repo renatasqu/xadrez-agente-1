@@ -82,3 +82,14 @@ it("criação envia chave estável e listagem 401 invalida sessão", async () =>
   try { await expect(api.listGames()).rejects.toBeInstanceOf(ErroDePartida);expect(listener).toHaveBeenCalledTimes(1); }
   finally { window.removeEventListener("xadrez:session-expired",listener); }
 });
+
+it("replay e revisão autenticados com ply/revisão e ID codificado",async()=>{
+ responder();await api.gameReplay("a/b");expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/games\/a%2Fb\/replay$/);expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");await api.reviewGame("g",3,5);expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]?.body as string)).toEqual({ply:3,version:5});
+});
+it("PGN retorna texto do servidor com credenciais",async()=>{
+ vi.stubGlobal("fetch",vi.fn(async()=>new Response('1. e4 *\n')));expect(await api.gamePgn("g")).toBe('1. e4 *\n');expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/games\/g\/pgn$/);expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("include");
+});
+it.each(["gamePgn","gameReplay","reviewGame"] as const)("401 de %s invalida sessão",async(method)=>{
+ const listener=vi.fn();window.addEventListener("xadrez:session-expired",listener);responder(401,{});
+ try {await expect(api[method]("g",0,0)).rejects.toBeInstanceOf(ErroDePartida);expect(listener).toHaveBeenCalledTimes(1);}finally {window.removeEventListener("xadrez:session-expired",listener);}
+});

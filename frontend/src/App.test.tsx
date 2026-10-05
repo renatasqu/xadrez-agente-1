@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { apagarUsuarioId, gravarUsuarioId, lerUsuarioId } from "./armazenamento";
@@ -126,12 +126,13 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
   expect(arena.hidden).toBe(true);
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
-  fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
-  await screen.findByRole("list", { name: "Histórico oficial" });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
+  await screen.findByText("Histórico e revisão");
+  expect(document.querySelector('[aria-label="Histórico oficial"]')).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Abrir tutor" }));
   fireEvent.click(screen.getByLabelText("Anexar posição do tabuleiro"));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Explique a posição" } });
-  fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enviar" })); });
   await screen.findByText("Tutor preservado");
   const chat = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/chat"));
   expect(JSON.parse(chat?.[1]?.body as string).fen).toBe(officialFen);

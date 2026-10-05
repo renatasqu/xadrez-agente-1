@@ -188,9 +188,13 @@ def linha_validada(fen: str, lances: list[chess.Move]) -> list[str]:
 
 
 def analisar_posicao(fen: str, tempo: float | None = None, *,
-                     abrir: Callable[[], chess.engine.SimpleEngine] | None = None) -> Analise:
+                     abrir: Callable[[], chess.engine.SimpleEngine] | None = None,
+                     tabuleiro: chess.Board | None = None) -> Analise:
     """Roda o Stockfish na posição (tempo máximo em segundos, padrão do config)."""
-    tabuleiro = tabuleiro_validado(fen)
+    validado = tabuleiro_validado(fen)
+    if tabuleiro is not None and tabuleiro.fen() != validado.fen():
+        raise PosicaoInvalida("Histórico não corresponde ao FEN")
+    tabuleiro = validado if tabuleiro is None else tabuleiro.copy(stack=True)
     segundos = settings.stockfish_tempo if tempo is None else tempo
     if not math.isfinite(segundos) or segundos <= 0:
         raise ValueError("Tempo de análise deve ser positivo e finito")

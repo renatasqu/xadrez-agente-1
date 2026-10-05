@@ -29,6 +29,11 @@ async function start(next = game()) {
 }
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.spyOn(api, "gameReplay").mockImplementation(async () => {
+    const current = game();
+    return { game_id: current.id, version: current.version, initial_fen: current.initial_fen,
+      current_fen: current.current_fen, steps: [], result: "*", termination: "playing" };
+  });
   vi.spyOn(api, "listGames").mockResolvedValue({ games: [], next_offset: null });
   vi.spyOn(api, "agents").mockResolvedValue([
     { id: "balanced", display_name: "Equilibrado", difficulty: "intermediate", style: "balanced", description: "Melhor avaliação" },
@@ -163,7 +168,7 @@ it("retoma terminal sem jogar, perfil e orientação vêm do servidor", async ()
   const terminal = game([], { status: "checkmate", winner: "white", terminal: true, human_color: "black" });
   vi.mocked(api.listGames).mockResolvedValue({ games: [summary(terminal)], next_offset: null });
   vi.spyOn(api, "getGame").mockResolvedValue(terminal); const retry = vi.spyOn(api, "resumeAgent");
-  render(<AiGame onPosition={vi.fn()} />); fireEvent.click(await screen.findByRole("button", { name: /Ver resultado/ }));
+  render(<AiGame onPosition={vi.fn()} />); fireEvent.click(await screen.findByRole("button", { name: /Revisar partida/ }));
   await screen.findByTestId("official-fen"); expect(board.options?.allowDragging).toBe(false);
   expect(board.options?.boardOrientation).toBe("black"); expect(retry).not.toHaveBeenCalled();
   expect(screen.getByText("Nova partida contra IA")).toBeTruthy();
@@ -187,4 +192,25 @@ it("double click cria uma intenção e falha de transporte reutiliza chave/paylo
   await act(async () => reject(new Error("transport")));
   fireEvent.click(screen.getByText("Confirmar criação da partida"));
   await screen.findByTestId("official-fen"); expect(create.mock.calls[0]).toEqual(create.mock.calls[1]);
+});
+
+it("SAN abre replay bloqueado; somente retorno explícito permite continuar", async () => {
+  const current = game(["e2e4", "e7e5"]);
+  const chess = new Chess();
+  vi.mocked(api.gameReplay).mockResolvedValue({game_id:current.id,version:2,initial_fen:current.initial_fen,current_fen:current.current_fen,result:"*",termination:"playing",steps:current.moves.map((uci,i)=> {
+    const move=chess.move(uci); return {ply:i+1,move_number:1,color:i===0?"white":"black",uci,san:move.san,fen:chess.fen()};
+  })});
+  const position=vi.fn();
+  vi.spyOn(api,"createGame").mockResolvedValue(current);
+  const send=vi.spyOn(api,"submitHumanMove").mockResolvedValue(game(["e2e4","e7e5","g1f3","b8c6"]));
+  render(<AiGame onPosition={position} />);
+  await waitFor(()=>expect((screen.getByText("Iniciar partida contra IA") as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByText("Iniciar partida contra IA"));
+  fireEvent.click(await screen.findByRole("button",{name:"1. e4"}));
+  expect(board.options?.allowDragging).toBe(false);
+  expect(position).toHaveBeenLastCalledWith(current.current_fen);
+  drop("g1","f3"); expect(send).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText("Fim do histórico")); expect(board.options?.allowDragging).toBe(false);
+  fireEvent.click(screen.getByText("Voltar à posição atual")); expect(board.options?.allowDragging).toBe(true);
+  drop("g1","f3");await waitFor(()=>expect(send).toHaveBeenCalledTimes(1));
 });

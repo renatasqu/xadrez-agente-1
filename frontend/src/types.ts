@@ -231,3 +231,15 @@ export interface GameSummary {
   terminal: boolean; side_to_move: GameColor; awaiting_agent: boolean; move_count: number; version: number;
 }
 export interface GameList { games: GameSummary[]; next_offset: number | null }
+
+export interface GameReplayMove { ply: number; move_number: number; color: GameColor; uci: string; san: string; fen: string }
+export interface GameReplay { game_id: string; version: number; initial_fen: string; current_fen: string; steps: GameReplayMove[]; result: string; termination: Game["status"] }
+export interface GameEvaluation {
+  fen: string; perspectiva: "white"; pontos: number | null; mate: number | null;
+  melhor_lance: string | null; melhor_lance_uci: string | null; linha: string[]; linha_uci: string[];
+  status: string; vencedor: GameColor | null; profundidade: number | null;
+}
+export interface GameReviewResult {
+  game_id: string; version: number; ply: number; played: { uci: string; san: string; color: GameColor } | null;
+  before: GameEvaluation; after: GameEvaluation; cp_delta_white: number | null;
+}

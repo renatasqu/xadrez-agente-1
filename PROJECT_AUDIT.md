@@ -1356,3 +1356,62 @@ Nove arquivos: backend/games.py (listagem, summaries/perfil, índice/migração 
 Pendências: retenção/limpeza de partidas/chaves, custo de reconstrução em acervos grandes, paginação estável sob concorrência, intenção de criação persistente entre reloads, limites/cancelamento globais, cenários multiworker/TLS/mobile e demais achados anteriores. Sem PGN, multiplayer, matchmaking, ranking, persona, novos jogadores ou recalibração. Sem commit/deploy ou início da etapa 9.
 
 Resultado final backend após os dois casos adicionais: **886 aprovados, 60 LLM não selecionados, nenhum skip/falha, 42,41 s** (+20 sobre baseline). Frontend mantém **247 aprovados/35 arquivos** (+8) e build/typecheck aprovado. Nenhum timeout frontend observado nesta etapa. Chrome isolado e servidores locais de QA encerrados; verificação encontrou zero diretórios restantes dos bancos temporários de navegador. `git diff --check` aprovado; status confere nove arquivos, incluindo um novo. Nenhuma regressão identificada nos checks finais. Sem commit/deploy ou etapa seguinte.
+
+## Adendo — histórico enxadrístico e revisão, etapa 9 (05/10/2026)
+
+Início com `git status --short` vazio. Baseline: 247 frontend/35 arquivos, 886 backend não-LLM/60 excluídos. Foram conferidos README/auditoria, Game, engine, policy/perfis/main/schemas, regras/histórico, continuidade, cliente HTTP e replay/análise existentes. Game persistia initial_fen + UCI, proprietário/datas/revisão/perfil/cor. SAN/PGN e replay persistente não existiam; UI mostrava UCI. `/analisar` era análise pedagógica de FEN, com fatos Stockfish independentes e enriquecimento opcional. A etapa preserva esse endpoint e as policies/perfis.
+
+### Fonte oficial e contratos
+
+Novo `game_history.py` deriva SAN via board.san antes de push e snapshots apenas para resposta. PGN usa chess.pgn.Game/setup/variações/StringExporter, sem concatenação manual da notação. initial_fen + UCI continuam oficiais; nenhuma migração ou representação persistente nova. Headers seguros Event/Site/Date/White/Black/Result/Agent/AgentProfile/ProfileVersion/HumanColor/GameTermination; `Human` não inventa identidade pessoal. Alias stockfish v1 resolve Equilibrado. SetUp/FEN em posições alternativas vêm da biblioteca. Resultado vem da Game reconstruída: ativa *, brancas 1-0, pretas 0-1, empate 1/2-1/2. E-mail, owner, token, sessão e caminhos não são expostos.
+
+GET `/games/{id}/replay` retorna snapshot/version, posição inicial/final, resultado/termination e steps ply/move_number/color/UCI/SAN/FEN pós-lance. GET `/games/{id}/pgn` entrega application/x-chess-pgn com attachment fixo partida.pgn e nosniff. POST `/games/{id}/review` recebe estritamente ply/version, fornece modelos Pydantic estruturados de antes/depois, lance real, melhor SAN/UCI/PV/profundidade/score e delta CP opcional. Zero é posição inicial, sem lance. Revisão obsoleta 409; ply inválido 422; motor/vaga indisponível 503 com mensagem controlada. As três rotas usam sessão/propriedade, 404 indistinguível para ausente/alheia, no-store e comportamento 401 anterior. Nenhum cliente envia FEN/PGN/movimentos para revisão.
+
+### Revisão e fronteiras
+
+Snapshot Game é lido/reconstruído e conexão fechada antes do motor. Seleção usa prefixo UCI até ply-1 e cópia depois do movimento real. `chess_engine.analisar_posicao` recebe opcionalmente cópia de tabuleiro cuja posição deve coincidir com FEN; preserva pilha, sem mudar chamadas anteriores. Terminais, inclusive repetição/cinquenta lances, são derivados do histórico e não iniciam engine. Busca usa helpers/análise/fechamento existentes, sem novo motor/LLM/RAG/agente. Antes/depois são análises limitadas independentes, não avaliação automática de todas as alternativas do humano.
+
+Perspectiva white explícita em ambos os scores, diferente do contrato side_to_move dos candidatos de agentes que permanece intacto. CP positivo brancas/negativo pretas; mate positivo brancas/negativo pretas, zero terminal com vencedor. Delta depois menos antes só quando ambas avaliações são CP; nenhuma conversão de mate nem rótulo erro/blunder/brilhante. Scores por busca limitada podem variar; confiança pedagógica não participa da revisão.
+
+Cada revisão permite até duas buscas de 0,25 s, protocolo 5 s, PV até três plies e inicialização UCI existente. Dois slots de revisão por worker com espera de 1 s, liberados em finally, separados do limite de geração de candidatos. Processos fechados mesmo em falha. Não há transação durante engine: teste realiza escrita independente no mesmo SQLite durante evaluate e resposta conserva snapshot original/version/ply. Não existe cancelamento global, fila distribuída, cache ou garantia rígida de latência total incluindo inicialização/finalização. SAN/PGN/replay/listagem/navegação não abrem motor.
+
+### Frontend
+
+Novo GameHistory carrega replay autoritativo, apresenta SAN e controles início/anterior/próximo/fim/clique. Índice/posição de exibição separados da Game em AiGame; replay bloqueia Board e handler humano, inclusive no fim. Só Voltar à posição atual libera Game ativa. Terminais continuam bloqueados e sem retry do agente. Aceitar Game nova/retomada/resposta oficial limpa índice anterior. Tutor continua anexando Game oficial, não snapshot de replay.
+
+Exportação recebe texto backend, mostra textarea somente leitura e usa Blob/URL temporária com nome fixo; URL revogada após download. Falhas são recuperáveis. Revisão explícita mostra carregamento/erro/score/PV e descarta resposta de outro id/version/ply ou seleção já mudada. Não há motor ao clicar SAN nem análise automática ao montar. Listagem existente mantém ativas/encerradas e troca Ver resultado por Revisar partida. Nenhuma alteração funcional em App/Board/manual, auth, corpus, prompts, policy ou perfis.
+
+### Navegador realmente executado
+
+**SIM — Google Chrome local headless via DevTools/CDP**, perfil isolado em /tmp e conta/bancos TemporaryDirectory. Skill Browser lida, bootstrap iab tentou conectar e retornou indisponível; troubleshooting lido e fallback Chrome solicitado pelo usuário utilizado. Execução local fora da restrição de bind foi autorizada pela revisão automática. Sem dependência instalada nem perfil/cookie pessoal. API com aquecimento desligado/chaves vazias e health de QA sem corpus; Stockfish real.
+
+A: login → área IA → Game terminal Equilibrado/stockfish com f3 e5 g4 Qh4# → início ply0, meio ply2, fim ply4 → exportação PGN visível com resultado0-1/headers seguros. C: revisão Qh4# real mostrou mate1 para pretas antes, mate0/vencedor pretas depois, sem delta CP. B: Game Posicional/brancas → e4/e5 → clique SAN e4 → peças aria-disabled=true/tentativa g1f3 sem alteração → voltar ao presente → Nf3/Nc6 oficial. C ativa: e4 retornou melhor/PV, CP37 antes/31 depois e delta-6 nesta execução (valores observados, não garantia estável). Reload restaurou sessão; lista/mesma Game/histórico e revisão continuaram disponíveis. Voltar à manual e abrir tutor passaram; nenhuma pergunta enviada. Chrome/servidores encerrados e contexto de banco temporário removido.
+
+Captura desktop 1280×1000 foi aberta e inspecionada; primeira mostrou controles encostados, corrigidos com espaçamento/bordas utilitárias existentes. Nova captura confirmou controles distintos e SAN clicável. Não se afirma mobile/TLS/acessibilidade completa nem verificação de diretório de download do navegador; texto PGN recebido/renderizado e ação de download foram executados. Fixtures terminais foram criadas exclusivamente no banco de QA, sem endpoint importador.
+
+### Testes, falhas intermediárias e revisão
+
+Novo backend testa nove formas SAN; resultados/round-trip clássico/não padrão/numeração preta27; headers/alias seguros; autorização sem sessão e cross-account das três rotas; replay sem engine/LLM e sem mutação; versão/ply/schema; snapshot concorrente sem lock; mate positivo/negativo/transição/terminal sem delta; repetição; UCI real/processos fechados; mate real antes/depois; erros sanitizados; vaga ocupada/liberação; cópia com pilha/perspectiva e FEN divergente; terminal não executa agente. Teste escreve lance humano depois/durante análise, preservando comportamento ativo. Frontend acrescenta navegação/SAN/bloqueio/retorno/jogada posterior, análise estruturada/carregamento/duplicatas/erro/mate/resultado tardio, exportação/erro e 401 em cada transporte. Regressão conserva duas cores/perfis/promoção/retry/terminal/manual/tutor.
+
+Primeira execução backend foi feita na raiz: 65 aprovados/2 falhas (FEN de fixture inválido e teste de importação em subprocesso que exige cwd backend). Fixture corrigida; execução no diretório documentado: 67 aprovados em 6,91 s. Depois de modelos Pydantic: novo conjunto 31 aprovados, 6,24 s, antes de três casos finais. Frontend focado inicial: 44 aprovados em três arquivos, 1,07 s.
+
+Primeira suíte frontend completa: 259 aprovados/1 timeout5s em App alternância IA/tutor, 43,62 s. Reexecução isolada e teste único também excederam 5 s. Instrumentação temporária (removida) mostrou chegada à resposta do tutor, com atualizações assíncronas/polling consumindo o prazo. Teste adaptado ao novo container de histórico e ações de criação/envio aguardadas em act, sem retirar assertions nem aumentar timeout/configuração. Teste único seguinte passou; suíte completa final abaixo. Isso não comprova causa única de todas as flutuações históricas.
+
+Arquivos: backend/game_history.py e tests/test_game_history.py novos; backend/games.py e chess_engine.py; frontend/components/GameHistory.tsx e GameHistory.test.tsx novos; components/AiGame.tsx e AiGame.test.tsx; api.ts/types.ts/gamesApi.test.ts/App.test.tsx; README.md/PROJECT_AUDIT.md. Caminhos frontend são relativos a frontend/src. Sem upgrade, .env, reingestão, FIDE/LLM, dados reais, commit/deploy ou etapa10.
+
+Pendentes: revisão automática/cache/classificação/importação, cancelamento/coordenação entre workers e outros serviços, retenção/chaves, grandes históricos/paginação concorrente, mobile/TLS e demais achados fora do escopo. PGN é exportação/validação, não fonte de verdade.
+
+### Resultados finais da etapa 9
+
+| Comando real | Resultado |
+| --- | --- |
+| `cd frontend && npm test` — após ajuste da espera React | **260 aprovados em 36 arquivos, 46,27 s**, nenhum timeout/falha final; baseline247, +13 |
+| `cd frontend && npm run build` | **Aprovado**, tsc noEmit + Vite; JS431,86 kB/gzip134,01 kB; CSS84,61 kB/gzip25,53 kB |
+| Backend completo no diretório backend: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra` | **920 aprovados, 60 LLM não selecionados, nenhum skip/falha, 49,15 s**; baseline886, +34 |
+| Limpeza QA | Chrome/API/Vite encerrados; zero diretórios de bancos stage9-browser restantes; perfil Chrome isolado removido |
+
+Round-trip PGN confirmou UCI e FEN final em cinco cenários clássicos/alternativos, incluindo resultado preto/branco/empate/ativo e início preto no lance27. Stockfish real foi usado no backend e Chrome; terminais locais não exigem engine. Os 60 casos LLM foram deliberadamente não selecionados. As suítes completas finais rodaram sequencialmente. A primeira rodada frontend e reexecuções intermediárias tiveram timeouts5s no mesmo teste, registrados acima; nenhum prazo/configuração foi relaxado e a rodada final passou. Nenhuma regressão identificada nos checks finais; não se certifica ausência de flutuações futuras.
+
+Revisão final dos diffs rastreados e quatro fontes/testes novos realizada; `git diff --check` aprovado e `git status --short` confere **14 arquivos**. Nenhum banco real lido/migrado/modificado, commit/deploy ou início da próxima etapa.
+
+Handshake final pelo helper UCI confirmou **Stockfish 19**, com encerramento/código0 em finally. Conferência final de whitespace/status permaneceu aprovada após registrar os resultados.

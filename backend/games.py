@@ -21,6 +21,7 @@ from auth import require_user
 from chess_engine import reconstruir_partida, estado_tabuleiro
 import progresso
 from agent_profiles import PROFILES, resolve_profile
+from game_history import Replay, Review
 
 log = logging.getLogger(__name__)
 Color = Literal['white', 'black']
@@ -378,3 +379,37 @@ agents_router = APIRouter(tags=['agents'], route_class=GameRoute)
 @agents_router.get('/agents')
 def agents(user: dict = Depends(require_user)) -> list[dict]:
     return [profile.metadata() for profile in PROFILES.values()]
+
+
+class ReviewRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    ply: StrictInt = Field(ge=0)
+    version: StrictInt = Field(ge=0)
+
+
+@router.get('/{game_id}/replay', response_model=Replay)
+def read_replay(game_id: str, user: dict = Depends(require_user)) -> dict:
+    from game_history import replay
+    return replay(get_game(game_id, user['email']))
+
+
+@router.get('/{game_id}/pgn')
+def export_pgn(game_id: str, user: dict = Depends(require_user)) -> Response:
+    from game_history import pgn
+    return Response(pgn(get_game(game_id, user['email'])), media_type='application/x-chess-pgn',
+                    headers={'Content-Disposition': 'attachment; filename="partida.pgn"', 'X-Content-Type-Options': 'nosniff'})
+
+
+@router.post('/{game_id}/review', response_model=Review)
+def review_move(game_id: str, data: ReviewRequest, user: dict = Depends(require_user)) -> dict:
+    from game_history import review
+    from chess_engine import StockfishAusente, ErroDoMotor
+    snapshot = get_game(game_id, user['email'])  # Conexão fechada antes do motor.
+    if snapshot.version != data.version:
+        raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
+    if data.ply > len(snapshot.moves):
+        raise GameError('invalid_ply', 'Lance fora do histórico.', 422)
+    try:
+        return review(snapshot, data.ply)
+    except (StockfishAusente, ErroDoMotor, TimeoutError):
+        raise GameError('review_unavailable', 'Não foi possível analisar este lance. Tente novamente.', 503) from None

@@ -1,5 +1,5 @@
 import { sessionExpired } from "./auth/sessionEvents";
-import type { AgentProfile, GameList, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
+import type { GameReplay, GameReviewResult, AgentProfile, GameList, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
 // Rotas legadas e progresso usam Resposta nos erros. /exercises usa code/message.
@@ -53,7 +53,7 @@ export class ErroDePartida extends Error {
   constructor(readonly erro: GameError, readonly status: number) { super(erro.message); }
 }
 
-async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = false, partida = false): Promise<T> {
+async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = false, partida = false, texto = false): Promise<T> {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_MAXIMO_MS);
   let resposta: Response;
@@ -73,6 +73,7 @@ async function chamar<T>(caminho: string, opcoes: RequestInit = {}, exercicio = 
   }
 
   if (resposta.status === 401 && caminho !== "/health" && caminho !== "/masters/ratings") sessionExpired();
+  if (resposta.ok && texto) return await resposta.text() as T;
   let corpo: unknown = null;
   try {
     corpo = await resposta.json();
@@ -103,6 +104,9 @@ export interface MastersRatings {
 }
 
 export const api = {
+  gameReplay: (id: string) => chamar<GameReplay>(`/games/${encodeURIComponent(id)}/replay`, {}, false, true),
+  gamePgn: (id: string) => chamar<string>(`/games/${encodeURIComponent(id)}/pgn`, {}, false, true, true),
+  reviewGame: (id: string, ply: number, version: number) => chamar<GameReviewResult>(`/games/${encodeURIComponent(id)}/review`, post({ ply, version }), false, true),
   agents: () => chamar<AgentProfile[]>("/agents", {}, false, true),
   listGames: (status: "all" | "active" | "finished" = "all", offset = 0) => chamar<GameList>(`/games?status=${status}&limit=20&offset=${offset}`, {}, false, true),
   createGame: (human_color: GameColor, agent_id?: string, client_game_id?: string) => chamar<Game>("/games", post({ human_color, ...(agent_id ? { agent_id } : {}), ...(client_game_id ? { client_game_id } : {}) }), false, true),

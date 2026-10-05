@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ErroDePartida } from "../api";
 import type { AgentProfile, Game, GameColor, GameSummary, HumanMoveRequest } from "../types";
+import { GameHistory } from "./GameHistory";
 import { Board } from "./Board";
 
 export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
@@ -46,6 +47,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   const styleLabels = { balanced: "equilibrado", aggressive: "agressivo", positional: "posicional", tactical: "tático" };
   const selectedProfile = profiles.find(p => p.id === agent);
   const [color, setColor] = useState<GameColor>("white");
+  const [replayPosition, setReplayPosition] = useState<{ ply: number; fen: string } | null>(null);
   const [game, setGame] = useState<Game | null>(null);
   const currentProfile = game?.profile ?? ((game?.opponent.profile_version ?? 1) === 1 ? profiles.find(p => p.id === (game?.opponent.agent_id === "stockfish" ? "balanced" : game?.opponent.agent_id)) : undefined);
   const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   const lock = useRef(false);
   const pending = useRef<HumanMoveRequest | null>(null);
   const creation = useRef<{ color: GameColor; agent: string; key: string } | null>(null);
-  function accept(next: Game) { setGame(next); onPosition(next.current_fen); setListAttempt(n => n + 1); }
+  function accept(next: Game) { setReplayPosition(null); setGame(next); onPosition(next.current_fen); setListAttempt(n => n + 1); }
   async function run(call: () => Promise<Game>, recoverCurrent = true) {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
@@ -84,7 +86,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
     void run(() => api.getGame(id), false);
   }
   function move(uci: string) {
-    if (!game || busy || lock.current || game.terminal || game.awaiting_agent || pending.current || creation.current) return;
+    if (!game || busy || lock.current || game.terminal || game.awaiting_agent || pending.current || creation.current || replayPosition) return;
     const intent = { move: uci, version: game.version, client_move_id: crypto.randomUUID() };
     pending.current = intent;
     void run(() => api.submitHumanMove(game.id, intent));
@@ -121,16 +123,17 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
         : savedGames.length === 0 ? <p>Nenhuma partida encontrada.</p> : <ul>{savedGames.map((saved, index) => <li key={saved.id}>
           <p>{saved.profile?.display_name ?? saved.opponent.agent_id} · {saved.profile ? `${difficultyLabels[saved.profile.difficulty]} / ${styleLabels[saved.profile.style]}` : `perfil v${saved.opponent.profile_version ?? 1}`} · Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.terminal ? "Encerrada" : "Em andamento"}
           {index === 0 && listOffset === 0 ? " · Mais recente" : ""} · {saved.move_count} lances · Turno: {saved.side_to_move === "white" ? "brancas" : "pretas"} · {saved.status} · Atualizada: {new Date(saved.updated_at).toLocaleString("pt-BR")}</p>
-          <button disabled={busy || Boolean(creation.current)} onClick={() => resume(saved.id)}>{saved.terminal ? "Ver resultado" : "Continuar partida"} {saved.id.slice(0, 8)}</button>
+          <button disabled={busy || Boolean(creation.current)} onClick={() => resume(saved.id)}>{saved.terminal ? "Revisar partida" : "Continuar partida"} {saved.id.slice(0, 8)}</button>
         </li>)}</ul>}
       {listOffset > 0 && <button disabled={busy || listLoading} onClick={() => setListOffset(n => Math.max(0, n - 20))}>Partidas anteriores</button>}
       {nextOffset !== null && !listError && <button disabled={busy || listLoading} onClick={() => setListOffset(nextOffset)}>Mais partidas</button>}
     </section>
-    {game && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
-    {game && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
-    {game && <Board fen={game.current_fen} orientation={game.human_color} estadoTexto={status} terminado={game.terminal}
-      ocupado={busy || game.awaiting_agent || Boolean(pending.current) || Boolean(creation.current)} hideControls podeDesfazer={false}
+    {game && !replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
+    {game && !replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
+    {game && <Board fen={replayPosition?.fen ?? game.current_fen} orientation={game.human_color} estadoTexto={replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : status} terminado={game.terminal}
+      ocupado={busy || game.awaiting_agent || Boolean(pending.current) || Boolean(creation.current) || Boolean(replayPosition)} hideControls podeDesfazer={false}
       onMoveIntent={move} onLance={() => {}} onDesfazer={() => {}} onReiniciar={start} onAnalisar={() => {}} />}
-    {game && <ol aria-label="Histórico oficial">{game.moves.map((m, i) => <li key={i}>{m}</li>)}</ol>}
+    {game && <GameHistory key={game.id} game={game} disabled={busy || Boolean(pending.current) || Boolean(creation.current)} selected={replayPosition?.ply ?? null}
+      onSelect={(ply, fen) => setReplayPosition(ply === null ? null : { ply, fen: fen! })} />}
   </section>;
 }
