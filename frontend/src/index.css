@@ -978,3 +978,36 @@ body:has(.auth-screen) { background: #f3ecdf; }
   .saved-game-card footer button, .official-history .history-navigation button, .official-history .history-pair button, .official-history .history-analyze, .official-history .history-export, .contextual-tutor > button { min-height: 44px; }
 }
 .official-history .history-pair button:focus-visible { outline-offset: -3px; }
+
+/* Arquivo de partidas: estilos locais, sem alterar a arena oficial. */
+.game-archive { width: 100%; max-width: 1080px; margin: 0 auto; color: var(--ink, #123454); }
+.archive-heading, .archive-toolbar, .archive-card header, .archive-card footer, .archive-pagination { display: flex; align-items: center; gap: 16px; }
+.archive-heading { justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px; }
+.archive-heading h2 { margin-bottom: 12px; }
+.archive-heading p, .archive-summary, .archive-previous { font-size: 14px; line-height: 1.6; }
+.archive-toolbar { flex-wrap: wrap; margin: 20px 0; }
+.archive-toolbar label { display: flex; align-items: center; gap: 12px; }
+.game-archive select, .game-archive button { border: 2px solid #244764; border-radius: 3px; padding: 10px 14px; min-height: 44px; background: #faf6ee; font-size: 14px; }
+.game-archive button:disabled { opacity: .5; cursor: default; }
+.game-archive :is(button, a, select):focus-visible { outline: 3px solid #176ae5; outline-offset: 3px; }
+.archive-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; list-style: none; padding: 0; margin: 20px 0; }
+.archive-card { min-width: 0; padding: 20px; border: 2px solid #244764; box-shadow: 3px 3px 0 #244764; background: #fffaf1; overflow-wrap: anywhere; }
+.archive-card header { justify-content: space-between; align-items: flex-start; flex-wrap: wrap; margin-bottom: 16px; }
+.archive-card h3 { font-family: var(--font-pixel); font-size: 19px; line-height: 1.4; flex: 1 1 160px; }
+.archive-state { border: 1px solid #244764; padding: 5px 8px; background: #f2e5b9; font-size: 12px; }
+.archive-color, .archive-result { font-size: 14px; line-height: 1.6; margin: 8px 0; }
+.archive-result { font-weight: 700; }
+.archive-meta { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.6; margin: 12px 0 18px; }
+.archive-card footer { flex-wrap: wrap; gap: 10px; }
+.game-archive .archive-open { background: #dceaff; }
+.archive-pagination { justify-content: center; flex-wrap: wrap; margin-top: 24px; font-size: 14px; }
+.archive-empty { border: 2px solid #244764; padding: 28px; margin: 20px 0; line-height: 1.8; }
+.archive-empty h3 { font-size: 16px; margin-bottom: 12px; }
+.archive-empty a { display: inline-block; margin-top: 16px; }
+@media (max-width: 640px) {
+  .archive-list { grid-template-columns: minmax(0, 1fr); }
+  .archive-card { padding: 16px; }
+  .archive-card footer button { flex: 1 1 140px; }
+  .archive-toolbar label { flex-wrap: wrap; }
+  .archive-empty { padding: 20px; }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { api, ErroDePartida } from "../api";
 import type { AgentProfile, Game, GameColor, GameSummary, HumanMoveRequest } from "../types";
 import { GameHistory } from "./GameHistory";
@@ -12,30 +12,27 @@ function MatchAvatar({ human = false }: { human?: boolean }) {
   return <span className="official-avatar"><Sprite grade={sprite.grade} paleta={sprite.paleta} rotulo={human ? "Seu avatar" : "Avatar do agente"} /></span>;
 }
 
-export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void }) {
+export interface AiGameHandle { loadSavedGame: (id: string, review?: boolean) => Promise<boolean> }
+
+export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive }: { ref?: Ref<AiGameHandle>; visible?: boolean; onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void }) {
   const [savedGames, setSavedGames] = useState<GameSummary[]>([]);
   const [listError, setListError] = useState(false);
   const [listLoading, setListLoading] = useState(true);
-  const [listOffset, setListOffset] = useState(0);
-  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [listAttempt, setListAttempt] = useState(0);
-  const [filter, setFilter] = useState<"all" | "active" | "finished">("all");
 
   useEffect(() => {
     let active = true;
     setListLoading(true);
     setListError(false);
-    api.listGames(filter, listOffset)
+    api.listGames("active", 0)
       .then((data) => {
         if (!active) return;
         if (!data || !Array.isArray(data.games)) throw new Error("Lista inválida");
-        setSavedGames(data.games);
-        setNextOffset(data.next_offset);
+        setSavedGames(data.games.filter(saved => !saved.terminal).slice(0, 1));
       })
       .catch(() => {
         if (active) {
           setListError(true);
-          setSavedGames([]);
         }
       })
       .finally(() => {
@@ -44,7 +41,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
     return () => {
       active = false;
     };
-  }, [filter, listOffset, listAttempt]);
+  }, [listAttempt]);
 
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
   const [agent, setAgent] = useState("balanced");
@@ -114,7 +111,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
   }
 
   async function run(call: () => Promise<Game>, recoverCurrent = true) {
-    if (lock.current) return;
+    if (lock.current) return null;
     lock.current = true;
     setBusy(true);
     setError(null);
@@ -131,6 +128,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
             : "A partida foi preservada. A IA não conseguiu jogar. Tente novamente o turno da IA.",
         );
       }
+      return next;
     } catch (e) {
       if (e instanceof ErroDePartida && (e.status === 409 || e.status === 422)) creation.current = null;
       setError(e instanceof Error ? e.message : "Não foi possível carregar a partida.");
@@ -142,6 +140,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
           // intenção permanece para retry seguro
         }
       }
+      return null;
     } finally {
       lock.current = false;
       setBusy(false);
@@ -156,11 +155,13 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
     void run(() => api.createGame(request.color, request.agent, request.key), false);
   }
 
-  function resume(id: string) {
-    if (lock.current || creation.current) return;
-    pending.current = null;
-    void run(() => api.getGame(id), false);
+  async function resume(id: string, review = false): Promise<boolean> {
+    if (lock.current || creation.current || pending.current) return false;
+    const next = await run(() => api.getGame(id), false);
+    if (next && review) setReplayPosition({ ply: next.moves.length, fen: next.current_fen });
+    return next !== null;
   }
+  useImperativeHandle(ref, () => ({ loadSavedGame: resume }));
 
   function move(uci: string) {
     if (!game || busy || lock.current || game.terminal || game.awaiting_agent || game.side_to_move !== game.human_color || pending.current || creation.current || replayPosition) return;
@@ -242,59 +243,15 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
         {creation.current && !busy && <p>Criação ainda não confirmada. Confirme usando a mesma solicitação para evitar duplicação.</p>}
 
         </div></div>
-        <section aria-label="Suas partidas" className="saved-games">
-          <header className="saved-games-heading"><div><h3>Suas partidas</h3><p>Retome uma partida ou reveja seus lances.</p></div></header>
-          <div className="saved-games-toolbar">
-          <label>
-            Mostrar
-            <select
-              aria-label="Filtrar partidas"
-              value={filter}
-              disabled={busy}
-              onChange={(e) => {
-                setFilter(e.target.value as typeof filter);
-                setListOffset(0);
-              }}
-            >
-              <option value="all">Todas</option>
-              <option value="active">Em andamento</option>
-              <option value="finished">Encerradas</option>
-            </select>
-          </label>
-          <button disabled={busy || listLoading} onClick={() => setListAttempt((n) => n + 1)}>
-            Atualizar partidas
-          </button>
-          </div>
-          {listLoading ? (
-            <p role="status">Carregando partidas…</p>
-          ) : listError ? (
-            <p role="alert">Não foi possível listar as partidas. Use Atualizar partidas para tentar novamente.</p>
-          ) : savedGames.length === 0 ? (
-            <p>Nenhuma partida encontrada.</p>
-          ) : (
-            <ul>
-              {savedGames.map((saved, index) => (
-                <li key={saved.id} className="saved-game-card">
-                  <header><h4>{saved.profile?.display_name ?? saved.opponent.agent_id}</h4><span className="saved-game-state">{saved.terminal ? "Encerrada" : "Em andamento"}</span></header>
-                  <p className="saved-game-meta">Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.move_count} {saved.move_count === 1 ? "lance" : "lances"} · {saved.terminal ? "Resultado final" : saved.awaiting_agent || saved.side_to_move !== saved.human_color ? "Vez da IA" : "Sua vez"}</p>
-                  <footer><time dateTime={saved.updated_at} title={new Date(saved.updated_at).toLocaleString("pt-BR")}>Atualizada {new Date(saved.updated_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{index === 0 && listOffset === 0 && <span> · Mais recente</span>}</time>
-                    <button title={saved.id} aria-label={`${saved.terminal ? "Revisar partida" : "Continuar partida"} ${saved.id.slice(0, 8)} · ${saved.profile?.display_name ?? saved.opponent.agent_id}`} disabled={busy || Boolean(creation.current)} onClick={() => resume(saved.id)}>{saved.terminal ? "Revisar partida" : "Continuar partida"}</button>
-                  </footer>
-                  <details className="saved-game-details"><summary>Informações</summary><p>{saved.profile ? `${difficultyLabels[saved.profile.difficulty]} / ${styleLabels[saved.profile.style]}` : `Perfil v${saved.opponent.profile_version ?? 1}`} · {({ playing: "Em jogo", check: "Xeque", checkmate: "Xeque-mate", stalemate: "Afogamento", insufficient_material: "Material insuficiente", repetition: "Repetição tripla", fifty_move: "Cinquenta lances", draw: "Empate" })[saved.status]} · Turno: {saved.side_to_move === "white" ? "brancas" : "pretas"} · {new Date(saved.updated_at).toLocaleString("pt-BR")} · ID: {saved.id}</p></details>
-                </li>
-              ))}
-            </ul>
-          )}
-          {listOffset > 0 && (
-            <button disabled={busy || listLoading} onClick={() => setListOffset((n) => Math.max(0, n - 20))}>
-              Partidas anteriores
-            </button>
-          )}
-          {nextOffset !== null && !listError && (
-            <button disabled={busy || listLoading} onClick={() => setListOffset(nextOffset)}>
-              Mais partidas
-            </button>
-          )}
+        <section aria-label="Continuar sua partida" className="saved-games">
+          <header className="saved-games-heading"><div><h3>Continuar sua partida</h3><p>Retome sua partida em andamento mais recente.</p></div></header>
+          {listLoading ? <p role="status">Carregando partidas…</p> : listError ? <p role="alert">Não foi possível consultar a partida mais recente. <button disabled={busy} onClick={() => setListAttempt(n => n + 1)}>Tentar novamente</button></p>
+            : savedGames.length === 0 ? <p>Nenhuma partida em andamento.</p> : savedGames.map(saved => <div key={saved.id} className="saved-game-card">
+              <h4>{saved.profile?.display_name ?? profiles.find(profile => profile.id === saved.opponent.agent_id)?.display_name ?? "Agente da partida"}</h4>
+              <p>Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.move_count} lances{saved.status === "check" && " · Xeque"}</p>
+              <button disabled={busy || Boolean(creation.current)} onClick={() => void resume(saved.id)}>Continuar partida</button>
+            </div>)}
+          <a href="#/historico">Ver todas as partidas no Histórico</a>
         </section>
       </section>
     );
@@ -317,6 +274,8 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
       <div className="official-match-grid">
         <div className="official-board-column">
       <Board
+        key={game.id}
+        visible={visible}
         fen={replayPosition?.fen ?? game.current_fen}
         orientation={game.human_color}
         humanColor={game.human_color}
@@ -335,6 +294,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
         <aside className="official-match-sidebar" aria-label="Painel da partida">
           <section className={`match-panel turn-panel${!game.terminal && !game.awaiting_agent && !pending.current && !error && game.status !== "check" ? " turn-panel--quiet" : ""}`} aria-label="Estado da partida"><span className="eyebrow">{game.terminal ? "RESULTADO" : replayPosition ? "REPLAY" : "TURNO"}</span>
             <p aria-live="polite">{replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : busy ? "Aguardando o servidor e a resposta da IA…" : status}</p>
+            {game.terminal && replayPosition && <p>{status}</p>}
             {error && <p role="alert">{error}</p>}
             {!replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
             {!replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}

@@ -167,5 +167,5 @@ it("abre setup oficial por padrão e mantém arena manual oculta", async () => {
   expect(screen.getByLabelText("Seu lado")).toBeTruthy();
   expect(document.getElementById("partida")?.hidden).toBe(true);
   expect(screen.queryByRole("button", { name: "Jogar contra IA" })).toBeNull();
-  await screen.findByText("Nenhuma partida encontrada.");
+  await screen.findByText("Nenhuma partida em andamento.");
 });

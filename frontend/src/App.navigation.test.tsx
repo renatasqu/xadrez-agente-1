@@ -127,3 +127,89 @@ it("pretas mantém abertura automática recebida do backend após navegar", asyn
   expect(options().canDragPiece({ square: "e7" })).toBe(true);
   expect(api.createGame).toHaveBeenCalledTimes(1);
 });
+
+function summary(current: Game) { return { ...current, profile: current.profile ?? null, move_count: current.moves.length }; }
+function replay(current: Game) {
+  const chess = new Chess(current.initial_fen);
+  const steps = current.moves.map((uci, index) => {
+    const move = chess.move(uci);
+    return { ply: index + 1, move_number: Math.floor(index / 2) + 1, color: move.color === "w" ? "white" as const : "black" as const, uci, san: move.san, fen: chess.fen() };
+  });
+  return { game_id: current.id, version: current.version, initial_fen: current.initial_fen, current_fen: current.current_fen, steps, result: current.terminal ? "1-0" : "*", termination: current.status };
+}
+it("Histórico carrega a Game escolhida antes de navegar, sem criar outra", async () => {
+  const selected = { ...game(["e2e4"], "black"), id: "chosen", opponent: { type: "ai" as const, agent_id: "balanced" } };
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(selected)], next_offset: null });
+  let resolve!: (game: Game) => void;
+  const get = vi.spyOn(api, "getGame").mockReturnValue(new Promise<Game>(yes => { resolve = yes; }));
+  const create = vi.spyOn(api, "createGame"); const agent = vi.spyOn(api, "resumeAgent");
+  vi.mocked(api.gameReplay).mockResolvedValue(replay(selected));
+  mount("#/historico");
+  fireEvent.click(await screen.findByRole("button", { name: /^Continuar partida/ }));
+  expect(window.location.hash).toBe("#/historico"); expect(screen.getByText("Abrindo partida…")).toBeTruthy();
+  expect(get).toHaveBeenCalledWith(selected.id);
+  await act(async () => resolve(selected));
+  await waitFor(() => expect(window.location.hash).toBe("#/partida"));
+  expect(official().getByTestId("official-position").getAttribute("data-fen")).toBe(selected.current_fen);
+  expect(options().boardOrientation).toBe("black"); expect(options().canDragPiece({ square: "d2" })).toBe(false);
+  expect(options().canDragPiece({ square: "e7" })).toBe(true);
+  expect(create).not.toHaveBeenCalled(); expect(agent).not.toHaveBeenCalled();
+});
+it("Rever Game ativa abre replay somente leitura e preserva-o ao navegar", async () => {
+  const selected = game(["e2e4", "e7e5"]);
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(selected)], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(selected); vi.mocked(api.gameReplay).mockResolvedValue(replay(selected));
+  const create = vi.spyOn(api, "createGame"); const send = vi.spyOn(api, "submitHumanMove"); const rating = vi.spyOn(api, "reconcileRating");
+  mount("#/historico"); fireEvent.click(await screen.findByRole("button", { name: /^Rever partida/ }));
+  await waitFor(() => expect(window.location.hash).toBe("#/partida"));
+  await screen.findByRole("button", { name: "Voltar à posição atual" });
+  expect(options().allowDragging).toBe(false);
+  await act(async () => options().onPieceDrop({ sourceSquare: "d2", targetSquare: "d4" }));
+  expect(send).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Início do histórico" }));
+  expect(official().getByTestId("official-position").getAttribute("data-fen")).toBe(selected.initial_fen);
+  await navigate("#/historico"); await navigate("#/partida");
+  expect(official().getByTestId("official-position").getAttribute("data-fen")).toBe(selected.initial_fen);
+  expect(options().allowDragging).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Voltar à posição atual" }));
+  expect(official().getByTestId("official-position").getAttribute("data-fen")).toBe(selected.current_fen);
+  expect(options().allowDragging).toBe(true);
+  expect(create).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();
+});
+it("Rever finalizada bloqueia movimentos sem reconciliar rating ou criar Game", async () => {
+  const selected = { ...game(["e2e4", "e7e5"]), terminal: true, status: "checkmate" as const, winner: "white" as const };
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary(selected)], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(selected); vi.mocked(api.gameReplay).mockResolvedValue(replay(selected));
+  const create = vi.spyOn(api, "createGame"); const rating = vi.spyOn(api, "reconcileRating"); const send = vi.spyOn(api, "submitHumanMove"); const review = vi.spyOn(api, "reviewGame");
+  mount("#/historico"); fireEvent.click(await screen.findByRole("button", { name: /^Rever partida/ }));
+  await waitFor(() => expect(window.location.hash).toBe("#/partida"));
+  await screen.findByRole("button", { name: "Voltar à posição atual" });
+  expect(options().allowDragging).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Voltar à posição atual" }));
+  expect(options().allowDragging).toBe(false);
+  await act(async () => options().onPieceDrop({ sourceSquare: "d2", targetSquare: "d4" }));
+  for (const operation of [create, rating, send, review]) expect(operation).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Exportar PGN" })).toBeTruthy();
+});
+it("falha ao abrir outra Game mantém a anterior e permanece no Histórico", async () => {
+  const current = game(); vi.spyOn(api, "createGame").mockResolvedValue(current);
+  const { container } = mount();
+  await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); await official().findByTestId("official-position");
+  const element = container.querySelector(".official-match [data-testid]");
+  vi.mocked(api.listGames).mockResolvedValue({ games: [summary({ ...current, id: "missing" })], next_offset: null });
+  vi.spyOn(api, "getGame").mockRejectedValue(new Error("404"));
+  await navigate("#/historico"); fireEvent.click(await screen.findByRole("button", { name: /^Continuar partida/ }));
+  await screen.findByRole("alert"); expect(window.location.hash).toBe("#/historico");
+  await navigate("#/partida"); expect(official().getByTestId("official-position")).toBe(element);
+  expect(element?.getAttribute("data-fen")).toBe(current.current_fen); expect(api.createGame).toHaveBeenCalledTimes(1);
+});
+it("Nova partida no arquivo apenas navega, mantendo a Game carregada", async () => {
+  vi.spyOn(api, "createGame").mockResolvedValue(game()); mount();
+  await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); await official().findByTestId("official-position");
+  const current = official().getByTestId("official-position"); await navigate("#/historico");
+  fireEvent.click(screen.getByRole("link", { name: "Nova partida" }));
+  await waitFor(() => expect(window.location.hash).toBe("#/partida"));
+  expect(official().getByTestId("official-position")).toBe(current); expect(api.createGame).toHaveBeenCalledTimes(1);
+});

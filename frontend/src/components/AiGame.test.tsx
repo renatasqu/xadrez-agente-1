@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Chess } from "chess.js";
 import { beforeEach, expect, it, vi } from "vitest";
-import { AiGame } from "./AiGame";
+import { createRef } from "react";
+import { AiGame, type AiGameHandle } from "./AiGame";
 import { api } from "../api";
 import type { Game } from "../types";
 
@@ -111,7 +112,7 @@ it("mostra o alerta do catálogo e oferece recarga de perfis", async () => {
 it("lista vazia não cria partida nem tenta continuar uma sessão inexistente", async () => {
   const create = vi.spyOn(api, "createGame");
   render(<AiGame onPosition={vi.fn()} />);
-  expect(await screen.findByText("Nenhuma partida encontrada.")).toBeTruthy();
+  expect(await screen.findByText("Nenhuma partida em andamento.")).toBeTruthy();
   expect(create).not.toHaveBeenCalled();
 });
 
@@ -130,11 +131,29 @@ it("retoma uma partida terminal sem jogar e mantém a visão final", async () =>
   const terminal = game([], { id: "terminal-game", status: "checkmate", winner: "white", terminal: true, human_color: "black" });
   vi.mocked(api.listGames).mockResolvedValue({ games: [{ id: terminal.id, human_color: terminal.human_color, opponent: terminal.opponent, profile: null, created_at: terminal.created_at, updated_at: terminal.updated_at, status: terminal.status, winner: terminal.winner, terminal: true, side_to_move: "white", awaiting_agent: false, move_count: 0, version: terminal.version }], next_offset: null });
   vi.spyOn(api, "getGame").mockResolvedValue(terminal);
-  render(<AiGame onPosition={vi.fn()} />);
-  fireEvent.click(await screen.findByRole("button", { name: /Revisar partida/ }));
+  const handle = createRef<AiGameHandle>();
+  render(<AiGame ref={handle} onPosition={vi.fn()} />);
+  await act(async () => { expect(await handle.current!.loadSavedGame(terminal.id, true)).toBe(true); });
   await screen.findByText(/Partida atual:/);
   expect(screen.queryByLabelText("Seu lado")).toBeNull();
   expect(screen.getAllByText(/Xeque-mate/).length).toBeGreaterThan(0);
+});
+
+it("abrir outra Game não descarta um lance sem confirmação após falha de rede", async () => {
+  const handle = createRef<AiGameHandle>();
+  render(<AiGame ref={handle} onPosition={vi.fn()} />);
+  await start();
+  const send = vi.spyOn(api, "submitHumanMove").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(game(["e2e4", "e7e5"]));
+  const get = vi.spyOn(api, "getGame");
+  drop("e2", "e4");
+  const retry = await screen.findByRole("button", { name: "Confirmar estado do lance" });
+  await act(async () => { expect(await handle.current!.loadSavedGame("other-game", true)).toBe(false); });
+  expect(get).not.toHaveBeenCalled();
+  expect(screen.getByTestId("official-fen").textContent).toBe(game().current_fen);
+  fireEvent.click(retry);
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+  expect(send.mock.calls[1]).toEqual(send.mock.calls[0]);
+  await waitFor(() => expect(screen.getByTestId("official-fen").textContent).toBe(game(["e2e4", "e7e5"]).current_fen));
 });
 
 it("bloqueia drag quando a IA está pendente e mostra o retry do turno da IA", async () => {

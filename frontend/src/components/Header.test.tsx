@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { api } from "../api";
@@ -6,6 +6,11 @@ import { apagarUsuarioId } from "../armazenamento";
 import { HeaderNavigation } from "./HeaderNavigation";
 
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); });
+
+async function followLink(name: string) {
+  const navigated = new Promise<void>(resolve => window.addEventListener("hashchange", () => resolve(), { once: true }));
+  await act(async () => { fireEvent.click(screen.getByRole("link", { name })); await navigated; });
+}
 
 it("mantém branding, avatar, todos os destinos e status no header sem sidebar ou pill", async () => {
   apagarUsuarioId();
@@ -29,14 +34,15 @@ it("mantém branding, avatar, todos os destinos e status no header sem sidebar o
   expect(header.getByText(/Latência: \d+ ms/)).toBeTruthy();
 });
 
-it("destaca a seleção e fecha o menu móvel ao navegar", () => {
+it("destaca a seleção e fecha o menu móvel ao navegar", async () => {
   render(<HeaderNavigation />);
   const menu = screen.getByRole("button", { name: "Menu" });
   expect(menu.getAttribute("aria-expanded")).toBe("false");
   fireEvent.click(menu);
   expect(menu.getAttribute("aria-expanded")).toBe("true");
   expect(screen.getByRole("link", { name: "Partida" }).getAttribute("aria-current")).toBe("location");
-  fireEvent.click(screen.getByRole("link", { name: "Histórico" }));
+  await followLink("Histórico");
+  expect(window.location.hash).toBe("#/historico");
   expect(screen.getByRole("link", { name: "Histórico" }).getAttribute("aria-current")).toBe("location");
   expect(screen.getByRole("link", { name: "Partida" }).hasAttribute("aria-current")).toBe(false);
   expect(menu.getAttribute("aria-expanded")).toBe("false");
@@ -49,7 +55,7 @@ it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () =
   vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
   const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   const board = container.querySelector("#match-board");
-  fireEvent.click(screen.getByRole("link", { name: "Masters" }));
+  await followLink("Masters");
   const gallery = await screen.findByRole("region", { name: "MASTERS:" });
   expect(window.location.hash).toBe("#/masters");
   expect(within(gallery).getAllByRole("article").map(profile => profile.getAttribute("aria-labelledby"))).toEqual(["master-hans", "master-magnus", "master-judit"]);
@@ -57,7 +63,7 @@ it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () =
   expect(within(gallery).getAllByRole("heading", { name: "VOCÊ SABIA?" })).toHaveLength(3);
   expect(within(gallery).queryByRole("button")).toBeNull();
   expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
-  fireEvent.click(screen.getByRole("link", { name: "Partida" }));
+  await followLink("Partida");
   await waitFor(() => expect(screen.getByRole("button", { name: "Iniciar partida contra IA" })).toBeTruthy());
   expect(window.location.hash).toBe("#/partida");
   expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);

@@ -21,6 +21,7 @@ export interface Exibicao {
 }
 
 interface BaseProps {
+  visible?: boolean; // Evita animar posições enquanto a arena está oculta.
   hideControls?: boolean;
   onMoveIntent?: (uci: string) => void;
   orientation?: "white" | "black";
@@ -193,7 +194,7 @@ export function Board(props: BoardProps) {
             position: fenExibido,
             boardOrientation: props.orientation ?? "white",
             pieces: PECAS_DO_TABULEIRO,
-            showAnimations: !MOVIMENTO_REDUZIDO,
+            showAnimations: !MOVIMENTO_REDUZIDO && props.visible !== false,
             animationDurationInMs: 400,
             lightSquareStyle: CASA_CLARA,
             darkSquareStyle: CASA_ESCURA,

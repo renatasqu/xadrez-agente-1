@@ -3,7 +3,7 @@
 import { HistoryOverview } from "./components/HistoryOverview";
 import { canonicalizeHash, pageFromHash, pageHashes, type AppPage } from "./navigation";
 import { RatingPanel } from "./components/RatingPanel";
-import { AiGame } from "./components/AiGame";
+import { AiGame, type AiGameHandle } from "./components/AiGame";
 import { createPortal } from "react-dom";
 import { useMatchLayout } from "./match/useMatchLayout";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -50,6 +50,7 @@ function tituloDaLicao(licao: InfoLicao, retomando = false): string {
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [aiMode, setAiMode] = useState(pageFromHash() !== "practice");
   const [aiVisited, setAiVisited] = useState(pageFromHash() !== "practice");
+  const aiGameRef = useRef<AiGameHandle>(null);
   const [aiGameActive, setAiGameActive] = useState(false);
   const [aiFen, setAiFen] = useState<string | null>(null);
   const [page, setPage] = useState<AppPage>(canonicalizeHash);
@@ -247,6 +248,13 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
     setDemo(null); setTocando(false);
     window.location.hash = "/";
   }
+  async function openSavedGame(id: string, review: boolean) {
+    if (!aiGameRef.current || !await aiGameRef.current.loadSavedGame(id, review)) {
+      throw new Error("Não foi possível abrir esta partida. Aguarde qualquer operação em andamento e tente novamente.");
+    }
+    setModal(null);
+    window.location.hash = pageHashes.match;
+  }
   function closeAbout() {
     setModal(null);
     if (pageFromHash() === "about") window.location.hash = pageHashes[aboutReturn.current];
@@ -262,7 +270,8 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         aboutOpener.current = null;
         setModal(previous => previous === "about" ? null : previous);
       }
-      if (next === "match") { setAiVisited(true); setAiMode(true); }
+      if (next === "match" || next === "history") setAiVisited(true);
+      if (next === "match") setAiMode(true);
       if (next === "practice") setAiMode(false);
       if (next !== "practice") {
         setMatchPaused(true); setHistoryPlaying(false); setTocando(false);
@@ -310,7 +319,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
         </header>
         {page === "practice" && !aiMode && <div><button type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>}
-        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
+        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "practice" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
@@ -394,7 +403,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           <div className="mobile-access-row" ref={setMobileAccessHost} />
         </main>
         <section className="standalone-page" data-page="history" aria-label="Histórico de partidas" hidden={page !== "history"}>
-          {page === "history" && <HistoryOverview />}
+          {page === "history" && <HistoryOverview onOpen={openSavedGame} />}
         </section>
         <section className="masters-page" data-page="masters" role="region" aria-label="MASTERS:" aria-labelledby="masters-title" hidden={page !== "masters"}>
           <Masters visible={page === "masters"} />
