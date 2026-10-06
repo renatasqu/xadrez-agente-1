@@ -10,7 +10,7 @@ afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/
 function start() {
   apagarUsuarioId();
   vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
-  return render(<App />);
+  return (window.history.replaceState(null, "", "#explorar"), render(<App />));
 }
 
 it("estrutura separa faixas, tabuleiro, análises e controles sem conteúdo aberto", () => {

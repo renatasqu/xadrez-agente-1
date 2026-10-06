@@ -21,7 +21,7 @@ afterEach(() => vi.unstubAllGlobals());
 it("interface principal e nomes acessíveis usam português; títulos oficiais são preservados", async () => {
   apagarUsuarioId();
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "ok", stockfish: true, indices: {}, chave_api: true }))));
-  const { container } = render(<App />);
+  const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(await screen.findByText("Servidor disponível")).toBeTruthy();
   await waitFor(() => expect(container.textContent).not.toContain("To pick up a draggable item"));
   const ui = container.cloneNode(true) as HTMLElement;
@@ -40,7 +40,7 @@ it("interface principal e nomes acessíveis usam português; títulos oficiais s
 it("indisponibilidade do servidor é apresentada em português", async () => {
   apagarUsuarioId();
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(await screen.findByText("Servidor indisponível")).toBeTruthy();
 });
 

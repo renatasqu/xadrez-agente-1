@@ -36,7 +36,7 @@ it("associações só no envelope da lição chegam ao objeto do chat", async ()
     licao: { numero: 1, total: 12, modulo: "regras", titulo: "Cavalo" },
     conteudo: { resposta: "Cavalo", fontes: [], agente: "arbitro", confianca: 0 },
     concept_ids: ["movimento_cavalo"], related_exercise_ids: [A1.id] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
@@ -47,7 +47,7 @@ it("associações só no envelope da lição chegam ao objeto do chat", async ()
 it("lição/cache antigo recebe listas vazias", async () => {
   servidor({ usuario_id: "id", concluido: false, licao: null,
     conteudo: { resposta: "Antiga", fontes: [], agente: "arbitro", confianca: 0 } });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
@@ -55,7 +55,7 @@ it("lição/cache antigo recebe listas vazias", async () => {
 });
 it("exercício preserva histórico normal já jogado ao entrar e sair", async () => {
   servidor(null);
-  const view = render(<App />);
+  const view = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Lance normal de teste" }));
   const fenDaPartida = capture.board?.fen;
   expect(fenDaPartida).not.toBe(FEN_INICIAL);

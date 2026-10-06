@@ -78,7 +78,7 @@ it("controles acionam navegação, pausa e ações atuais", () => {
   expect((screen.getByRole("button", { name: "Próxima" }) as HTMLButtonElement).disabled).toBe(true);
 });
 it("navegação preserva a partida, pausa bloqueia input e desfazer continua disponível", async () => {
-  health(); render(<App />);
+  health(); (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   expect(screen.getByRole("region", { name: "Hans — Pretas" }).getAttribute("data-active")).toBe("true");
   const current = screen.getByLabelText("Tabuleiro").getAttribute("data-fen");
@@ -97,7 +97,7 @@ it("navegação preserva a partida, pausa bloqueia input e desfazer continua dis
 it("análise é associada ao lado solicitado sem preencher o painel adversário", async () => {
   health(); let resolve!: (value: Resposta) => void;
   vi.spyOn(api, "analisar").mockImplementation(() => new Promise(done => { resolve = done; }));
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Analisar posição" }));
   expect(within(screen.getByRole("region", { name: "Análise de Magnus" })).getByRole("status").textContent).toBe("Analisando…");
   await act(async () => resolve(analysis));
@@ -115,7 +115,7 @@ it("estado do servidor e latência vêm da consulta real de saúde", async () =>
   render(<StatusSaude />); expect(await screen.findByText("Servidor indisponível")).toBeTruthy();
 });
 it("estrutura responsiva conserva arena, painéis e tutor como regiões separadas", () => {
-  health(); const { container } = render(<App />);
+  health(); const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(container.querySelector(".arena-sidebar")).toBeNull();
   expect(container.querySelector(".game-header nav")).toBeTruthy();
   expect(container.querySelector(".agent-headers")).toBeTruthy();
@@ -127,7 +127,7 @@ it("estrutura responsiva conserva arena, painéis e tutor como regiões separada
 
 it("relógio mede atividade do lado atual, para durante pausa e reinicia", async () => {
   health(); vi.useFakeTimers();
-  await act(async () => { render(<App />); });
+  await act(async () => { (window.history.replaceState(null, "", "#explorar"), render(<App />)); });
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   await act(async () => vi.advanceTimersByTime(2100));
   const hans = within(screen.getByRole("region", { name: "Hans — Pretas" }));
@@ -144,7 +144,7 @@ it("Sair confirma o encerramento e volta à Home preservando dados locais", asyn
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
   window.history.replaceState(null, "", "/#agentes");
   localStorage.setItem("layout-preservation", "preservado");
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   fireEvent.click(screen.getByRole("link", { name: "Sair" }));
   expect(confirm).toHaveBeenCalledWith("Deseja sair da partida?");
@@ -172,7 +172,7 @@ it("histórico mobile começa recolhido e mantém contador e seleção ao abrir"
 
 it("páginas próprias pausam sem remontar ou apagar a partida e o logo volta ao jogo", async () => {
   health();
-  const { container } = render(<App />);
+  const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   const boardElement = screen.getByLabelText("Tabuleiro");
   const fen = boardElement.getAttribute("data-fen");
@@ -205,7 +205,7 @@ it("páginas próprias pausam sem remontar ou apagar a partida e o logo volta ao
 it("cancelar Sair mantém a página, a posição e os controles da partida", () => {
   health();
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   const fen = screen.getByLabelText("Tabuleiro").getAttribute("data-fen");
   fireEvent.click(screen.getByRole("link", { name: "Sair" }));

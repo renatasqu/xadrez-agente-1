@@ -10,7 +10,7 @@ afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/
 it("mantém branding, avatar, todos os destinos e status no header sem sidebar ou pill", async () => {
   apagarUsuarioId();
   vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
-  const { container } = render(<App />);
+  const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   const header = within(container.querySelector(".game-header") as HTMLElement);
   expect(header.getByRole("heading", { name: "XADREZ MULTIAGENTE" })).toBeTruthy();
   expect(header.getByRole("img", { name: "XADREZ MULTIAGENTE" }).getAttribute("src")).toContain("images/logo-xadrez-multiagente.png");
@@ -47,7 +47,7 @@ it("destaca a seleção e fecha o menu móvel ao navegar", () => {
 it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () => {
   apagarUsuarioId();
   vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
-  const { container } = render(<App />);
+  const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   const board = container.querySelector("#match-board");
   fireEvent.click(screen.getByRole("link", { name: "Masters" }));
   const gallery = await screen.findByRole("region", { name: "MASTERS:" });

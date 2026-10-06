@@ -40,7 +40,7 @@ function servidor(key: string, respostas: string[], operational = false, withDem
 }
 async function abrirChat(key: string, respostas: string[], operational = false) {
   const state = servidor(key, respostas, operational);
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Explique este conceito." } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
@@ -134,7 +134,7 @@ it("erro operacional mostra mensagem de API sem feedback incorrect", async () =>
 });
 it("CTA da lição preserva lição/conversa e consulta progresso sem POST adicional", async () => {
   const { payloads, urls } = servidor("a1", ["correct"]);
-  gravarUsuarioId(ID); render(<App />);
+  gravarUsuarioId(ID); (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   const lessons = screen.getByRole("region", { name: "Lições" });
   fireEvent.click(await within(lessons).findByRole("button", { name: /Praticar este conceito/ }));
@@ -154,7 +154,7 @@ it("CTA da lição preserva lição/conversa e consulta progresso sem POST adici
 
 it("abrir prática encerra demo e fechar restaura exatamente a partida já jogada", async () => {
   servidor("a1", ["correct"], false, true);
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   mover("e2", "e4");
   await waitFor(() => expect(casa("e4").querySelector('[aria-label="peão branco"]')).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));

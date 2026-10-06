@@ -51,8 +51,8 @@ function pageFromHash(): AppPage {
 }
 
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
-  const [aiMode, setAiMode] = useState(false);
-  const [aiVisited, setAiVisited] = useState(false);
+  const [aiMode, setAiMode] = useState(window.location.hash !== "#explorar");
+  const [aiVisited, setAiVisited] = useState(window.location.hash !== "#explorar");
   const [aiFen, setAiFen] = useState<string | null>(null);
   const [page, setPage] = useState<AppPage>(pageFromHash);
   const { layoutRef, mobile } = useMatchLayout(page === "match" && !aiMode);
@@ -297,7 +297,6 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
         </header>
         {page === "match" && !aiMode && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(true); }}>Jogar contra IA</button></div>}
-        {page === "match" && aiMode && <div><button type="button" onClick={() => setAiMode(false)}>Voltar à partida manual</button></div>}
         <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>
           <div className="match-upper-strip">

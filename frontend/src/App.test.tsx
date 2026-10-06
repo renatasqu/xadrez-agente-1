@@ -29,7 +29,7 @@ afterEach(() => vi.unstubAllGlobals());
 it("retoma a lição atual ao abrir quando há id guardado", async () => {
   gravarUsuarioId(ID);
   const chamadas = servidor({ "/health": [200, SAUDE], "/licao/atual": [200, LICAO] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   if (!screen.queryByRole("dialog", { name: "LIÇÕES" })) fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   expect(await within(screen.getByRole("dialog", { name: "LIÇÕES" })).findByText("O en passant é...")).toBeTruthy();
   expect(screen.getByText(/Retomando · Lição 3\/12/)).toBeTruthy();
@@ -39,7 +39,7 @@ it("retoma a lição atual ao abrir quando há id guardado", async () => {
 
 it("sem id guardado consulta lição pela sessão", async () => {
   const chamadas = servidor({ "/health": [200, SAUDE] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   await screen.findByText("Servidor disponível");
   expect(chamadas).toContain("/licao/atual");
 });
@@ -47,7 +47,7 @@ it("sem id guardado consulta lição pela sessão", async () => {
 it("id inválido é apagado", async () => {
   gravarUsuarioId("lixo");
   servidor({ "/health": [200, SAUDE], "/licao/atual": [400, { resposta: "inválido", fontes: [], agente: "roteador", confianca: 0 }] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   await waitFor(() => expect(lerUsuarioId()).toBeNull());
 });
 
@@ -56,7 +56,7 @@ it("erro da API aparece no chat com o .resposta do backend", async () => {
     "/health": [200, SAUDE],
     "/chat": [429, { resposta: "Muitas perguntas em pouco tempo.", fontes: [], agente: "roteador", confianca: 0 }],
   });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   if (!screen.queryByRole("dialog", { name: "SEU TUTOR" })) fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "roque?" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
@@ -65,7 +65,7 @@ it("erro da API aparece no chat com o .resposta do backend", async () => {
 
 it("próxima lição guarda o id novo", async () => {
   servidor({ "/health": [200, SAUDE], "/licao/proxima": [200, LICAO] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   if (!screen.queryByRole("dialog", { name: "LIÇÕES" })) fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
@@ -76,14 +76,14 @@ it("próxima lição guarda o id novo", async () => {
 
 it("mostra o rodapé Sobre com os documentos e o aviso de IA", () => {
   servidor({ "/health": [200, SAUDE] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(screen.getByText("Chess Fundamentals")).toBeTruthy();
   expect(screen.getByText(/geradas por IA/)).toBeTruthy();
 });
 
 it("mostra os dois lados no cabeçalho, com aria-label nos avatares", () => {
   servidor({ "/health": [200, SAUDE] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(screen.getByRole("img", { name: "avatar do Magnus" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "avatar do Hans" })).toBeTruthy();
   expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
@@ -100,7 +100,7 @@ it("modo Qual documento me ajuda? chama /recomendar e mostra os trechos", async 
       }],
     }],
   });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ }));
   fireEvent.click(screen.getByRole("radio", { name: "Qual documento me ajuda?" }));
   expect(screen.queryByLabelText("Anexar posição do tabuleiro")).toBeNull();
@@ -121,7 +121,7 @@ it("esconde o setup da IA quando a partida ativa já existe", async () => {
     current_fen: officialFen, moves: ["e2e4", "e7e5"], human_color: "white", side_to_move: "white",
     status: "playing", winner: null, terminal: false, awaiting_agent: false, version: 2, opponent: { type: "ai", agent_id: "balanced" },
   }], "/chat": [200, { resposta: "Tutor preservado", fontes: [], agente: "professor", confianca: 0 }] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
@@ -139,7 +139,7 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
     current_fen: officialFen, moves: ["e2e4", "e7e5"], human_color: "white", side_to_move: "white",
     status: "playing", winner: null, terminal: false, awaiting_agent: false, version: 2, opponent: { type: "ai", agent_id: "balanced" },
   }], "/chat": [200, { resposta: "Tutor preservado", fontes: [], agente: "professor", confianca: 0 }] });
-  render(<App />);
+  (window.history.replaceState(null, "", "#explorar"), render(<App />));
   const arena = document.getElementById("partida")!;
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
   expect(arena.hidden).toBe(true);
@@ -155,8 +155,17 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   const chat = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/chat"));
   expect(JSON.parse(chat?.[1]?.body as string).fen).toBe(officialFen);
   fireEvent.keyDown(screen.getByRole("dialog", { name: "SEU TUTOR" }), { key: "Escape" });
-  fireEvent.click(screen.getByRole("button", { name: "Voltar à partida manual" }));
+  expect(screen.queryByRole("button", { name: "Voltar à partida manual" })).toBeNull();
   expect(document.getElementById("partida")).toBe(arena);
-  expect(arena.hidden).toBe(false);
-  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+  expect(arena.hidden).toBe(true);
+});
+
+it("abre setup oficial por padrão e mantém arena manual oculta", async () => {
+  window.history.replaceState(null, "", "#partida");
+  servidor({ "/health": [200, SAUDE], "/agents": [200, [{ id: "balanced", display_name: "Equilibrado", difficulty: "intermediate", style: "balanced", description: "Motor" }]], "/games": [200, { games: [], next_offset: null }] });
+  render(<App />);
+  expect(screen.getByLabelText("Seu lado")).toBeTruthy();
+  expect(document.getElementById("partida")?.hidden).toBe(true);
+  expect(screen.queryByRole("button", { name: "Jogar contra IA" })).toBeNull();
+  await screen.findByText("Nenhuma partida encontrada.");
 });

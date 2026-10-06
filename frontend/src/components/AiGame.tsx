@@ -154,7 +154,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   }
 
   function move(uci: string) {
-    if (!game || busy || lock.current || game.terminal || game.awaiting_agent || pending.current || creation.current || replayPosition) return;
+    if (!game || busy || lock.current || game.terminal || game.awaiting_agent || game.side_to_move !== game.human_color || pending.current || creation.current || replayPosition) return;
     const intent = { move: uci, version: game.version, client_move_id: crypto.randomUUID() };
     pending.current = intent;
     void run(() => api.submitHumanMove(game.id, intent));
@@ -174,11 +174,9 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
       ? `Xeque-mate. ${game.winner === "white" ? "Brancas" : "Pretas"} venceram.`
       : game.terminal
         ? draws[game.status] ?? "Partida encerrada."
-        : game.status === "check"
-          ? "Xeque!"
-          : game.awaiting_agent
-            ? "É o turno da IA. Use Tentar novamente o turno da IA."
-            : `Turno das ${game.side_to_move === "white" ? "brancas" : "pretas"}.`;
+        : game.awaiting_agent || game.side_to_move !== game.human_color
+            ? game.awaiting_agent ? "É o turno da IA. Use Tentar novamente o turno da IA." : "É o turno da IA."
+            : game.status === "check" ? "Xeque!" : `Turno das ${game.side_to_move === "white" ? "brancas" : "pretas"}.`;
 
   if (!game) {
     return (
@@ -288,6 +286,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   return (
     <section aria-label="Partida contra IA" className="board-workspace max-w-[680px] mx-auto p-4">
       <h2>Partida contra IA</h2>
+      <p>Você: {game.human_color === "white" ? "brancas" : "pretas"} · Humano contra IA</p>
       <p>
         Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {currentProfile?.display_name ?? game.opponent.agent_id}
         {currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}
@@ -319,9 +318,10 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
       <Board
         fen={replayPosition?.fen ?? game.current_fen}
         orientation={game.human_color}
+        humanColor={game.human_color}
         estadoTexto={replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : status}
         terminado={game.terminal}
-        ocupado={busy || game.awaiting_agent || Boolean(pending.current) || Boolean(creation.current) || Boolean(replayPosition)}
+        ocupado={busy || game.awaiting_agent || game.side_to_move !== game.human_color || Boolean(pending.current) || Boolean(creation.current) || Boolean(replayPosition)}
         hideControls
         podeDesfazer={false}
         onMoveIntent={move}

@@ -24,6 +24,7 @@ interface BaseProps {
   hideControls?: boolean;
   onMoveIntent?: (uci: string) => void;
   orientation?: "white" | "black";
+  humanColor?: "white" | "black";
   estadoTexto?: string;
   terminado?: boolean;
   contextContainer?: HTMLElement | null;
@@ -78,7 +79,8 @@ export function Board(props: BoardProps) {
   const emDemo = modo === "demonstration";
   const emExercicio = modo === "exercise";
   const fimDaPosicao = useMemo(() => new Chess(fen).isGameOver(), [fen]);
-  const bloqueado = ocupado || Boolean(modo === "normal" && (props.terminado || fimDaPosicao)) || emDemo || Boolean(exercicio && (
+  const ladoHumano = props.humanColor === "white" ? "w" : props.humanColor === "black" ? "b" : null;
+  const bloqueado = ocupado || Boolean(modo === "normal" && ladoHumano && vezDe(fen) !== ladoHumano) || Boolean(modo === "normal" && (props.terminado || fimDaPosicao)) || emDemo || Boolean(exercicio && (
     exercicio.concluido || exercicio.preview || exercicio.goal.type === "answer_position_question"));
   const controlesBloqueados = ocupado || modo !== "normal";
   const [promocao, setPromocao] = useState<{ de: string; para: string; fen: string } | null>(null);
@@ -197,6 +199,7 @@ export function Board(props: BoardProps) {
             darkSquareStyle: CASA_ESCURA,
             squareStyles: estilos,
             allowDragging: !bloqueado && !promocao,
+            canDragPiece: ({ square }) => !bloqueado && !promocao && (!ladoHumano || Boolean(square && ladoDaPeca(fenExibido, square) === ladoHumano)),
             onPieceDrop: ({ sourceSquare, targetSquare }) =>
               !bloqueado && !promocao && targetSquare ? jogar(sourceSquare, targetSquare) : false,
             onSquareClick: ({ square }) => !bloqueado && !promocao && tocar(square),

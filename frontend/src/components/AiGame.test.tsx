@@ -5,10 +5,10 @@ import { AiGame } from "./AiGame";
 import { api } from "../api";
 import type { Game } from "../types";
 
-const board = vi.hoisted(() => ({ options: null as { position?: string; boardOrientation?: "white" | "black"; allowDragging?: boolean; onPieceDrop?: (payload: any) => boolean; onSquareClick?: (payload: any) => void } | null }));
+const board = vi.hoisted(() => ({ options: null as { position?: string; boardOrientation?: "white" | "black"; allowDragging?: boolean; canDragPiece?: (payload: any) => boolean; onPieceDrop?: (payload: any) => boolean; onSquareClick?: (payload: any) => void } | null }));
 
 vi.mock("react-chessboard", () => ({
-  Chessboard: ({ options }: { options: { position: string; boardOrientation?: "white" | "black"; allowDragging?: boolean; onPieceDrop?: (payload: any) => boolean; onSquareClick?: (payload: any) => void } }) => {
+  Chessboard: ({ options }: { options: { position: string; boardOrientation?: "white" | "black"; allowDragging?: boolean; canDragPiece?: (payload: any) => boolean; onPieceDrop?: (payload: any) => boolean; onSquareClick?: (payload: any) => void } }) => {
     board.options = options;
     return <div data-testid="official-fen">{String(options.position)}</div>;
   },
@@ -154,8 +154,10 @@ it("preserva o lance humano e exibe a recuperação da IA quando o turno falha",
   vi.spyOn(api, "submitHumanMove").mockResolvedValue(game(["e2e4"], { human_move: "e2e4", agent_status: "error", error: "agent_unavailable" }));
   const retry = vi.spyOn(api, "resumeAgent").mockResolvedValue(game(["e2e4", "e7e5"], { agent_status: "moved" }));
   drop("e2", "e4");
-  const alerta = await screen.findByRole("alert");
-  expect(alerta.textContent).toMatch(/Seu lance foi preservado/i);
+  await screen.findByText(/Seu lance foi preservado/i);
+  drop("e7", "e5");
+  expect(api.submitHumanMove).toHaveBeenCalledTimes(1);
+  expect(board.options?.allowDragging).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "Tentar novamente o turno da IA" }));
   await waitFor(() => expect(retry).toHaveBeenCalledWith("one", 1));
   await waitFor(() => expect(board.options?.allowDragging).toBe(true));
@@ -331,4 +333,90 @@ it("não expõe nomes de adversários em inglês quando o perfil oficial é port
   await waitFor(() => expect(screen.queryByRole("button", { name: "Iniciar partida contra IA" })).toBeNull());
   expect(screen.getByText(/Adversário da partida: Equilibrado|Adversário da partida: balanced/)).toBeTruthy();
   expect(screen.queryByText(/Adversário da partida: Balanced/)).toBeNull();
+});
+
+it("aplica duas respostas oficiais e nunca envia movimento preto pelo humano branco", async () => {
+  await start();
+  const send = vi.spyOn(api, "submitHumanMove")
+    .mockResolvedValueOnce(game(["e2e4", "e7e5"], { human_move: "e2e4", agent_move: "e7e5", agent_status: "moved" }))
+    .mockResolvedValueOnce(game(["e2e4", "e7e5", "g1f3", "b8c6"], { agent_move: "b8c6" }));
+  expect(board.options?.canDragPiece?.({ square: "e7" })).toBe(false);
+  expect(board.options?.canDragPiece?.({ square: "e2" })).toBe(true);
+  drop("e7", "e5");
+  expect(send).not.toHaveBeenCalled();
+  drop("e2", "e4");
+  expect(board.options?.allowDragging).toBe(false);
+  drop("e7", "e5");
+  await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5"]).current_fen));
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(board.options?.allowDragging).toBe(true);
+  drop("g1", "f3");
+  await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5", "g1f3", "b8c6"]).current_fen));
+  expect(send).toHaveBeenCalledTimes(2);
+});
+
+it("carrega abertura oficial de brancas e permite apenas resposta preta", async () => {
+  const opening = game(["e2e4"], { human_color: "black", awaiting_agent: false, agent_move: "e2e4" });
+  render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText("Seu lado"), { target: { value: "black" } });
+  await start(opening);
+  const send = vi.spyOn(api, "submitHumanMove").mockResolvedValue(game(["e2e4", "e7e5", "g1f3"], { human_color: "black", awaiting_agent: false, agent_move: "g1f3" }));
+  expect(api.createGame).toHaveBeenCalledWith("black", "balanced", expect.any(String));
+  expect(board.options?.position).toBe(opening.current_fen);
+  drop("d2", "d4");
+  expect(send).not.toHaveBeenCalled();
+  drop("e7", "e5");
+  await waitFor(() => expect(board.options?.position).toBe(game(["e2e4", "e7e5", "g1f3"]).current_fen));
+  expect(board.options?.allowDragging).toBe(true);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it("bloqueia turno oficial do agente mesmo sem awaiting_agent e mesmo em xeque", async () => {
+  await start(game([], { human_color: "black", side_to_move: "white", awaiting_agent: false, status: "check" }));
+  const send = vi.spyOn(api, "submitHumanMove");
+  expect(board.options?.allowDragging).toBe(false);
+  drop("e2", "e4");
+  act(() => { board.options?.onSquareClick?.({ square: "e2" }); board.options?.onSquareClick?.({ square: "e4" }); });
+  expect(send).not.toHaveBeenCalled();
+  expect(screen.getAllByText(/É o turno da IA/).length).toBeGreaterThan(0);
+});
+
+it("bloqueia movimentos em terminal", async () => {
+  await start(game([], { terminal: true, status: "draw" }));
+  const send = vi.spyOn(api, "submitHumanMove");
+  drop("e2", "e4");
+  expect(board.options?.allowDragging).toBe(false);
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("replay bloqueia envio oficial e voltar libera somente o lado humano", async () => {
+  const current = game(["e2e4", "e7e5"]);
+  vi.spyOn(api, "gameReplay").mockResolvedValue({ game_id: current.id, version: 2, initial_fen: current.initial_fen, current_fen: current.current_fen, steps: [], result: "*", termination: "playing" });
+  await start(current);
+  fireEvent.click(await screen.findByRole("button", { name: "Início do histórico" }));
+  const send = vi.spyOn(api, "submitHumanMove");
+  drop("e2", "e4");
+  expect(board.options?.allowDragging).toBe(false);
+  expect(send).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Voltar à posição atual" }));
+  expect(board.options?.position).toBe(current.current_fen);
+  expect(board.options?.allowDragging).toBe(true);
+});
+
+it("reload e resume preservam humano preto e bloqueiam brancas", async () => {
+  const saved = game(["e2e4"], { human_color: "black", awaiting_agent: false });
+  vi.mocked(api.listGames).mockResolvedValue({ games: [{ ...saved, profile: null, move_count: 1 }], next_offset: null });
+  vi.spyOn(api, "getGame").mockResolvedValue(saved);
+  const send = vi.spyOn(api, "submitHumanMove");
+  const view = render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("button", { name: /Continuar partida/ }));
+  await screen.findByTestId("official-fen");
+  view.unmount();
+  render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("button", { name: /Continuar partida/ }));
+  await screen.findByTestId("official-fen");
+  expect(board.options?.boardOrientation).toBe("black");
+  drop("d2", "d4");
+  expect(send).not.toHaveBeenCalled();
+  expect(board.options?.allowDragging).toBe(true);
 });
