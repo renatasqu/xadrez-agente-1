@@ -381,7 +381,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
           <div className="mobile-access-row" ref={setMobileAccessHost} />
         </main>
-        <section className="masters-page" data-page="masters" aria-labelledby="masters-title" hidden={page !== "masters"}>
+        <section className="masters-page" data-page="masters" role="region" aria-label="MASTERS:" aria-labelledby="masters-title" hidden={page !== "masters"}>
           <Masters visible={page === "masters"} />
         </section>
         <section className="standalone-page" data-page="lessons" aria-label="Lições de xadrez" hidden={page !== "lessons"}>
