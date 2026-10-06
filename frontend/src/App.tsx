@@ -1,3 +1,4 @@
+import { tutorContextLabel, type TutorPositionContext } from "./tutorContext";
 // Arena da partida; tutor e lições acessíveis sob demanda.
 
 import { HistoryOverview } from "./components/HistoryOverview";
@@ -6,7 +7,7 @@ import { RatingPanel } from "./components/RatingPanel";
 import { AiGame, type AiGameHandle } from "./components/AiGame";
 import { createPortal } from "react-dom";
 import { useMatchLayout } from "./match/useMatchLayout";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ErroDaApi, api } from "./api";
 import { apagarUsuarioId, gravarUsuarioId, lerUsuarioId } from "./armazenamento";
 import { AgentHeaderCard, AgentThinking, CurrentTurn, MoveHistory, recordedMoves, type MatchSide } from "./match/MatchArena";
@@ -53,6 +54,10 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const aiGameRef = useRef<AiGameHandle>(null);
   const [aiGameActive, setAiGameActive] = useState(false);
   const [aiFen, setAiFen] = useState<string | null>(null);
+  const [officialTutor, setOfficialTutor] = useState<{ context: TutorPositionContext | null; key: string }>({ context: null, key: "" });
+  const onOfficialTutorContext = useCallback((context: TutorPositionContext | null, key: string) => {
+    setOfficialTutor(previous => previous.key === key ? previous : { context, key });
+  }, []);
   const [page, setPage] = useState<AppPage>(canonicalizeHash);
   const { layoutRef, mobile } = useMatchLayout(page === "practice" && !aiMode);
   const [desktopTutorHost, setDesktopTutorHost] = useState<HTMLDivElement | null>(null);
@@ -149,10 +154,10 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
     setItens((atuais) => [...atuais, { ...item, id: proximoId++ } as ItemDoChat]);
   }
 
-  function mostrarResposta(resposta: Resposta, erro = false, titulo?: string) {
+  function mostrarResposta(resposta: Resposta, erro = false, titulo?: string, contextKey?: string, contextLabel?: string) {
     adicionar({ tipo: "resposta", resposta: { ...resposta,
       concept_ids: resposta.concept_ids ?? [], related_exercise_ids: resposta.related_exercise_ids ?? [],
-    }, erro, titulo });
+    }, erro, titulo, contextKey, contextLabel });
   }
 
   function aplicarLicao(dados: RespostaLicao, retomando = false) {
@@ -168,12 +173,12 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   }
 
   /** Roda uma chamada mostrando o indicador de espera; erros viram mensagem com `.resposta`. */
-  async function executar<T>(tipo: TipoDeEspera, chamada: () => Promise<T>, aoTerminar: (dados: T) => void, onError?: (resposta: Resposta) => void) {
+  async function executar<T>(tipo: TipoDeEspera, chamada: () => Promise<T>, aoTerminar: (dados: T) => void, onError?: (resposta: Resposta) => void, positionKey?: string, positionLabel?: string) {
     setEsperando(tipo);
     try {
       aoTerminar(await chamada());
     } catch (erro) {
-      if (erro instanceof ErroDaApi) { mostrarResposta(erro.resposta, true); onError?.(erro.resposta); }
+      if (erro instanceof ErroDaApi) { mostrarResposta(erro.resposta, true, undefined, positionKey, positionLabel); onError?.(erro.resposta); }
       else throw erro;
     } finally {
       setEsperando(null);
@@ -194,22 +199,32 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       });
   }, []);
 
-  function perguntar(texto: string, anexarPosicao: boolean, modo: ModoDoChat) {
-    if (modo === "recomendar") {
-      adicionar({ tipo: "pergunta", texto: `Qual documento me ajuda? ${texto}` });
-      executar("recomendar", () => api.recomendar(texto), (r) => mostrarResposta(r));
-      return;
+  async function perguntar(texto: string, anexarPosicao: boolean, modo: ModoDoChat) {
+    const key = tutorKey;
+    const contextLabel = tutorContextLabel(tutorContext);
+    const context = tutorContext ?? (anexarPosicao ? { source: "exploration" as const, fen: shownFen } : undefined);
+    adicionar({ tipo: "pergunta", texto: modo === "recomendar" ? `Qual documento me ajuda? ${texto}` : texto, contextKey: key, contextLabel });
+    setEsperando(modo === "recomendar" ? "recomendar" : "chat");
+    try {
+      const resposta = modo === "recomendar" ? await api.recomendar(texto) : await api.perguntar(texto, undefined, context ?? undefined);
+      adicionar({ tipo: "resposta", resposta, erro: false, contextKey: key, contextLabel });
+    } catch (erro) {
+      if (erro instanceof ErroDaApi) adicionar({ tipo: "resposta", resposta: erro.resposta, erro: true, contextKey: key, contextLabel });
+      else adicionar({ tipo: "resposta", resposta: { resposta: "Tutor indisponível. Tente novamente.", fontes: [], agente: "roteador", confianca: 0 }, erro: true, contextKey: key, contextLabel });
+    } finally {
+      setEsperando(null);
     }
-    adicionar({ tipo: "pergunta", texto: anexarPosicao ? `${texto}\n(posição: ${aiMode ? aiFen ?? fen : fen})` : texto });
-    executar("chat", () => api.perguntar(texto, anexarPosicao ? (aiMode ? aiFen ?? undefined : fen) : undefined), (r) => mostrarResposta(r));
   }
 
   function analisar() {
-    adicionar({ tipo: "pergunta", texto: "Analise esta posição." });
-    executar("analise", () => api.analisar(aiMode ? aiFen ?? fen : fen), (r) => {
-      setAnalyses(value => ({ ...value, [matchSide]: { fen, resposta: r } }));
-      mostrarResposta(r);
-    });
+    const key = tutorKey;
+    const label = tutorContextLabel(tutorContext);
+    const analysisFen = page === "match" ? aiFen ?? fen : shownFen;
+    adicionar({ tipo: "pergunta", texto: "Analise esta posição.", contextKey: key, contextLabel: label });
+    executar("analise", () => api.analisar(analysisFen), (r) => {
+      setAnalyses(value => ({ ...value, [analysisFen.split(" ")[1] === "b" ? "b" : "w"]: { fen: analysisFen, resposta: r } }));
+      mostrarResposta(r, false, undefined, key, label);
+    }, undefined, key, label);
   }
 
   function proximaLicao() {
@@ -226,7 +241,11 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       : selectedPosition !== null ? { modo: "demonstration", exibicao: {
           fen: historico[historyIndex], de: moves[historyIndex - 1]?.source ?? null, para: moves[historyIndex - 1]?.destination ?? null,
         } } : { modo: "normal" };
-  const shownFen = exercicio.resulting_fen ?? (demo ? passos[passo]?.fen : historico[historyIndex]) ?? fen;
+  const shownFen = (exercicio.exercise ? refutacao?.fen : null) ?? exercicio.resulting_fen ?? (demo ? passos[passo]?.fen : historico[historyIndex]) ?? fen;
+  const tutorContext: TutorPositionContext | null = page === "match" && aiMode ? officialTutor.context
+    : page === "practice" ? { source: exercicio.exercise ? "exercise" : "exploration", fen: shownFen } : null;
+  const tutorKey = JSON.stringify([page, tutorContext, page === "match" ? officialTutor.key : exercicio.exercise?.id ?? null]);
+
   const shownSide: MatchSide = shownFen.split(" ")[1] === "b" ? "b" : "w";
 
   function openArea(area: "tutor" | "lessons" | "curiosities" | "comment" | "about" | "documentation", opener: HTMLElement) {
@@ -319,7 +338,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
         </header>
         {page === "practice" && !aiMode && <div><button type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>}
-        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
+        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onTutorContext={onOfficialTutorContext} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "practice" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
@@ -428,7 +447,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         <FloatingAction title="Lições" label="Abrir lições" icon={lessonsIcon} onClick={event => openArea("lessons", event.currentTarget)} />
       </div>
       <ContentModal id="tutor-modal" title="SEU TUTOR" open={modal === "tutor"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
-        <Chat itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
+        <Chat context={tutorContext} contextKey={tutorKey} itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
       </ContentModal>
       <ContentModal id="lessons-modal" title="LIÇÕES" open={modal === "lessons"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         {(page !== "lessons" || modal === "lessons") && lessonsContent}

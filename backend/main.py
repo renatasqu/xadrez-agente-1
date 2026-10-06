@@ -46,6 +46,7 @@ import guardrails
 import progresso
 import games
 import player_rating
+from tutor_context import resolve_context
 from llm import LLMNaoConfigurado
 import conceitos
 from agents import analista, router
@@ -271,12 +272,15 @@ async def health() -> Saude:
 
 @app.post("/chat", response_model=Resposta, dependencies=[Depends(require_user)])
 @limiter.limit(lambda: settings.rate_limit)
-async def chat(request: Request, entrada: EntradaChat, llms: LLMs = Depends(obter_llms)) -> Resposta:
+async def chat(request: Request, entrada: EntradaChat, llms: LLMs = Depends(obter_llms), user: dict = Depends(require_user)) -> Resposta:
     """Pergunta livre: passa pelo roteador completo (guardrails, agente, juiz)."""
+    context = await run_in_threadpool(resolve_context, entrada.context, user["email"]) if entrada.context else None
+    context_args = {"context": context} if context else {}
     return await executar(
         router.responder,
         entrada.mensagem,
-        fen=entrada.fen,
+        fen=context.fen if context else entrada.fen,
+        **context_args,
         llm_classificador=llms.classificador,
         llm_agente=llms.agente,
         llm_juiz=llms.juiz,

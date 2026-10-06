@@ -153,7 +153,8 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enviar" })); });
   await screen.findByText("Tutor preservado");
   const chat = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/chat"));
-  expect(JSON.parse(chat?.[1]?.body as string).fen).toBe(officialFen);
+  expect(JSON.parse(chat?.[1]?.body as string).context).toEqual({ source: "game", game_id: "ai-game" });
+  expect(JSON.parse(chat?.[1]?.body as string).fen).toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog", { name: "SEU TUTOR" }), { key: "Escape" });
   expect(screen.queryByRole("button", { name: "Voltar à partida manual" })).toBeNull();
   expect(document.getElementById("partida")).toBe(arena);

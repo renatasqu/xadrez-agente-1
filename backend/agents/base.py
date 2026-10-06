@@ -4,6 +4,8 @@ buscar no índice -> montar prompt com os trechos como DADOS -> LLM com saída e
 -> validar -> montar a Resposta com as fontes vindas da busca (nunca inventadas pelo LLM).
 """
 
+from tutor_context import TutorPositionContextResolved, context_data, CONTEXT_RULE
+
 import html
 from dataclasses import dataclass
 from typing import TypeVar
@@ -59,13 +61,16 @@ def formatar_trechos(trechos: list[Trecho]) -> str:
     return "<documentos>\n" + "\n".join(blocos) + "\n</documentos>"
 
 
-def montar_prompt(agente: Agente, pergunta: str, trechos: list[Trecho]) -> list[BaseMessage]:
+def montar_prompt(agente: Agente, pergunta: str, trechos: list[Trecho], context: TutorPositionContextResolved | None = None) -> list[BaseMessage]:
     """Mensagens de sistema (papel + regras) e do usuário (documentos + pergunta)."""
     sistema = f"Você é o {agente.papel}\n\n{REGRAS}"
     usuario = (
         f"{formatar_trechos(trechos)}\n\n"
         f"<pergunta>\n{html.escape(pergunta, quote=False)}\n</pergunta>"
     )
+    if context:
+        sistema += "\n" + CONTEXT_RULE
+        usuario += context_data(context)
     return [SystemMessage(content=sistema), HumanMessage(content=usuario)]
 
 
@@ -112,6 +117,7 @@ def responder_com_documentos(
     pergunta: str,
     llm: BaseChatModel | None = None,
     trechos: list[Trecho] | None = None,
+    context: TutorPositionContextResolved | None = None,
 ) -> Resposta:
     """Responde à pergunta usando só os documentos do índice do agente.
 
@@ -124,7 +130,7 @@ def responder_com_documentos(
         # Guardrail 3: sem trecho acima do limiar, não chamamos o LLM.
         return Resposta(resposta=NAO_ENCONTREI, fontes=[], agente=agente.nome, confianca=0)
 
-    mensagens = montar_prompt(agente, pergunta, trechos)
+    mensagens = montar_prompt(agente, pergunta, trechos, context)
     saida = chamar_llm(llm or criar_llm(papel="agente"), mensagens)
     if saida is None:
         return Resposta(resposta=ERRO_FORMATO, fontes=[], agente=agente.nome, confianca=0)

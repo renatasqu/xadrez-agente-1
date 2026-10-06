@@ -24,6 +24,8 @@ checagem de injeção, antes de o Stockfish rodar ou de o Estrategista escrever 
 Com o tabuleiro anexado (FEN só no campo `fen`), o classificador também decide a categoria.
 """
 
+from tutor_context import TutorPositionContextResolved
+
 import html
 import re
 from typing import TypedDict
@@ -107,6 +109,7 @@ class Estado(TypedDict, total=False):
 
     pergunta: str
     fen: str | None
+    context: TutorPositionContextResolved
     categoria: Categoria
     resposta: Resposta
 
@@ -167,7 +170,8 @@ def classificar_pergunta(
 
 
 def responder_com_fallback(
-    categoria: str, pergunta: str, llm: BaseChatModel | None = None
+    categoria: str, pergunta: str, llm: BaseChatModel | None = None,
+    context: TutorPositionContextResolved | None = None,
 ) -> Resposta:
     """Tenta o índice da categoria e depois os outros, até um agente responder com fonte.
 
@@ -181,7 +185,7 @@ def responder_com_fallback(
         trechos = buscar(indice, pergunta)
         if not trechos:
             continue
-        resposta = responder_com_documentos(AGENTE_POR_INDICE[indice], pergunta, llm, trechos)
+        resposta = responder_com_documentos(AGENTE_POR_INDICE[indice], pergunta, llm, trechos, **({"context": context} if context else {}))
         if resposta.resposta != NAO_ENCONTREI:
             return resposta
         guardrails.registrar("roteador", "fallback", f"{indice}: trechos sem resposta")
@@ -274,11 +278,11 @@ def criar_grafo(
 
     def no_analisar(estado: Estado) -> Estado:
         # O Analista chama o juiz sozinho: ele precisa dos fatos do motor.
-        resposta = analista.responder(estado["pergunta"], estado.get("fen"), llm_agente, llm_juiz)
+        resposta = analista.responder(estado["pergunta"], estado.get("fen"), llm_agente, llm_juiz, **({"context": estado["context"]} if estado.get("context") else {}))
         return {"resposta": resposta}
 
     def no_responder(estado: Estado) -> Estado:
-        resposta = responder_com_fallback(estado["categoria"], estado["pergunta"], llm_agente)
+        resposta = responder_com_fallback(estado["categoria"], estado["pergunta"], llm_agente, **({"context": estado["context"]} if estado.get("context") else {}))
         return {"resposta": com_demonstracao(estado["pergunta"], resposta)}
 
     def no_verificar(estado: Estado) -> Estado:
@@ -339,6 +343,7 @@ def responder(
     llm_agente: BaseChatModel | None = None,
     llm_juiz: BaseChatModel | None = None,
     categoria: Categoria | None = None,
+    context: TutorPositionContextResolved | None = None,
 ) -> Resposta:
     """Ponto de entrada do sistema: pergunta (e FEN opcional) -> Resposta final.
 
@@ -348,6 +353,9 @@ def responder(
     """
     grafo = criar_grafo(llm_classificador, llm_agente, llm_juiz)
     estado_inicial: Estado = {"pergunta": pergunta, "fen": fen}
+    if context:
+        estado_inicial["context"] = context
+        estado_inicial["fen"] = context.fen
     if categoria:
         estado_inicial["categoria"] = categoria
     try:

@@ -1,3 +1,4 @@
+import type { TutorPositionContext } from "./tutorContext";
 import { sessionExpired } from "./auth/sessionEvents";
 import type { PlayerRating, RatingEvent, GameCommentary, GameReplay, GameReviewResult, AgentProfile, GameList, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
@@ -132,7 +133,7 @@ export const api = {
   progressoExercicios: (usuarioId?: string) =>
     chamar<ExerciseProgress[]>(usuarioId ? `/progresso/exercicios?usuario_id=${encodeURIComponent(usuarioId)}` : "/progresso/exercicios"),
   saude: () => chamar<Saude>("/health"),
-  perguntar: (mensagem: string, fen?: string) => chamar<Resposta>("/chat", post({ mensagem, fen: fen ?? null })),
+  perguntar: (mensagem: string, fen?: string, context?: TutorPositionContext) => chamar<Resposta>("/chat", post({ mensagem, fen: fen ?? null, ...(context ? { context } : {}) })),
   analisar: (fen: string) => chamar<Resposta>("/analisar", post({ fen })),
   proximaLicao: (usuarioId: string | null) =>
     chamar<RespostaLicao>("/licao/proxima", post({ usuario_id: usuarioId })),

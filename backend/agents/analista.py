@@ -10,6 +10,8 @@ LLM. O Estrategista só explica POR QUE o lance é bom, com base nos trechos do 
 calmos de abertura, como 1.e4, não aparecem num curso de tática.
 """
 
+from tutor_context import TutorPositionContextResolved, context_data, CONTEXT_RULE
+
 import html
 import logging
 from dataclasses import asdict
@@ -154,14 +156,14 @@ Regras obrigatórias:
 7. Em confianca, dê um número de 0 a 1 indicando o quanto os trechos sustentam a explicação."""
 
 
-def montar_prompt_explicacao(analise: Analise, pergunta: str, trechos: list[Trecho]) -> list[BaseMessage]:
+def montar_prompt_explicacao(analise: Analise, pergunta: str, trechos: list[Trecho], context: TutorPositionContextResolved | None = None) -> list[BaseMessage]:
     """Mensagens para o Estrategista: fatos do motor e trechos como DADOS."""
     usuario = (
         f"<fatos_do_motor>\n{html.escape(fatos_do_motor(analise), quote=False)}\n</fatos_do_motor>\n\n"
         f"{formatar_trechos(trechos)}\n\n"
         f"<pergunta>\n{html.escape(guardrails.remover_fen(pergunta), quote=False)}\n</pergunta>"
     )
-    return [SystemMessage(content=PROMPT_EXPLICACAO), HumanMessage(content=usuario)]
+    return [SystemMessage(content=PROMPT_EXPLICACAO + ("\n" + CONTEXT_RULE if context else "")), HumanMessage(content=usuario + context_data(context))]
 
 
 def lances_permitidos(analise: Analise, lances: list[str]) -> bool:
@@ -180,6 +182,7 @@ def explicar_com_indice(
     pergunta: str,
     llm: BaseChatModel,
     llm_juiz: BaseChatModel | None,
+    context: TutorPositionContextResolved | None = None,
 ) -> tuple[str, list[Fonte], float, list[TrechoRecomendado]] | None:
     """Tenta explicar o lance com os trechos de um índice. None se não der.
 
@@ -193,7 +196,7 @@ def explicar_com_indice(
     if not trechos:
         return None
     try:
-        saida = chamar_estruturado(llm, montar_prompt_explicacao(analise, pergunta, trechos), RespostaAnalise)
+        saida = chamar_estruturado(llm, montar_prompt_explicacao(analise, pergunta, trechos, context), RespostaAnalise)
     except Exception as erro:
         falha_explicacao("llm_error", erro)
         raise ErroDeLinguagem from erro
@@ -243,6 +246,7 @@ def explicar_lance(
     pergunta: str,
     llm: BaseChatModel | None = None,
     llm_juiz: BaseChatModel | None = None,
+    context: TutorPositionContextResolved | None = None,
 ) -> tuple[str | None, list[Fonte], float, list[TrechoRecomendado]]:
     """Explicação do Estrategista: (texto ou None, fontes dos livros, confiança, "Onde ler").
 
@@ -257,7 +261,7 @@ def explicar_lance(
         falha_explicacao("llm_error", erro)
         raise ErroDeLinguagem from erro
     for indice in INDICES_DA_EXPLICACAO:
-        resultado = explicar_com_indice(indice, analise, pergunta, llm, llm_juiz)
+        resultado = explicar_com_indice(indice, analise, pergunta, llm, llm_juiz, **({"context": context} if context else {}))
         if resultado:
             return resultado
     return None, [], 0.0, []
@@ -385,12 +389,13 @@ def sem_explicacao(resposta: Resposta, codigo: str) -> Resposta:
 
 
 def enriquecer_resposta(analise: Analise, resposta: Resposta, pergunta: str,
-                       llm: BaseChatModel | None = None, llm_juiz: BaseChatModel | None = None) -> Resposta:
+                       llm: BaseChatModel | None = None, llm_juiz: BaseChatModel | None = None,
+                       context: TutorPositionContextResolved | None = None) -> Resposta:
     """Enriquece fatos preservados; fronteiras opcionais distinguem recuperação/linguagem."""
     if analise.fim_de_jogo:
         return resposta
     try:
-        explicacao, fontes, confianca, trechos = explicar_lance(analise, pergunta, llm, llm_juiz)
+        explicacao, fontes, confianca, trechos = explicar_lance(analise, pergunta, llm, llm_juiz, **({"context": context} if context else {}))
     except ErroDeRecuperacao:
         return sem_explicacao(resposta, "retrieval_error")
     except ErroDeLinguagem:
@@ -414,9 +419,10 @@ def enriquecer_resposta(analise: Analise, resposta: Resposta, pergunta: str,
 
 
 def responder(pergunta: str, fen: str | None = None, llm: BaseChatModel | None = None,
-              llm_juiz: BaseChatModel | None = None) -> Resposta:
+              llm_juiz: BaseChatModel | None = None,
+              context: TutorPositionContextResolved | None = None) -> Resposta:
     """Compatibilidade do tutor: fatos primeiro, explicação opcional depois."""
-    analise, resposta = preparar_resposta(pergunta, fen)
+    analise, resposta = preparar_resposta(pergunta, context.fen if context else fen)
     if analise is None or analise.fim_de_jogo:
         return resposta
-    return enriquecer_resposta(analise, resposta, pergunta, llm, llm_juiz)
+    return enriquecer_resposta(analise, resposta, pergunta, llm, llm_juiz, **({"context": context} if context else {}))

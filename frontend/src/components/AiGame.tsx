@@ -1,3 +1,4 @@
+import type { TutorPositionContext } from "../tutorContext";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { api, ErroDePartida } from "../api";
 import type { AgentProfile, Game, GameColor, GameSummary, HumanMoveRequest } from "../types";
@@ -14,7 +15,7 @@ function MatchAvatar({ human = false }: { human?: boolean }) {
 
 export interface AiGameHandle { loadSavedGame: (id: string, review?: boolean) => Promise<boolean> }
 
-export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive }: { ref?: Ref<AiGameHandle>; visible?: boolean; onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void }) {
+export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive, onTutorContext }: { ref?: Ref<AiGameHandle>; visible?: boolean; onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void; onTutorContext?: (context: TutorPositionContext | null, positionKey: string) => void }) {
   const [savedGames, setSavedGames] = useState<GameSummary[]>([]);
   const [listError, setListError] = useState(false);
   const [listLoading, setListLoading] = useState(true);
@@ -89,6 +90,14 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive 
   const [color, setColor] = useState<GameColor>("white");
   const [replayPosition, setReplayPosition] = useState<{ ply: number; fen: string } | null>(null);
   const [game, setGame] = useState<Game | null>(null);
+  useEffect(() => {
+    const context: TutorPositionContext | null = game
+      ? replayPosition ? { source: "replay", game_id: game.id, ply: replayPosition.ply }
+        : { source: "game", game_id: game.id }
+      : null;
+    if (game) onPosition(replayPosition?.fen ?? game.current_fen);
+    onTutorContext?.(context, JSON.stringify([context, replayPosition?.fen ?? game?.current_fen, game?.version]));
+  }, [game, replayPosition, onTutorContext, onPosition]);
   const gameActive = game !== null;
   useEffect(() => { onGameActive?.(gameActive); }, [gameActive, onGameActive]);
   const currentProfile =

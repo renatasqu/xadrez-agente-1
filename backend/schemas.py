@@ -2,6 +2,7 @@
 
 from typing import Literal
 
+from tutor_context import TutorPositionContextInput
 from pydantic import BaseModel, Field, model_validator
 
 NomeAgente = Literal["arbitro", "professor", "estrategista", "analista", "roteador"]
@@ -146,10 +147,14 @@ class RespostaAnalise(BaseModel):
 
 
 class EntradaChat(BaseModel):
-    """Corpo de POST /chat."""
+    """POST /chat: context is optional; legacy fen is non-official study data.
+
+    Official game/replay positions ignore client FEN and are resolved with ownership.
+    """
 
     mensagem: str = Field(max_length=2000)
     fen: str | None = Field(default=None, max_length=200)
+    context: TutorPositionContextInput | None = None
 
 
 class EntradaRecomendacao(BaseModel):

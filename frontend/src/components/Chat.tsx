@@ -1,3 +1,4 @@
+import { tutorContextLabel, type TutorPositionContext } from "../tutorContext";
 // Chat: lista de mensagens e campo de pergunta (até 500 caracteres, o limite do backend).
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -8,15 +9,17 @@ import { Pergunta, RespostaDoAgente } from "./Mensagem";
 
 const LIMITE_DA_PERGUNTA = 500;
 
-export type ItemDoChat =
+export type ItemDoChat = (
   | { id: number; tipo: "pergunta"; texto: string }
-  | { id: number; tipo: "resposta"; resposta: Resposta; erro: boolean; titulo?: string };
+  | { id: number; tipo: "resposta"; resposta: Resposta; erro: boolean; titulo?: string }) & { contextKey?: string; contextLabel?: string };
 
 // "perguntar": resposta de um agente; "recomendar": só os trechos para ler.
 export type ModoDoChat = "perguntar" | "recomendar";
 
 interface Props {
   itens: ItemDoChat[];
+  context?: TutorPositionContext | null;
+  contextKey?: string;
   esperando: TipoDeEspera | null;
   onEnviar: (texto: string, anexarPosicao: boolean, modo: ModoDoChat) => void;
   onVerNoTabuleiro?: (demo: Demonstracao) => void;
@@ -28,7 +31,7 @@ const MODOS: [ModoDoChat, string][] = [
   ["recomendar", "Qual documento me ajuda?"],
 ];
 
-export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice }: Props) {
+export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice, context = null, contextKey }: Props) {
   const [texto, setTexto] = useState("");
   const [anexar, setAnexar] = useState(false);
   const [modo, setModo] = useState<ModoDoChat>("perguntar");
@@ -40,17 +43,19 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice 
     if (painel) painel.scrollTo?.({ top: painel.scrollHeight, behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [itens.length, esperando]);
 
+  useEffect(() => { setTexto(""); setAnexar(false); }, [contextKey]);
+
   function enviar(evento: FormEvent) {
     evento.preventDefault();
     const pergunta = texto.trim();
     if (!pergunta || esperando) return;
-    onEnviar(pergunta, modo === "perguntar" && anexar, modo);
+    onEnviar(pergunta, modo === "perguntar" && (Boolean(context) || anexar), modo);
     setTexto("");
   }
 
   return (
     <section aria-label="Conversa" className="tutor-panel caixa-pixel">
-      <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p></header>
+      <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p><p aria-label="Contexto do Tutor">{tutorContextLabel(context)}</p></header>
       <div ref={mensagens} className="chat-messages flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
         {itens.length === 0 && (
           <p className="text-sm text-slate-600">
@@ -58,16 +63,19 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice 
             Mexa as peças e toque em <strong>Analisar posição</strong> para ouvir o Stockfish e o Estrategista.
           </p>
         )}
-        {itens.map((item) =>
-          item.tipo === "pergunta" ? (
-            <Pergunta key={item.id} texto={item.texto} />
-          ) : (
-            <div key={item.id}>
-              {item.titulo && <p className="mb-1 font-pixel text-[0.55rem] text-gelo-escuro">{item.titulo}</p>}
-              <RespostaDoAgente resposta={item.resposta} erro={item.erro} onVerNoTabuleiro={onVerNoTabuleiro} onPractice={onPractice} />
-            </div>
-          ),
-        )}
+        {itens.map((item) => (
+          <div key={item.id}>
+            {item.contextKey !== undefined && item.contextKey !== contextKey && (
+              <p className="mb-1 text-xs font-bold">Conversa anterior · {item.contextLabel ?? "Outra posição"}</p>
+            )}
+            {item.tipo === "pergunta" ? <Pergunta texto={item.texto} /> : (
+              <>
+                {item.titulo && <p className="mb-1 font-pixel text-[0.55rem] text-gelo-escuro">{item.titulo}</p>}
+                <RespostaDoAgente resposta={item.resposta} erro={item.erro} onVerNoTabuleiro={onVerNoTabuleiro} onPractice={onPractice} />
+              </>
+            )}
+          </div>
+        ))}
         {esperando && <Carregando tipo={esperando} />}
         <div ref={fim} />
       </div>
@@ -102,7 +110,7 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice 
         <div className="mt-2 flex flex-wrap items-center gap-3">
           {modo === "perguntar" && (
             <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={anexar} onChange={(e) => setAnexar(e.target.checked)} />
+              <input type="checkbox" checked={Boolean(context) || anexar} disabled={Boolean(context)} onChange={(e) => setAnexar(e.target.checked)} />
               Anexar posição do tabuleiro
             </label>
           )}
