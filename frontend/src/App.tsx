@@ -288,13 +288,16 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       }}>
         <header className="game-header">
           <BrandLogo />
-          <HeaderNavigation onExit={onLogout ?? goHome} />
+          <div className="header-main-group">
+            <HeaderNavigation onExit={onLogout ?? goHome} />
+            <RatingPanel compact />
+          </div>
           <div className="header-server-status">
             <StatusSaude />
           </div>
         </header>
-        <RatingPanel />
-        {page === "match" && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(value => !value); }}>{aiMode ? "Voltar à partida manual" : "Jogar contra IA"}</button></div>}
+        {page === "match" && !aiMode && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(true); }}>Jogar contra IA</button></div>}
+        {page === "match" && aiMode && <div><button type="button" onClick={() => setAiMode(false)}>Voltar à partida manual</button></div>}
         <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>
           <div className="match-upper-strip">

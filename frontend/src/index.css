@@ -162,10 +162,15 @@ h1, h2, .agent-header h2, .thinking-status, .sidebar-caption { font-family: var(
 .caixa-pixel { border: 1px solid #d7dee2; border-radius: 12px; box-shadow: 0 3px 10px #173f6008; }
 .botao-pixel { border: 1px solid #c4d2de; border-radius: 8px; box-shadow: 0 2px 0 #173f6012; font-size: 14px; font-weight: 600; }
 .botao-pixel:active:not(:disabled) { transform: translateY(1px); }
-.game-header { max-width: 1480px; padding: 10px 20px; gap: 12px; border-bottom: 1px solid #dedfd9; background: var(--surface); margin-bottom: 12px; }
+.game-header { max-width: 1480px; padding: 10px 20px; gap: 12px; border-bottom: 1px solid #dedfd9; background: var(--surface); margin-bottom: 8px; }
 .game-header details { border: 1px solid #d0dce3; border-radius: 9px; padding: 10px 14px; background: #f1f8fd; }
 .game-header details summary { font-family: "Inter", system-ui, sans-serif; font-size: 12px; font-weight: 600; }
-.game-layout { max-width: 1480px; padding: 0 20px; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "board reasoning" "learning reasoning"; gap: 22px; }
+.header-main-group { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.header-rating { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #c9d6df; border-radius: 999px; background: #f8fbff; color: var(--magnus-dark); font: 700 0.7rem/1.2 var(--font-pixel); box-shadow: 0 2px 6px rgba(18, 53, 91, .08); }
+.header-rating-label { font-size: 0.56rem; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.header-rating strong { font-size: 1rem; color: var(--text); }
+.header-rating small { font: 600 0.58rem/1.2 "Inter", sans-serif; color: #597184; }
+.game-layout { max-width: 1480px; padding: 0 20px; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "board reasoning" "learning reasoning"; gap: 18px; }
 .arena-sidebar { grid-area: sidebar; background: var(--surface); border: 1px solid #e2ded5; border-radius: 14px; padding: 18px 10px; position: sticky; top: 20px; min-height: 630px; display: flex; flex-direction: column; }
 .sidebar-caption { font-size: 13px; letter-spacing: .18em; margin: 0 12px 18px; color: #6c7d8b; }
 .arena-sidebar nav { display: flex; flex-direction: column; gap: 8px; }
@@ -425,13 +430,13 @@ html { scroll-padding-top: 0; }
 .match-context-strip .board-context { display: flex; flex-wrap: wrap; gap: .65rem; padding: 0; border: 0; background: none; }
 .match-context-strip > p { margin: 0; font: 500 .75rem/1.6 "Inter", sans-serif; text-align: left; }
 .match-central { display: flex; flex-wrap: wrap; gap: clamp(.5rem, 1.4%, 1.25rem); align-items: flex-start; }
-.match-game-column { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: clamp(.5rem, 1dvh, .9rem); }
-.match-game-column .board-workspace { width: 100%; max-width: 100%; order: initial; }
+.match-game-column { display: flex; flex-direction: column; flex: 2 1 0; min-width: 0; gap: clamp(.5rem, 1dvh, .9rem); }
+.match-game-column .board-workspace { width: min(100%, 760px); max-width: 100%; margin-inline: auto; order: initial; }
 .arena-layout .board-stage { width: 100%; padding: 0; }
 .arena-layout .moldura-tabuleiro { box-sizing: border-box; width: 100%; max-width: 100%; aspect-ratio: 1 / 1; margin-inline: 0; }
 .chess-piece { display: flex; justify-content: center; align-items: center; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
 .chess-piece svg { width: 90%; height: 90%; image-rendering: pixelated; }
-.match-sidebar { flex: 0 0 clamp(300px, 28vw, 420px); min-width: 0; display: flex; flex-direction: column; align-self: stretch; gap: .65rem; }
+.match-sidebar { flex: 0 0 clamp(290px, 24vw, 380px); min-width: 0; display: flex; flex-direction: column; align-self: stretch; gap: .65rem; }
 .match-sidebar .current-turn { display: flex; justify-content: space-between; align-items: center; padding: .65rem .75rem; gap: .65rem; order: initial; }
 .match-sidebar .current-turn .eyebrow { margin: 0; }
 .match-sidebar > .content-trigger { flex: none; }

@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { PlayerRating, RatingEvent } from "../types";
 
-export function RatingPanel() {
+export function RatingPanel({ compact = false }: { compact?: boolean }) {
   const [rating, setRating] = useState<PlayerRating | null>(null);
   const [history, setHistory] = useState<RatingEvent[]>([]);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     const refresh = () => setAttempt(n => n + 1);
     window.addEventListener("xadrez:rating-updated", refresh);
     return () => window.removeEventListener("xadrez:rating-updated", refresh);
   }, []);
+
   useEffect(() => {
     let active = true;
     setError(false);
@@ -21,6 +23,17 @@ export function RatingPanel() {
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, [attempt]);
+
+  if (compact) {
+    return (
+      <div aria-label="Rating do Xadrez Multiagente" className="header-rating" title="Pontuação interna do Xadrez Multiagente. Não corresponde a rating FIDE.">
+        <span className="header-rating-label">Rating</span>
+        <strong>{rating?.rating ?? "—"}</strong>
+        {error && <small role="status">Atualização indisponível</small>}
+      </div>
+    );
+  }
+
   return <aside aria-label="Rating do Xadrez Multiagente" className="mx-auto max-w-3xl rounded border p-3 my-3">
     <p>Rating do Xadrez Multiagente: {rating?.rating ?? "—"}</p>
     <small>Pontuação interna do Xadrez Multiagente. Não corresponde a rating FIDE.</small>
