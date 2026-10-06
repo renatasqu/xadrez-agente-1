@@ -164,7 +164,7 @@ it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem fo
   const content = within(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" }));
   fireEvent.click(content.getByText("Documentos da biblioteca"));
   for (const title of ["FIDE Laws of Chess", "Chess Fundamentals", "The Blue Book of Chess", "Ten Steps to Learn Chess Tactics and Combinations"]) expect(content.getByText(title)).toBeTruthy();
-  expect(content.getByText(/Nenhum dado pessoal é coletado/)).toBeTruthy();
+  expect(content.getByText(/A conta armazena nome e e-mail/)).toBeTruthy();
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(document.activeElement).toBe(about);

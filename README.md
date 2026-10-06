@@ -6,12 +6,14 @@ Aplicação de aprendizagem de xadrez em português, com tabuleiro interativo, t
 
 **No modo manual, a pessoa movimenta os dois lados; em “Jogar contra IA”, enfrenta um adversário Stockfish funcional.** Magnus e Hans continuam sendo nomes visuais, sem personalidades próprias: seus painéis exibem análises solicitadas pelo usuário. Os papéis de linguagem realmente implementados no backend são Árbitro, Professor, Estrategista, Analista e Roteador.
 
-Projeto originado na atividade acadêmica “Recuperando documentos úteis para aprender um esporte”. Esta descrição foi conferida no código em **05/10/2026**. O mapa técnico, evidências, limites de verificação e recomendações estão em [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+Projeto originado na atividade acadêmica “Recuperando documentos úteis para aprender um esporte”. Esta descrição foi conferida no código e no QA local em **06/10/2026**. O mapa técnico, evidências, limites de verificação e recomendações estão em [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+
+Games contra IA oferecem cinco perfis de treino e três perfis inspirados, retomada, SAN/replay/PGN, revisão Stockfish, comentário pedagógico local e rating interno persistente. As seções de etapas abaixo registram a evolução histórica; o comportamento atual inclui as etapas 1–13.
 
 ## Funcionalidades atuais
 
 - Login pessoal no backend, sessão por cookie HttpOnly e logout com revogação; cadastro público desativado.
-- Tabuleiro com movimentos legais por clique/arraste, promoção automática a dama, desfazer, reiniciar e navegação/reprodução do histórico local.
+- Tabuleiro com movimentos legais por clique/arraste, escolha de promoção a dama, torre, bispo ou cavalo, desfazer, reiniciar e navegação/reprodução do histórico local.
 - Análise sob demanda: Stockfish calcula melhor lance, avaliação e até três lances da linha principal; o sistema procura uma explicação documental.
 - Tutor com pergunta livre, posição opcional, fontes, confiança, recomendações de leitura e demonstrações no tabuleiro.
 - Currículo de 12 lições, cache de conteúdo e progresso por UUID vinculado à conta autenticada.
@@ -31,7 +33,7 @@ A existência dessas implementações não comprova a disponibilidade atual de s
 4. Uma resposta pode oferecer “Ver no tabuleiro” ou “Praticar este conceito”. Demonstrações e exercícios usam posições próprias e preservam a partida enquanto estão abertos.
 5. As lições avançam quando o backend entrega conteúdo com fontes; não exigem aprovação em exercícios para avançar.
 6. Masters e Lições também têm áreas próprias. Navegar para outra área pausa a partida; ao voltar, o botão Continuar retoma a interação.
-7. Sair encerra a sessão. Atualizar a página ou remontar a aplicação perde a partida e o chat, que ficam apenas em memória.
+7. Sair encerra a sessão. Atualizar a página perde a partida manual e o chat em memória. Games contra IA e rating ficam no servidor; abra Jogar contra IA e escolha uma partida para retomar.
 
 ## Páginas e seções
 
@@ -70,7 +72,9 @@ FastAPI em Python, com contratos Pydantic, LangGraph para roteamento, LangChain 
 | Tutor/análise | `POST /chat`, `POST /recomendar`, `POST /analisar` |
 | Lições/progresso | `POST /licao/proxima`, `GET /licao/atual`, `GET /progresso/exercicios` |
 | Exercícios | `GET /exercises/{exercise_id}`, `POST /exercises/{exercise_id}/validate`, `POST /exercises/{exercise_id}/hint` |
-| Partidas persistentes | `POST /games`, `GET /games/{game_id}`, `POST /games/{game_id}/moves`, `POST /games/{game_id}/agent-move` |
+| Partidas persistentes | `POST /games`, `GET /games`, `GET /games/{game_id}`, `POST /games/{game_id}/moves`, `POST /games/{game_id}/agent-move` |
+| Perfis/histórico/revisão | `GET /agents`, `GET /games/{id}/replay`, `GET /games/{id}/pgn`, `POST /games/{id}/review`, `GET /games/{id}/commentary` |
+| Rating interno | `GET /rating`, `GET /rating/history`, `POST /games/{id}/rating` |
 | Documentos | `GET /documentos/{nome}`, `GET /documentos/{nome}/contexto` |
 | Administração | `POST /ingest`, protegido por `X-Admin-Token`, desativado sem token configurado |
 | Documentação automática | `/docs`, `/redoc`, `/openapi.json` |
@@ -111,7 +115,7 @@ Sem chave, falha de provedor/modelo/juiz ou timeout do provedor: análise preser
 
 Cada análise não terminal abre processo UCI próprio e executa quit/close em finally. O motor já está fechado antes da explicação. Threads não são interrompidas pelo timeout HTTP; trabalho de linguagem pode continuar até seu limite próprio. Uma falha durante aquecimento de embeddings agora é registrada e permite iniciar a API; consultas que dependem do corpus ainda podem falhar. Inicialização demorada/travada do aquecimento não foi resolvida.
 
-FEN isolado não preserva repetição; scores de busca limitada por tempo podem variar entre execuções. Não há MultiPV, implementação de policy ou loop de adversário. A etapa 5 acrescenta endpoints de partida, descritos abaixo. Uma etapa futura poderá usar `analisar_posicao` → candidato UCI → `movimento_legal` → `aplicar_movimento`, com propriedade da partida na camada de aplicação.
+FEN isolado não preserva repetição; scores de busca limitada por tempo podem variar entre execuções. A análise pedagógica deste endpoint usa uma linha principal. O adversário usa MultiPV e policy separados, descritos nas etapas 6/7 abaixo, com revalidação e propriedade da Game.
 
 ## Fontes externas e APIs
 
@@ -213,6 +217,8 @@ A lista integral das configurações, incluindo limites e prefixos de embeddings
 
 ## Testes
 
+QA final da etapa 13: **283 testes frontend/39 arquivos**, build/typecheck aprovado; **1045 backend não-LLM aprovados/60 LLM não selecionados**. Os números nas seções de etapas anteriores são históricos.
+
 ```bash
 # Backend, dentro do ambiente virtual e da pasta backend:
 python -m pytest -m 'not llm and not modelo_real'
@@ -277,7 +283,7 @@ frontend/
 
 O núcleo interativo e os fluxos pedagógicos estão implementados e possuem cobertura automatizada. Há integração real de engine, recuperação documental e provedores de linguagem no código, mas a operação completa depende do ambiente e dos serviços configurados.
 
-Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, listagem/retomada de partidas pela UI, armazenamento de chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. A etapa 3 preserva fatos de análise diante de falhas LLM/RAG. Permanecem pendentes limites de taxa/concorrência dos exercícios, cancelamento de threads e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+Continuam incompletos: jogo autônomo Magnus × Hans, cadastro público, armazenamento de chat, comentários/likes persistentes, página completa de curiosidades e avaliação ampliada do RAG. A etapa 2 resolveu a autorização das rotas privadas, a propriedade do progresso e a reação da interface a 401. A etapa 3 preserva fatos de análise diante de falhas LLM/RAG. Permanecem pendentes limites de taxa/concorrência dos exercícios, cancelamento de threads e demais itens indicados no adendo de [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
 ## Licença e créditos
 
@@ -491,3 +497,13 @@ POST `/games/{id}/rating`, corpo `{version}`, reconcilia um terminal sem evento 
 Após login, o painel consulta rating e cinco eventos recentes; ao encerrar/retomar terminal, atualiza a leitura. Resultado mostra delta real e rating histórico daquela partida; o painel mostra o rating corrente. Falhas permitem tentar novamente, respostas atrasadas são descartadas e 401 conserva o fluxo de sessão expirada existente. Sem pontuação em localStorage.
 
 Validação etapa12: **1043 backend aprovados/60 LLM não selecionados**, **282 frontend aprovados/39 arquivos e build/typecheck aprovado** (JS435,37kB/gzip135,06; CSS84,71kB/gzip25,55). Chrome isolado confirmou 1200 →1216 (vitória), →1199 (derrota), →1207 (empate contra Hans inspirado), três eventos e persistência após reload. Bancos/contas exclusivamente temporários; nenhum dado real modificado. Benchmark Stockfish19 preservado: 16 posições/8 perfis/45 buscas,10,10s. Sem commit/deploy/etapa13.
+
+## QA final da V1.0 — etapa 13 (06/10/2026)
+
+Chrome local isolado confirmou login/logout/expiração, duas cores contra Stockfish, retomada, terminais, rating sem duplicação, SAN/replay/PGN/revisão, promoção a cavalo, manual, tutor indisponível sem chave, exercício do cavalo, documento sintético e Masters sem snapshot. Desktop1280×1000,tablet768×1024 e smartphone390×844 foram inspecionados. As quatro promoções e demais regras são cobertas pela regressão automatizada; não se afirma execução de cada regra em navegador.
+
+Correções pontuais: ausência de configuração de linguagem retorna503 controlado; atalhos em telas até600px deixam de cobrir casas do tabuleiro; estados de Games usam português; Sobre/README/título descrevem jogo e privacidade atuais; favicon usa asset existente. Não houve redesign, novos agentes, mudança de rating/policy ou dependências.
+
+`npm test`:283 aprovados/39 arquivos,43,54s. `npm run build`:aprovado,JS435,65kB/gzip135,13,CSS84,83/gzip25,57. Backend completo nas variáveis offline acima:1045 aprovados/60 não selecionados,59,94s. Benchmark final Stockfish19:16 posições/8 perfis/45 buscas,12,38s,sem recalibração. `git diff --check` aprovado. Evidências, falha intermediária de expectativa antiga e limites no adendo da auditoria.
+
+O tutor documental completo e refresh remoto FIDE não foram testados com serviços reais. QA usou somente contas/bancos temporários, sem chamadas pagas. Produção ainda exige validar HTTPS/cookie Secure/origins, instalação limpa/corpus/provedores, backups/restauração e limites/coordenação de recursos já pendentes. A revisão prática de acessibilidade não é certificação WCAG. Sem commit, deploy ou etapa14.

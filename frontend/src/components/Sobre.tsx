@@ -18,10 +18,10 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
       {section !== "documentation" && <section className="about-project">
       <div className="about-project-intro">
         <p>Xadrez Multiagente é uma experiência interativa que combina xadrez, agentes de inteligência artificial e aprendizagem.</p>
-        <p>No tabuleiro, Magnus e Hans jogam entre si enquanto o usuário acompanha a partida, o turno atual, análises, possíveis jogadas, curiosidades e explicações relacionadas às decisões no tabuleiro.</p>
+        <p>Na partida manual, você movimenta os dois lados, apresentados como Magnus e Hans. Em Jogar contra IA, enfrenta um perfil de treino ou um perfil inspirado, com lances calculados pelo Stockfish.</p>
         <p>O projeto também reúne recursos de aprendizagem, como tutor, lições, exercícios, curiosidades e documentos de referência, criando uma experiência que vai além de simplesmente jogar uma partida.</p>
         <p>A análise das posições combina Stockfish, recuperação de informações e modelos de linguagem, com o objetivo de tornar conceitos e decisões do xadrez mais fáceis de explorar e compreender.</p>
-        <p>A proposta não é substituir plataformas tradicionais de xadrez, mas oferecer uma forma diferente de observar e aprender com o jogo: acompanhando dois agentes em ação e usando a própria partida como ponto de partida para o aprendizado.</p>
+        <p>Você pode explorar posições, jogar contra IA e usar a partida como ponto de partida para o aprendizado. Perfis inspirados são interpretações educacionais, sem imitação fiel ou endosso dos jogadores.</p>
         <p>O projeto também surgiu a partir de uma atividade acadêmica relacionada à inteligência artificial e acabou evoluindo para uma experiência mais ampla.</p>
         <h3>OBJETIVO:</h3>
         <p>Transformar uma partida de xadrez em uma experiência visual, interativa e pedagógica, aproximando o usuário dos conceitos do jogo e das análises realizadas pelos agentes.</p>
@@ -38,8 +38,8 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
       </ul></details>
       <p>
         As respostas são geradas por IA a partir desses documentos e podem conter erros; confira as fontes citadas. A
-        análise de posições usa o motor Stockfish. Nenhum dado pessoal é coletado: o progresso das lições usa um id
-        anônimo guardado no seu navegador.
+        análise de posições usa o motor Stockfish. A conta armazena nome e e-mail; progresso, partidas e rating interno
+        ficam associados à conta no servidor. Perguntas e trechos podem ser enviados ao provedor de linguagem configurado.
       </p>
       </section>}
       {section !== "about" && <section className="project-documentation" aria-label="Documentação">

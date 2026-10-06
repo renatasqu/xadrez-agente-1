@@ -773,3 +773,8 @@ body:has(.auth-screen) { background: #f3ecdf; }
   .auth-pixels { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .auth-submit { transition: none; } }
+
+/* Small screens: shortcuts must not intercept touches on board squares. */
+@media (max-width: 600px) {
+  .floating-actions { position: static; flex-direction: row; justify-content: flex-end; margin: 12px; }
+}

@@ -251,3 +251,10 @@ it.each([["win",16,"Vitória"],["loss",-16,"Derrota"],["draw",0,"Empate"]] as co
  const text=await screen.findByLabelText("Variação de rating");expect(text.textContent).toContain(label);expect(text.textContent).toContain(String(1200+delta));expect(text.textContent).toContain(delta>0?'+16':String(delta));
  expect(screen.queryByText("Atualizar pontuação desta partida")).toBeNull();
 });
+
+it("lista estados oficiais em português e concorda um lance",async()=>{
+  vi.mocked(api.listGames).mockResolvedValue({games:[summary(game(["e2e4"],{status:"check"}))],next_offset:null});
+  render(<AiGame onPosition={()=>{}}/>);
+  await screen.findByText(/1 lance · Turno: pretas · Xeque/);
+  expect(screen.queryByText(/· check ·/)).toBeNull();
+});

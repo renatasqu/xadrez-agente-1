@@ -46,6 +46,7 @@ import guardrails
 import progresso
 import games
 import player_rating
+from llm import LLMNaoConfigurado
 import conceitos
 from agents import analista, router
 from agents.licoes import LICOES
@@ -206,6 +207,11 @@ async def tempo_esgotado(request: Request, erro: TempoEsgotado) -> JSONResponse:
 @app.exception_handler(Indisponivel)
 async def indisponivel(request: Request, erro: Indisponivel) -> JSONResponse:
     return JSONResponse(corpo(MSG_INGERINDO), status_code=503)
+
+
+@app.exception_handler(LLMNaoConfigurado)
+async def linguagem_nao_configurada(request: Request, erro: LLMNaoConfigurado) -> JSONResponse:
+    return JSONResponse(corpo("Tutor indisponível: o serviço de linguagem não está configurado."), status_code=503)
 
 
 @app.exception_handler(Exception)

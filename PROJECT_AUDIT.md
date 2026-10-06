@@ -1,5 +1,7 @@
 # Auditoria do Projeto
 
+> O corpo inicial registra a auditoria histórica de 05/10/2026. As correções e o estado posterior estão nos adendos; o QA mais recente é a etapa 13 ao final deste arquivo.
+
 Data: **05/10/2026**, contexto do usuário em America/Sao_Paulo. Escopo: estado da cópia local, código rastreado, configurações, dependências, assets, testes e documentação. O repositório começou sem alterações indicadas por `git status --short`.
 
 Foram inventariados 290 arquivos rastreados; fontes, testes e configurações textuais foram lidos, e assets binários foram inventariados por caminho/tamanho. Documentos e bancos locais ignorados pelo Git foram inspecionados apenas quanto à existência e estrutura/contagens necessárias. Não foram consultados valores privados de `.env`, senhas, hashes de usuários ou tokens de sessões. Documentos acadêmicos privados e internals de `.git`/dependências geradas não são código do produto.
@@ -1595,3 +1597,70 @@ Pendências: ratings internos não calibrados; trajetória segue ordem de reconc
 | Limpeza QA | Chrome/API/Vite encerrados,perfil isolado removido,zero diretórios dos bancos temporários restantes |
 
 Regressão executada conserva duas cores,criação/continuidade/promoção/retry/terminal/propriedade,PGN round-trip/replay/revisão/persona/benchmark. Reload e rating/histórico foram confirmados no Chrome; isolamento entre contas/concorrência/restart/empates especiais confirmados nos testes temporários. Nenhuma regressão identificada nos checks realizados; sem certificação de produção/mobile ou força dos perfis. Sem commit/deploy/etapa13.
+
+## Adendo — QA final e acabamento da V1.0, etapa 13 (06/10/2026)
+
+Git inicialmente limpo, como exigido. README/auditoria e camadas atuais foram conferidos antes de editar. Baseline executada: frontend282/39 arquivos,42,50s; build/typecheck aprovado JS435,37kB/gzip135,06,CSS84,71/gzip25,55; backend1043/60 LLM deliberadamente excluídos,59,84s,nenhum skip/falha; benchmark Stockfish19,16 posições/15 categorias/8 perfis/45 buscas,10,82s. `git diff --check` aprovado. Nenhuma dependência instalada/atualizada.
+
+### Auditoria e correções demonstradas
+
+Fluxos mapeados: auth/login/logout/401,manual/controles/regras/promoção,tutor/lições/prática/documentos,Masters/carrossel/placeholder,Game/perfis/cores/retry/terminal/listagem/reload,SAN/PGN/replay/revisão/persona,rating/histórico. Suítes existentes confirmam também propriedade,concorrência,forja,erro/loading,quatro promoções,repetição,cinquenta lances/insuficiência/roque/en passant e separação mate/CP. Não se pressupôs bug por pendência histórica.
+
+| Achado | Reprodução e causa | Correção mínima / verificação |
+| --- | --- | --- |
+| Tutor sem chave retornava500 | Pergunta real “Como funciona o roque?” no Chrome com chaves vazias; LLMNaoConfigurado escapava para handler Exception,500 externo sem CORS e mensagem de rede na UI | Handler específico503 com resposta controlada,sem mensagem .env/API_KEY. Dois testes reais de sessão/Origin/chat/recomendar comprovam503+CORS; Chrome confirmou mensagem e logs503 após restart |
+| Atalho cobria casa móvel |390×844,tabuleiro358px; ao rolar até histórico, ponto x362/y358 de h1 acertava botão “Abrir tutor”,por position fixed/right1%/top40% |Até600px atalhos passam a position static na mesma página; hit-test posterior acerta h1,scrollWidth390. Desktop/tablet conservam atalhos existentes. Verificação em Chrome/layout real,sem teste jsdom que fingisse geometria |
+| Textos factualmente desatualizados |Sobre dizia Magnus/Hans jogam entre si e nenhum dado pessoal; README dizia promoção automática/perda de toda partida/listagem pendente; título Magnus×Hans sugeria outro produto |Texto atual de manual/IA/perfil inspirado e dados da conta/progresso/perguntas; README distingue memória manual e Game persistente,atualiza endpoints e números atuais,título Xadrez Multiagente. Assertion de privacidade no teste modal atualizada,preservando demais checks; Sobre inspecionado no Chrome |
+| Estados técnicos na lista |Chrome mostrava “playing”,“stalemate” e “1 lances” |Mapeamento português para oito estados e singular/plural; novo teste lista “1 lance · Turno: pretas · Xeque”,sem label check |
+| Favicon ausente |Console network404 para/favicon.ico |link rel icon com logo público existente e BASE_URL do Vite; navegador confirmou HTTP200 e título correto,build aprovado |
+
+São cinco grupos de achados corrigidos. Sem alteração de fórmula/mapa1200/K32/v1/1000–1200–1400,agentes/pesos/policy/engine/personas/benchmark,regras/persistência/autorização ou arquitetura. Nenhuma funcionalidade grande acrescentada. Mudanças de texto não inventam marketing/fidelidade.
+
+### Chrome real e isolamento
+
+**Navegador realmente usado: SIM — Google Chrome headless local via DevTools/CDP.** Skill Browser aplicada; bootstrap iab indisponível,troubleshooting lido, fallback Chrome expressamente permitido pelo pedido. Perfil /tmp isolado,contas stage13/other13 sintéticas,auth/progresso TemporaryDirectory; aquecimento desligado/chaves vazias/health sem corpus. Bind localhost/Chrome autorizado pela revisão automática. Sem perfil/cookie pessoal/dado real.
+
+API real/Stockfish real e controles DOM usados. Masters retorna snapshot vazio controlado para não acessar FIDE. Para abrir conteúdo/prática/documento sem LLM, cache de lição1 recebeu texto/fonte/TXT explicitamente sintéticos e contexto documental de teste; validadores de exercício,autorização,progresso,Game e rating são reais. Não se afirma validação de recuperação semântica/geração/documentos privados/provedores pagos. Bancos QA foram copiados exclusivamente em /tmp durante restart para preservar estado,sem tabela/endpoint de teste no produto; cópia removida ao terminar.
+
+Fluxos realmente executados:
+
+- Login → aplicação/rating1200 → logout → login novamente. Sessões QA foram expiradas no banco temporário; próxima consulta privada retornou401 e UI desmontou/redirecionou ao login. Segunda conta mostrou1200/0 enquanto primeira1207/4. Cookies/propriedade/rotas cruzadas também cobertos pela suíte completa com contas temporárias.
+- Magnus inspirado/humano branco: e4 e5 Nf3 Nc6,4 plies; comentário structure v1 referenciou Nc6,rating1200/0. Hans inspirado/humano preto: IA abriu e4; e5 d4 Nf6 dxe5,5 plies; rating não mudou. Reload real/lista/mesmo ID/perfil/histórico retomados; Nc6 exf6 acrescentou dois plies. Lances por busca temporal são observações,sem fidelidade/força inferida.
+- Fixture legal de mate em um: Qg7# humano branco →1216,+16. Fixture pending f3 e5 g4: botão retry →Stockfish Qh4# →1199,-17. Fixture afogada Hans inspirado/humano preto: reconciliação →1207,+8. Fixture peão a7: seletor quatro opções,Escape/cancelamento disponível e promoção a cavalo executada a8=N,empate material insuficiente →1207,delta0. As quatro escolhas são verificadas automatizadamente; apenas cavalo foi aplicado nesse smoke.
+- Terminal Equilibrado: SAN f3/e5/g4/Qh4#,controles início/próximo/anterior/fim,replay read-only,peça aria-disabled=true; exportação recebeu texto PGN válido/resultado0-1/headers seguros em textarea e ação download. Revisão real mostrou mate1 pretas antes e mate0/vencedor pretas depois,sem deltaCP. Diretório download não inspecionado; round-trip clássico/não padrão consta da suíte executada.
+- Reload real posterior: rating1207/4; retomar terminal mostrou delta histórico-17/1199,sem substituir valor global1207. SQL exclusivamente QA confirmou quatro eventos/quatro game_id distintos; resultados win1/+16,loss0/-17,draw0,5/+8 contra1400,draw0,5/0 contra1200. GETs/replay/exportações/revisão não criaram eventos.
+- Manual:e2e4 aceito; tutor aberto/pergunta enviada,erro sem chave reproduzido e depois503 controlado confirmado. Analisar posição manual real retornou e5,+0,2 e explicação indisponível,sem depender de LLM. Cache sintético lição1 →TXT/contexto aberto →prática cavalo b1c3 →concluído/tentativa1 →fechar restaura posição. Masters exibiu biografias/images e “Rating indisponível” com snapshot vazio. Carrossel ativo observado; hash curiosidades mostrou placeholder existente,sem novo conteúdo.
+
+### Responsividade e acessibilidade prática
+
+Viewports efetivamente aplicados e conferidos por innerWidth: desktop1280×1000,tablet768×1024,smartphone390×844. Capturas desses três tamanhos foram abertas/inspecionadas. Medição inicial que não mantinha emulação entre conexões foi ajustada no script QA; não foi tratada como bug do produto nem contada como viewport válido.
+
+Login/formulário testado nos três tamanhos,sem overflow; labels de e-mail/senha presentes. Navegação/header,rating/seleção/lista/nomes longos,tabuleiro,SAN/replay/PGN/comentário e modais foram inspecionados. Tabuleiro648px desktop/tablet,358px mobile; textareaPGN358px mobile; scrollWidth não excedeu viewport. Tutor tablet ficou x24–744/y243–781; tutor/documento/promoção mobile dentro da tela. Única obstrução concreta foi atalho sobreh1,corrigida conforme tabela. Não houve redesign.
+
+Botões visíveis tinham nome textual/aria-label; campos principais labels; textarea tutor recebeu foco e outline solid; Escape fechou tutor/Sobre/contexto e restaurou foco,conforme smoke e testes. Terminais disabled e replay somente leitura mantidos; informações de resultado/rating/erro possuem texto,sem depender só de cor. Sem auditoria WCAG completa,leitor de tela real ou certificação. Não se afirma ausência de todos os problemas de acessibilidade/touch em dispositivos físicos.
+
+### Console, logs e performance prática
+
+Antes da correção houve500 do tutor/stack LLMNaoConfigurado,CORS de erro e favicon404,registrados explicitamente. Depois,logs da API de QA mostraram503 esperado do tutor,401 da expiração,404 esperado da primeira lição ausente e200 nos demais fluxos; nenhum500 inesperado após correção. Runtime.exceptionThrown capturados:zero. Network logs esperados não foram escondidos nem considerados todos erros de produto. Erros de lookup da automação foram corrigidos com leitura de DOM; não representam exceptions da aplicação. Avisos de display/mac/allocator do Chrome headless são externos e não motivaram alteração arriscada.
+
+Requests duplicados finitos em desenvolvimento StrictMode foram observados em session/health/rating/catalog/replay/contexto; sem loop contínuo nem duplicação de lance/evento. Polling health60s e carrossel10s existentes continuam; sem engine em comentário/GET/listagem/replay/PGN/rating,garantido também por regressão. Benchmark permanece CLI,sem endpoint. Não se fez benchmark web complexo nem otimização de assets/dependências.
+
+### Testes e resultados finais
+
+Novo backend test_qa_v1.py:2 casos chat/recomendar sem chave,503/CORS/mensagem segura/sessão/rating inalterado; focada2 aprovados1,53s. Frontend focada AiGame/Sobre33 aprovados1,56s. Primeira completa após texto:282 aprovados/1 falha em App.modals esperando antiga frase “Nenhum dado pessoal é coletado”,43,86s; assertion atualizada para dados reais,preservando biblioteca,foco/fechamento e documentação. Focada App.modals:10 aprovados3,61s. Uma tentativa de editar em cwd errado não alterou arquivo e repetiu expectativa antiga; corrigida para caminho da raiz. Nenhum timeout ampliado/caso excluído/configuração relaxada.
+
+| Comando real | Resultado final |
+| --- | --- |
+|Em frontend:`npm test` após correções de texto/CSS|**283 aprovados/39 arquivos,43,54s**,nenhuma falha/timeout;baseline282,+1|
+|Em frontend:`npm run build`|**Aprovado**,tsc noEmit+Vite;JS435,65kB/gzip135,13,CSS84,83/gzip25,57|
+|Em backend:`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra`|**1045 aprovados,60 LLM não selecionados,nenhum skip/falha,59,94s**;baseline1043,+2|
+|Em backend,mesmas variáveis offline:`../.venv/bin/python -m benchmarks.agent_styles --json /tmp/stage13-final-benchmark.json`|**Stockfish19**,16 posições/15 categorias/8 perfis/45 buscas,12,38s;mesmos resultados numéricos,sem recalibração|
+|Git|`git diff --check` aprovado;diff rastreado/novo teste revisados;status confere10 arquivos|
+
+Suítes completas backend/frontend finais executadas sequencialmente;benchmark final coincidiu com parte da frontend e permanece internamente sequencial. Busca por tempo pode variar;benchmarknode-only conserva resultados nesta máquina,sem garantia multiplataforma. Corpus/modelo local anterior ainda necessário para parte da regressão offline;60 casos LLM deliberadamente não selecionados. Sem instalação limpa/upgrade/lockfile/.env/ingestão,FIDE/LLM real/pago,scraping/treinamento ou dado real lido/migrado/modificado.
+
+Arquivos:backend/main.py e novo backend/tests/test_qa_v1.py;frontend/index.html,src/index.css,src/components/Sobre.tsx,AiGame.tsx,AiGame.test.tsx,src/App.modals.test.tsx;README.md e PROJECT_AUDIT.md. São10 arquivos,um novo. Nenhum commit/deploy ou etapa14. Chrome/API/Vite encerrados;perfil/cópia QA removidos;zero diretórios de bancos stage13-browser restantes.
+
+### Pendências reais para produção
+
+Configurar/verificar HTTPS,Secure e origens no ambiente de publicação; validar instalação limpa/recursos Stockfish/corpus/cache/provedores e refresh FIDE; definir backups/restauração/permissões/retenção dos SQLite/Chroma; resolver limites/cancelamento/coordenação de processos e exercícios entre workers conforme escala; testes de carga/acervos grandes e segurança operacional ainda não feitos. Tutor completo pago/RAG remoto não confirmado neste QA,ratings internos não calibrados e acessibilidade completa não certificada. Página de curiosidades/cadastro/comment-like permanecem declaradamente limitados,sem promessas de implementação nesta etapa. QA local não equivale a certificação de produção. Nenhuma regressão identificada nos checks finais;ETAPA14 não iniciada.
