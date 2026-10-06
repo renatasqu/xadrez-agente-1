@@ -8,7 +8,9 @@ Aplicação de aprendizagem de xadrez em português, com tabuleiro interativo, t
 
 Projeto originado na atividade acadêmica “Recuperando documentos úteis para aprender um esporte”. Esta descrição foi conferida no código e no QA local em **06/10/2026**. O mapa técnico, evidências, limites de verificação e recomendações estão em [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
-Games contra IA oferecem cinco perfis de treino e três perfis inspirados, retomada, SAN/replay/PGN, revisão Stockfish, comentário pedagógico local e rating interno persistente. As seções de etapas abaixo registram a evolução histórica; o comportamento atual inclui as etapas 1–13.
+Games contra IA oferecem cinco perfis de treino e três perfis inspirados, retomada, SAN/replay/PGN, revisão Stockfish, comentário pedagógico local e rating interno persistente. As seções de etapas abaixo registram a evolução histórica; o comportamento atual inclui as etapas 1–14.
+
+**Release candidate v1.0.0:** instalação limpa macOS arm64, build de produção e smoke HTTPS local validados. Para configurar produção, um worker, armazenamento persistente e backup/restauração, seguir [PRODUCTION.md](PRODUCTION.md). Nenhum commit/tag/deploy é feito automaticamente.
 
 ## Funcionalidades atuais
 
@@ -48,7 +50,7 @@ As URLs usam fragmentos (`#`), tratados por `AuthGate.tsx` e `App.tsx`; não há
 | `/#agentes` | Painéis das análises de Magnus/brancas e Hans/pretas. |
 | `/#/masters` | Três perfis, biografias locais e ratings FIDE via backend. |
 | `/#/licoes` | Lição atual, próxima lição e prática relacionada. |
-| `/#/sobre` | Abre o modal Sobre; o texto da interface tem divergências documentadas na auditoria. |
+| `/#/sobre` | Abre o modal Sobre, atualizado no QA da etapa13. |
 | `/#/curiosidades` | Placeholder; o carrossel real fica na arena. Não há link no menu atual. |
 | `/#/` | Tela simples com “Iniciar partida”, quando autenticado. |
 | Botões da arena/flutuantes | Tutor, lições, comentários/like e documentação em modais, sem rota dedicada. |
@@ -157,7 +159,7 @@ source venv/bin/activate
 python -m pip install -r requirements.txt -c requirements-constraints.txt
 ```
 
-A baseline usa Python **3.11.15**. `requirements-constraints.txt` fixa as versões diretas e transitivas do ambiente validado em macOS arm64, sem mudar os mínimos de `requirements.txt`. Uma instalação limpa e outras plataformas ainda não foram verificadas; modelo, corpus e Stockfish são recursos separados. Nesta cópia já existe `.venv` na raiz: pode-se ativá-la com `source .venv/bin/activate` antes de entrar em `backend`, sem reinstalar dependências.
+A baseline usa Python **3.11.15**. `requirements-constraints.txt` fixa as versões diretas e transitivas do ambiente validado em macOS arm64, sem mudar os mínimos de `requirements.txt`. Instalação limpa em venv/cópia temporárias macOS arm64 foi validada na etapa14; outras plataformas ainda não foram verificadas. Modelo, corpus e Stockfish são recursos separados. Nesta cópia já existe `.venv` na raiz: pode-se ativá-la com `source .venv/bin/activate` antes de entrar em `backend`, sem reinstalar dependências.
 
 Para usar RAG aberto, coloque os documentos em `backend/docs/` e gere os índices **uma vez**, ou quando desejar substituí-los:
 
@@ -201,23 +203,24 @@ Backend: `backend/config.py` lê `.env` da raiz e de `backend`; frontend: `.env`
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Chave do provedor selecionado; nunca colocar em `VITE_*`. |
 | `CLASSIFIER_MODEL`, `AGENT_MODEL`, `JUDGE_MODEL` | Padrões configurados: `claude-haiku-4-5-20251001`, `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`. Compatibilidade externa não confirmada. |
 | `OPENAI_MODEL`, `OLLAMA_MODEL` | Padrões `gpt-4o-mini`, `llama3.1`. |
-| `STOCKFISH_PATH`, `STOCKFISH_TEMPO` | Executável (padrão `/opt/homebrew/bin/stockfish`) e análise de 1 s. |
+| `STOCKFISH_PATH`, `STOCKFISH_TEMPO` | Executável (padrão `stockfish` no PATH) e análise de 1 s. |
 | `MIN_SCORE`, `EMBEDDING_MODEL` | `0.79`, `intfloat/multilingual-e5-base`. |
 | `ADMIN_TOKEN` | Autoriza `POST /ingest`; vazio desativa a rota. |
-| `CORS_ORIGENS` | Lista JSON; padrão `["http://localhost:5173"]`. |
+| `APP_ENV` | `development` por padrão; `production` exige Secure, origens HTTPS e paths persistentes explícitos. |
+| `CORS_ORIGENS` | JSON; default local apenas em desenvolvimento. Obrigatória e explícita na produção. |
 | `AUTH_COOKIE_SECURE`, `DB_AUTH` | Cookie HTTPS e caminho do SQLite de autenticação. |
 | `DB_PROGRESSO`, `DOCS_DIR`, `CHROMA_DIR` | Caminhos da persistência e corpus. |
-| `AQUECER_NA_INICIALIZACAO` | `true`, carrega embeddings ao iniciar. |
+| `AQUECER_NA_INICIALIZACAO` | Default `true` no desenvolvimento, `false` na produção; exemplo local também desliga. |
 | `LLM_TIMEOUT`, `LLM_TIMEOUT_RAPIDO`, `TIMEOUT_REQUISICAO` | 60 s, 15 s e 30 s. |
 | `RATE_LIMIT`, `VERIFICAR_FUNDAMENTACAO` | `20/minute`, `true`. |
-| `MASTERS_CACHE_PATH` | SQLite de Masters; lida diretamente do ambiente de processo em `masters.py`, não pelo carregador de `.env` de `Settings`. |
-| `VITE_API_URL` | Frontend: `http://localhost:8000`. Incorporada no build. |
+| `MASTERS_CACHE_PATH` | SQLite de Masters; desde a etapa14, lida por Settings do ambiente ou `.env`. |
+| `VITE_API_URL` | Desenvolvimento local; produção: mesma origem, `/api` com proxy ou URL HTTPS real. Pública no build. |
 
 A lista integral das configurações, incluindo limites e prefixos de embeddings, está na seção 2 da [auditoria](PROJECT_AUDIT.md).
 
 ## Testes
 
-QA final da etapa 13: **283 testes frontend/39 arquivos**, build/typecheck aprovado; **1045 backend não-LLM aprovados/60 LLM não selecionados**. Os números nas seções de etapas anteriores são históricos.
+Release candidate da etapa14: **283 testes frontend/39 arquivos**, build/typecheck aprovado; **1061 backend não-LLM aprovados/60 LLM não selecionados**. Os números nas seções de etapas anteriores são históricos.
 
 ```bash
 # Backend, dentro do ambiente virtual e da pasta backend:
@@ -507,3 +510,13 @@ Correções pontuais: ausência de configuração de linguagem retorna503 contro
 `npm test`:283 aprovados/39 arquivos,43,54s. `npm run build`:aprovado,JS435,65kB/gzip135,13,CSS84,83/gzip25,57. Backend completo nas variáveis offline acima:1045 aprovados/60 não selecionados,59,94s. Benchmark final Stockfish19:16 posições/8 perfis/45 buscas,12,38s,sem recalibração. `git diff --check` aprovado. Evidências, falha intermediária de expectativa antiga e limites no adendo da auditoria.
 
 O tutor documental completo e refresh remoto FIDE não foram testados com serviços reais. QA usou somente contas/bancos temporários, sem chamadas pagas. Produção ainda exige validar HTTPS/cookie Secure/origins, instalação limpa/corpus/provedores, backups/restauração e limites/coordenação de recursos já pendentes. A revisão prática de acessibilidade não é certificação WCAG. Sem commit, deploy ou etapa14.
+
+## Produção e release candidate — etapa 14
+
+Release preparado como **v1.0.0**, sem tag/commit/deploy nesta etapa. [PRODUCTION.md](PRODUCTION.md) contém instalação limpa, configuração HTTPS/CORS/Secure, um worker, volume persistente, backup/verify/restore e checklist de implantação. `APP_ENV=production` recusa cookie inseguro, origens não HTTPS e bancos não configurados; sem override, desliga aquecimento. Stockfish é resolvido pelo PATH ou caminho configurado. Masters também passa a ler seu path pelo Settings/.env.
+
+O build usa API na mesma origem por padrão em produção, ou `VITE_API_URL=/api` com proxy, ou URL HTTPS real. URL HTTP local em `.env` precisa ser sobrescrita no comando: `VITE_API_URL=/api npm run build`. `VITE_*` é público. Desenvolvimento mantém o fallback local.
+
+Instalação limpa realizada em cópia temporária sem `.env`, bancos, corpus ou node_modules: venv Python3.11.15, instalação requirements+constraints via PyPI, `pip check`, `npm ci`, build e backend de produção/startup/restart/Stockfish19. macOS arm64 validado; outro host/plataforma precisa validar instalação/binários. Smoke HTTPS local usou certificado temporário autoassinado, Secure ativo, proxy temporário e Chrome isolado; certificado confiável do deploy permanece requisito do operador.
+
+Resultados finais: **283 frontend/39 arquivos (42,98s)**, build/typecheck aprovado; **1061 backend não-LLM/60 LLM não selecionados (58,33s)**, sem skip/falha; **benchmark Stockfish19,16 posições/8 perfis/45 buscas (13,47s)**, sem recalibração. Build JS435,63kB/gzip135,13 e CSS84,83/gzip25,57. Backup CLI restaurou exatamente4 Games,2 estados de rating e1 evento do banco sintético; testes também cobrem WAL, destino existente, integridade e migração legada. Não houve acesso/modificação aos bancos reais ou chamadas LLM/FIDE reais. Nenhum blocker identificado no escopo de implantação inicial controlada; escala pública, outros hosts, TLS do provedor e opcionais têm validação própria antes do deploy.

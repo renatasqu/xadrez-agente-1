@@ -153,7 +153,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
+app = FastAPI(title="Xadrez Agente", version="1.0.0", lifespan=lifespan)
 app.include_router(exercises_router)
 app.include_router(games.router)
 app.include_router(player_rating.router)
@@ -162,6 +162,19 @@ app.include_router(auth_router)
 app.include_router(masters_router)
 app.state.exercise_recorder = progresso.registrar_exercicio
 app.state.limiter = limiter
+
+
+@app.middleware("http")
+async def production_errors(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as erro:
+        if settings.app_env != "production":
+            raise
+        # Impede que ServerErrorMiddleware/servidor transcrevam detalhes de SDK/payload.
+        return await erro_inesperado(request, erro)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origens,
@@ -216,7 +229,7 @@ async def linguagem_nao_configurada(request: Request, erro: LLMNaoConfigurado) -
 
 @app.exception_handler(Exception)
 async def erro_inesperado(request: Request, erro: Exception) -> JSONResponse:
-    log.exception("Erro inesperado em %s", request.url.path)  # detalhe só no servidor
+    log.error("Erro inesperado: %s", type(erro).__name__)
     if is_exercise_path(request.url.path):
         return internal_error_response()
     return JSONResponse(corpo(MSG_ERRO_INTERNO), status_code=500)
@@ -243,7 +256,7 @@ def tem_chave_api() -> bool:
 @app.get("/health", response_model=Saude)
 async def health() -> Saude:
     """Diz se Stockfish, índices e chave da API estão disponíveis. Sem rate limit."""
-    indices = await run_in_threadpool(contar_indices)
+    indices = {} if settings.app_env == "production" else await run_in_threadpool(contar_indices)
     stockfish = analista.caminho_do_stockfish() is not None
     chave = tem_chave_api()
     tudo_ok = stockfish and chave and all(indices.values())

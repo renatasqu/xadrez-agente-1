@@ -32,3 +32,15 @@ dist/
 
 # Sistema
 .DS_Store
+
+# Runtime, manutenção e QA local
+*.sqlite-*
+*.db-*
+*.bak
+backups/
+coverage/
+.coverage
+htmlcov/
+benchmark-results/
+chrome-profiles/
+qa-downloads/

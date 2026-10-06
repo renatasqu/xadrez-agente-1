@@ -1,6 +1,10 @@
 """Configurações do projeto, lidas do arquivo .env com pydantic-settings."""
 
 from pathlib import Path
+from typing import Literal
+from urllib.parse import urlsplit
+
+from pydantic import model_validator
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -50,6 +54,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    app_env: Literal["development", "production"] = "development"
+
     # LLM
     llm_provider: str = "anthropic"
     openai_api_key: str = ""
@@ -95,12 +101,37 @@ class Settings(BaseSettings):
     admin_token: str = ""  # vazio = POST /ingest desativado
     db_progresso: Path = BASE_DIR / "progresso.sqlite"  # progresso das lições (id anônimo)
     db_auth: Path = BASE_DIR / "auth.sqlite"
+    masters_cache_path: Path = BASE_DIR / "masters-ratings.sqlite"
     auth_cookie_secure: bool = False  # True ao servir por HTTPS
     aquecer_na_inicializacao: bool = True  # carregar embeddings e ChromaDB ao subir a API
 
     # Stockfish
-    stockfish_path: str = "/opt/homebrew/bin/stockfish"
+    stockfish_path: str = "stockfish"
     stockfish_tempo: float = 1.0  # segundos por análise
+
+    @model_validator(mode="after")
+    def production_settings(self):
+        if self.app_env == "production":
+            if "auth_cookie_secure" not in self.model_fields_set:
+                self.auth_cookie_secure = True
+            if "aquecer_na_inicializacao" not in self.model_fields_set:
+                self.aquecer_na_inicializacao = False
+            if not self.auth_cookie_secure:
+                raise ValueError("Produção exige AUTH_COOKIE_SECURE=true e HTTPS.")
+            if "cors_origens" not in self.model_fields_set or not self.cors_origens:
+                raise ValueError("Produção exige CORS_ORIGENS explícitas em JSON.")
+            for origin in self.cors_origens:
+                url = urlsplit(origin)
+                if (url.scheme != "https" or not url.netloc or url.username or url.password
+                        or url.path or url.query or url.fragment or "*" in origin):
+                    raise ValueError("CORS_ORIGENS deve conter origens HTTPS exatas, sem caminho ou wildcard.")
+            for field in ("db_auth", "db_progresso", "masters_cache_path"):
+                path = getattr(self, field)
+                if field not in self.model_fields_set or not path.is_absolute() or path.resolve().is_relative_to(BASE_DIR):
+                    raise ValueError("Produção exige DB_AUTH, DB_PROGRESSO e MASTERS_CACHE_PATH absolutos fora do backend, em volume persistente.")
+            if len({p.resolve() for p in (self.db_auth, self.db_progresso, self.masters_cache_path)}) != 3:
+                raise ValueError("Bancos de auth, progresso e Masters devem ser arquivos distintos.")
+        return self
 
 
 settings = Settings()

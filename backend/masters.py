@@ -6,7 +6,6 @@ Refresh is lazy on GET, once per 24 hours, including failed attempts. Set
 MASTERS_CACHE_PATH to a persistent volume when deploying ephemeral containers.
 """
 import logging
-import os
 import sqlite3
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -16,8 +15,11 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from config import settings
+
 PLAYERS = (("Hans Niemann", "2093596"), ("Magnus Carlsen", "1503014"), ("Judit Polgár", "700070"))
-CACHE_PATH = Path(os.environ.get("MASTERS_CACHE_PATH", Path(__file__).with_name("masters-ratings.sqlite")))
+
+CACHE_PATH = settings.masters_cache_path
 TTL = 86400
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/masters", tags=["masters"])
@@ -113,7 +115,7 @@ def get_ratings(path: Path | None = None, *, now: datetime | None = None) -> Rat
                        (now.timestamp(), cached.model_dump_json()))
             return cached
     except (OSError, sqlite3.Error, ValueError):
-        logger.exception("Masters cache unavailable")
+        logger.warning("Masters cache unavailable")
         return RatingsResponse(stale=True)
 
 

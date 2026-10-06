@@ -21,7 +21,9 @@ SESSION_SECONDS = 60 * 60 * 24 * 7
 
 
 def connect():
+    settings.db_auth.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     db = sqlite3.connect(settings.db_auth)
+    settings.db_auth.chmod(0o600)
     db.execute("CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, name TEXT NOT NULL, salt TEXT NOT NULL, password_hash TEXT NOT NULL)")
     db.execute("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, email TEXT NOT NULL, expires REAL NOT NULL)")
     return db

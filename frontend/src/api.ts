@@ -7,7 +7,7 @@ import type { PlayerRating, RatingEvent, GameCommentary, GameReplay, GameReviewR
 import { lerUsuarioId } from "./armazenamento";
 import type { Exercise, ExerciseError, ExerciseProgress, ValidationRequest, ValidationResult, ContextoDoTrecho, Resposta, RespostaLicao, Saude } from "./types";
 
-export const URL_DA_API = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+export const URL_DA_API = (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 // Um pouco acima do timeout do backend (30 s): se a rede travar, o usuário não espera para sempre.
 export const TEMPO_MAXIMO_MS = 35_000;

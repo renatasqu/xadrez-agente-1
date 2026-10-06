@@ -22,8 +22,10 @@ from schemas import Resposta
 
 def _conectar() -> sqlite3.Connection:
     """Abre uma conexão com o arquivo do config (criado se não existir)."""
-    settings.db_progresso.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(settings.db_progresso)
+    settings.db_progresso.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    db = sqlite3.connect(settings.db_progresso)
+    settings.db_progresso.chmod(0o600)
+    return db
 
 
 def criar_tabelas() -> None:
