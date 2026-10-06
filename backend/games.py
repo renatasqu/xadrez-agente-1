@@ -50,6 +50,7 @@ class Opponent(BaseModel):
 
 
 class Game(BaseModel):
+    rating_change: dict | None = None
     id: str
     initial_fen: str
     current_fen: str
@@ -132,19 +133,28 @@ def criar_tabelas() -> None:
             move TEXT NOT NULL, expected_version INTEGER NOT NULL, response_json TEXT NOT NULL,
             PRIMARY KEY(game_id, request_id))''')
 
+        from player_rating import create_tables
+        create_tables(db)
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec='microseconds')
 
 
-def game_from_row(row: sqlite3.Row) -> Game:
+def game_from_row(row: sqlite3.Row, db=None) -> Game:
     moves = json.loads(row['moves_json'])
     state = estado_tabuleiro(reconstruir_partida(row['initial_fen'], moves))
     try:
         profile = resolve_profile(row['agent_id'], row['profile_version']).metadata()
     except KeyError:
         profile = None
-    return Game(profile=profile, id=row['id'], initial_fen=row['initial_fen'], current_fen=state['fen'], moves=moves,
+    from player_rating import change_for_game
+    if db is None:
+        with closing(progresso._conectar()) as rating_db:
+            change = change_for_game(rating_db,row['id'])
+    else:
+        change = change_for_game(db,row['id'])
+    return Game(rating_change=change.model_dump() if change else None, profile=profile, id=row['id'], initial_fen=row['initial_fen'], current_fen=state['fen'], moves=moves,
                 human_color=row['human_color'], side_to_move=state['turn'], status=state['status'],
                 winner=state['winner'], terminal=state['ended'],
                 awaiting_agent=not state['ended'] and state['turn'] != row['human_color'],
@@ -176,12 +186,12 @@ def create_or_reuse(owner: str, human_color: Color, *, client_game_id: uuid.UUID
             if previous:
                 if previous[0] != human_color or previous[1] != agent_id:
                     raise GameError('duplicate_request_conflict', 'Chave de criação reutilizada com dados diferentes.', 409)
-                return game_from_row(owned_row(db, previous[2], owner)), False
+                return game_from_row(owned_row(db, previous[2], owner), db), False
         db.execute('INSERT INTO games (id, owner, initial_fen, moves_json, human_color, agent_id, created_at, updated_at, version, profile_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)',
                    (game_id, owner, initial_fen, '[]', human_color, agent_id, timestamp, timestamp))
         if client_game_id is not None:
             db.execute('INSERT INTO game_create_requests VALUES (?, ?, ?, ?, ?)', (owner, str(client_game_id), human_color, agent_id, game_id))
-        return game_from_row(owned_row(db, game_id, owner)), True
+        return game_from_row(owned_row(db, game_id, owner), db), True
 
 
 def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', initial_fen: str = chess.STARTING_FEN) -> Game:
@@ -190,7 +200,7 @@ def create_game(owner: str, human_color: Color, *, agent_id: str = 'stockfish', 
 
 def get_game(game_id: str, owner: str) -> Game:
     with closing(progresso._conectar()) as db:
-        return game_from_row(owned_row(db, game_id, owner))
+        return game_from_row(owned_row(db, game_id, owner), db)
 
 
 def submit_human_move(game_id: str, owner: str, request: HumanMove) -> Game:
@@ -203,7 +213,7 @@ def submit_human_move(game_id: str, owner: str, request: HumanMove) -> Game:
             if previous['move'] != request.move or previous['expected_version'] != request.version:
                 raise GameError('duplicate_request', 'Chave de requisição reutilizada com dados diferentes.', 409)
             return Game.model_validate_json(previous['response_json'])
-        game = game_from_row(row)
+        game = game_from_row(row, db)
         if request.version != game.version:
             raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
         if game.terminal:
@@ -218,7 +228,10 @@ def submit_human_move(game_id: str, owner: str, request: HumanMove) -> Game:
                    (json.dumps([*game.moves, request.move]), now(), game_id, game.version))
         if updated.rowcount != 1:
             raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
-        result = game_from_row(owned_row(db, game_id, owner))
+        result = game_from_row(owned_row(db, game_id, owner), db)
+        from player_rating import apply_terminal
+        change = apply_terminal(db,result,owner)
+        result.rating_change = change.model_dump() if change else None
         result.human_move = request.move
         result.agent_status = 'pending' if result.awaiting_agent else 'not_requested'
         db.execute('INSERT INTO game_move_requests VALUES (?, ?, ?, ?, ?)',
@@ -257,7 +270,7 @@ def execute_agent(snapshot: Game, owner: str, policy: AgentPolicy) -> Game:
         return current.model_copy(update=dict(human_move=snapshot.human_move, agent_status='error', error=code))
     with closing(progresso._conectar()) as db, db:
         db.execute('BEGIN IMMEDIATE')
-        current = game_from_row(owned_row(db, snapshot.id, owner))
+        current = game_from_row(owned_row(db, snapshot.id, owner), db)
         if current.version != snapshot.version or current.terminal or not current.awaiting_agent:
             return current.model_copy(update=dict(human_move=snapshot.human_move,
                 agent_move=current.moves[-1] if current.version == snapshot.version + 1 else None,
@@ -268,8 +281,11 @@ def execute_agent(snapshot: Game, owner: str, policy: AgentPolicy) -> Game:
                             (json.dumps([*current.moves, candidate]), now(), current.id, current.version))
         if updated.rowcount != 1:
             raise GameError('stale_game_version', 'Partida mudou. Consulte o estado atual.', 409)
-        return game_from_row(owned_row(db, current.id, owner)).model_copy(update=dict(
-            human_move=snapshot.human_move, agent_move=candidate, agent_status='moved'))
+        result = game_from_row(owned_row(db,current.id,owner),db)
+        from player_rating import apply_terminal
+        change = apply_terminal(db,result,owner)
+        result.rating_change = change.model_dump() if change else None
+        return result.model_copy(update=dict(human_move=snapshot.human_move,agent_move=candidate,agent_status='moved'))
 
 
 class AgentMoveRequest(BaseModel):
@@ -320,7 +336,7 @@ def list_games(owner: str, status: str, limit: int, offset: int) -> GameList:
         rows = db.execute('SELECT * FROM games WHERE owner=? ORDER BY updated_at DESC, id DESC', (owner,))
         # Estado é derivado do histórico, sem duplicá-lo no banco. Leitura em streaming.
         for row in rows:
-            game = game_from_row(row)
+            game = game_from_row(row, db)
             if status == 'active' and game.terminal or status == 'finished' and not game.terminal:
                 continue
             matched += 1
@@ -432,3 +448,15 @@ def read_commentary(game_id: str, version: int = Query(ge=0), ply: int = Query(g
         return commentary(snapshot, ply)
     except KeyError:
         raise GameError('persona_unavailable', 'Comentário indisponível para este perfil.', 503) from None
+
+
+@router.post('/{game_id}/rating',response_model=Game)
+def reconcile_rating(game_id:str,data:AgentMoveRequest,user:dict=Depends(require_user)):
+    from player_rating import apply_terminal
+    with closing(progresso._conectar()) as db,db:
+        db.execute('BEGIN IMMEDIATE')
+        game=game_from_row(owned_row(db,game_id,user['email']),db)
+        if game.version!=data.version:raise GameError('stale_game_version','Partida mudou. Consulte o estado atual.',409)
+        change=apply_terminal(db,game,user['email'])
+        game.rating_change=change.model_dump() if change else None
+        return game

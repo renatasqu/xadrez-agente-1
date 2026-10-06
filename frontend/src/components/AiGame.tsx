@@ -56,7 +56,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   const lock = useRef(false);
   const pending = useRef<HumanMoveRequest | null>(null);
   const creation = useRef<{ color: GameColor; agent: string; key: string } | null>(null);
-  function accept(next: Game) { setReplayPosition(null); setGame(next); onPosition(next.current_fen); setListAttempt(n => n + 1); }
+  function accept(next: Game) { if (next.terminal) window.dispatchEvent(new Event("xadrez:rating-updated")); setReplayPosition(null); setGame(next); onPosition(next.current_fen); setListAttempt(n => n + 1); }
   async function run(call: () => Promise<Game>, recoverCurrent = true) {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
@@ -133,6 +133,8 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
     </section>
     {game && !replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
     {game && !replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
+    {game?.terminal && game.rating_change && <p aria-label="Variação de rating">{({ win: "Vitória", draw: "Empate", loss: "Derrota" })[game.rating_change.result]} · Rating nesta partida: {game.rating_change.after} · {game.rating_change.delta > 0 ? "+" : ""}{game.rating_change.delta}</p>}
+    {game?.terminal && !game.rating_change && <button disabled={busy} onClick={() => void run(() => api.reconcileRating(game.id, game.version))}>Atualizar pontuação desta partida</button>}
     {game && <AgentComment game={game} />}
     {game && <Board fen={replayPosition?.fen ?? game.current_fen} orientation={game.human_color} estadoTexto={replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : status} terminado={game.terminal}
       ocupado={busy || game.awaiting_agent || Boolean(pending.current) || Boolean(creation.current) || Boolean(replayPosition)} hideControls podeDesfazer={false}

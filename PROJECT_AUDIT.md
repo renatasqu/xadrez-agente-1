@@ -1542,3 +1542,56 @@ Frontend `cd frontend && npm test`: **270 aprovados/37 arquivos,40,42s**; `npm r
 Oito arquivos: backend/agent_policy.py (features/trace), chess_engine.py (opção nodes-only); novos benchmarks/__init__.py, positions.py, agent_styles.py; novo tests/test_decision_trace.py; README.md e PROJECT_AUDIT.md. Frontend/Game/auth/progresso/perfis/personas/histórico/RAG/assets preservados. Revisão de diffs/novos arquivos, git diff --check e status realizada.
 
 Pendências: dataset maior/balanceado/independente, casos de roque/segurança/negativosCP adicionais, calibração estatística, variações entre binários/versões, análise causal de cada feature, acervos/grandes históricos/coordenação global e demais achados anteriores. FEN duplicado documentado, amostra não representa partidas reais; equivalência de estilos em alguns casos não é bug por si só. Sem commit/deploy ou etapa12.
+
+## Adendo — rating e progressão do jogador, etapa 12 (06/10/2026)
+
+Início com Git limpo; baseline270 frontend/37 arquivos,1006 backend/60 LLM excluídos. Game já era oficial/persistente, com proprietário da sessão, initial_fen+UCI, estado derivado e perfil versionado. Não existia rating do jogador. Ratings FIDE de Masters e benchmark de diferenciação são sistemas separados, preservados.
+
+### Modelo, fórmula e parâmetros
+
+Novo `backend/player_rating.py` é a fonte dos parâmetros v1: inicial1200,K32; E=1/(1+10^((Rop-R)/400)), Rnovo=round(R+32*(S-E)), S=1 vitória/0,5 empate/0 derrota. Inteiro mais próximo, empate para par (`round` Python), sem piso/reset/decay. Difficulty beginner/intermediate/advanced recebe rating interno1000/1200/1400. Cinco genéricos usam sua dificuldade persistida; stockfish resolve balanced1200; três inspirados advanced1400. **Parâmetros internos, não Elo/FIDE real, força calibrada nem rating dos jogadores.** Não se consultou FIDE ou usou benchmark para inferir ratings.
+
+Resultado deriva somente de Game terminal reconstruída e da cor humana: vencedor humano=win, vencedor adversário=loss, sem vencedor=draw. Xeque/partida ativa não pontuam. Mate, afogamento, material insuficiente, repetição e cinquenta lances mantêm regras anteriores. Empate pode ter delta positivo/negativo/zero pela expectativa; zero não vira ganho inventado.
+
+### Persistência, atomicidade e segurança
+
+Migração aditiva/idempotente em games.criar_tabelas cria player_ratings(account PK,current_rating,games_rated,updated_at) e rating_events(game_id PK,account,before/after/delta,agent_id,opponent_rating,profile_version,result,score,rating_system_version,created_at), com índice de histórico por conta/data/ID. game_id é identificador único do evento. Conta existente recebe1200/0 preguiçosamente, sem modificar users/sessions/progresso anterior. Nenhuma migração foi executada no banco real.
+
+Commit do lance terminal humano ou IA chama apply_terminal dentro do mesmo BEGIN IMMEDIATE que grava Game; evento e jogador entram atomicamente. Falha simulada após INSERT do evento reverte lance terminal/evento/jogador. Prefixo humano previamente confirmado antes do cálculo IA permanece, conforme arquitetura anterior. Motor/policy continuam fora da conexão de escrita. Mesmo game_id devolve evento existente; diferentes Games da mesma conta são serializadas, usando rating corrente já atualizado, sem perda de atualização. Constraint primária é a barreira final. Retry humano conserva acknowledgement existente; GET atual fornece metadados persistidos.
+
+GET/rating exige require_user, inicializa somente a linha do jogador e retorna rating/contagem/initial/system/version. GET/rating/history usa somente conta da sessão, limit padrão10/1–50 e offset0–10000, data DESC/game_id DESC. Eventos retornam nomes seguros, IDs/versões/score/datas/before/after/delta, sem conta/e-mail. No-store e erros controlados reutilizam GameRoute. POST/games/{id}/rating aceita somente version, verifica dono/revisão e reconcilia terminal sem evento; ativa é no-op. Outra conta/ausente usam404 indistinguível; sem sessão401; campos forjados422; versão antiga409. Origin e credenciais seguem auth existente.
+
+GET/listagem/replay/PGN/análise/revisão/persona não aplicam eventos. Criação e lances ativos não alteram pontuação. Games antigas podem ser reconciliadas explicitamente, sem migração retroativa automática. Perfil/versão desconhecido permanece legível e sem evento, pois não se inventa rating do adversário. Ordem é de aplicação, inclusive reconciliação de terminal antigo; não existe recálculo cronológico retroativo.
+
+### Interface e validação funcional
+
+RatingPanel montado em App autenticado consulta servidor, mostra identificação interna/não FIDE, contagem e cinco eventos recentes com nome/resultado/delta/rating histórico. Atualização após aceitar terminal é nova consulta, sem soma local. Erro oferece tentar novamente; efeito antigo é descartado. AiGame mostra resultado/delta real inclusive0 e botão de reconciliação quando falta evento; busy/retry/replay/turno/promover continuam existentes. Rating após partida é snapshot do evento; painel global é valor corrente. API usa credentials include e401 emite invalidação de sessão já existente. Sem token/pontuação/resultado confiável em localStorage.
+
+**Navegador realmente usado: SIM — Chrome headless local/CDP**, perfil isolado /tmp, conta sintética stage12 e SQLite em TemporaryDirectory. Skill Browser aplicada; bootstrap iab indisponível, troubleshooting conferido; fallback Chrome autorizado pelo pedido. Bind localhost/Chrome permitidos pela revisão automática. Nenhuma dependência instalada. API com chaves vazias/aquecimento desligado e health QA sem corpus; Stockfish real no turno IA.
+
+Login mostrou1200/0; criar Game padrão balanced/brancas manteve1200/0. Fixture temporária legal de mate em um foi retomada e Qg7# executado pelo Board:1216,+16,1 evento. Fixture pending f3 e5 g4 foi retomada e retry IA real jogou Qh4#:1199,-17,2 eventos. Terminal afogado Hans inspirado/humano preto foi reconciliado pelo botão:1207,+8,3 eventos. Histórico visível mostrou exatamente Hans/empate+8,Equilibrado/derrota-17,Equilibrado/vitória+16. Reload real restaurou sessão e1207/3; abrir histórico confirmou as mesmas três entradas, sem duplicação. Fixtures foram inseridas somente no banco QA, sem endpoint de importação. Captura1280×1000 aberta/inspecionada confirmou painel integrado; sem validação mobile/TLS/acessibilidade completa. Cliques de automação antes de controles estarem disponíveis falharam; inspeção e espera de DOM permitiram seguir, sem afirmar bug do produto. Chrome/API/Vite encerrados, perfil removido e zero diretórios restantes de bancos stage12-browser.
+
+### Testes, regressão e limites
+
+Novo test_player_rating.py tem37 casos: fórmula/determinismo/arredondamento, lazy conta, cores/resultados/empates, genéricos/alias/três inspirados, leitura sem mutação, final humano/IA, retries, migração, rollback após evento, reconciliação repetida, concorrência mesma Game e Games distintas, concorrência lance terminal, restart/constraint única, sessão/propriedade/forja/limites/ordem, perfil desconhecido e análise/revisão/persona sem aplicar evento. Sessões reais e bancos temporários; FakePolicy para invariantes, Stockfish real na regressão/revisão/browser. Frontend acrescenta12 casos: painel/resultado0/positivo/negativo, histórico/remount/atualização/erro/atraso, transporte/401. Sem relaxar timeout/excluir teste.
+
+Rodadas:93 históricos backend12,51s;27 novos3,31s;34 novos3,93s;37 finais4,95s. Backend completas intermediárias1033/60 em54,68s e1040/60 em56,86s; completa final **1043 aprovados/60 LLM não selecionados,nenhum skip/falha,58,04s**. Frontend intermediário **282 aprovados/39 arquivos,41,89s**; build aprovado JS435,33kB/gzip135,05,CSS84,71/gzip25,55. Pequeno ajuste posterior de singular/plural exigiu nova completa/build, registrados abaixo. Suítes completas sequenciais. Comandos iniciais de diretório incorreto não iniciaram testes e foram corrigidos. Nenhuma falha de teste/timeout observado nesta etapa.
+
+Backend completo em backend: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 ANTHROPIC_API_KEY='' OPENAI_API_KEY='' AQUECER_NA_INICIALIZACAO=false PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python -m pytest -m 'not llm' -p no:cacheprovider -q -ra`. Frontend: em frontend, `npm test` e `npm run build`. Benchmark: mesmas variáveis offline, `../.venv/bin/python -m benchmarks.agent_styles --json /tmp/stage12-benchmark.json`: Stockfish19,16 posições/15 categorias/8 perfis/45 buscas,10,10s; resultados numéricos mantêm os da etapa11, sem calibração/alteração de pesos ou perfis. Recursos locais anteriores/corpus/cache ainda participam da suíte offline;60 LLM deliberadamente excluídos.
+
+14 arquivos: README.md,PROJECT_AUDIT.md; backend/games.py,main.py,novo player_rating.py,novo tests/test_player_rating.py; frontend/src/App.tsx,api.ts,types.ts,components/AiGame.tsx,AiGame.test.tsx,novo RatingPanel.tsx,novo RatingPanel.test.tsx,novo ratingApi.test.ts. Engine/policy/perfis/personas/benchmark/auth/progresso/RAG/assets/dependências preservados. Sem .env,ingestão,FIDE/LLM real/pago,upgrade,dado real lido/alterado,commit/deploy ou etapa13.
+
+Pendências: ratings internos não calibrados; trajetória segue ordem de reconciliação, sem recálculo retroativo; perfil desconhecido não pontua; paginação offset não é snapshot sob escritas; histórico UI limitado a cinco; retenção/auditoria administrativa/undo de eventos e evolução de versões não possuem fluxo; limites globais/cancelamento/mobile/TLS e demais achados anteriores permanecem. Nenhum ranking público/matchmaking/multiplayer ou rating FIDE foi criado.
+
+### Resultados finais da etapa 12
+
+| Comando real | Resultado |
+| --- | --- |
+| Em frontend: `npm test` após singular/plural | **282 aprovados em39 arquivos,42,25s**; baseline270,+12; nenhum timeout/falha |
+| Em frontend: `npm run build` | **Aprovado**, tsc noEmit+Vite; JS435,37kB/gzip135,06; CSS84,71kB/gzip25,55 |
+| Backend completo offline no comando acima | **1043 aprovados,60 LLM não selecionados,nenhum skip/falha,58,04s**; baseline1006,+37 |
+| Benchmark offline | **Stockfish19**,16 posições/8 perfis/45 buscas,10,10s; políticas/perfis preservados |
+| Revisão final | Diff rastreado e cinco arquivos novos revisados; `git diff --check` aprovado; status confere14 arquivos |
+| Limpeza QA | Chrome/API/Vite encerrados,perfil isolado removido,zero diretórios dos bancos temporários restantes |
+
+Regressão executada conserva duas cores,criação/continuidade/promoção/retry/terminal/propriedade,PGN round-trip/replay/revisão/persona/benchmark. Reload e rating/histórico foram confirmados no Chrome; isolamento entre contas/concorrência/restart/empates especiais confirmados nos testes temporários. Nenhuma regressão identificada nos checks realizados; sem certificação de produção/mobile ou força dos perfis. Sem commit/deploy/etapa13.

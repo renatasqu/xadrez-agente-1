@@ -1,5 +1,6 @@
 // Arena da partida; tutor e lições acessíveis sob demanda.
 
+import { RatingPanel } from "./components/RatingPanel";
 import { AiGame } from "./components/AiGame";
 import { createPortal } from "react-dom";
 import { useMatchLayout } from "./match/useMatchLayout";
@@ -292,6 +293,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             <StatusSaude />
           </div>
         </header>
+        <RatingPanel />
         {page === "match" && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(value => !value); }}>{aiMode ? "Voltar à partida manual" : "Jogar contra IA"}</button></div>}
         <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>

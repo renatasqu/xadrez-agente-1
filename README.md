@@ -467,3 +467,27 @@ Com candidatos advanced iguais: aggressive/positional/tactical diferiram do bala
 **Calibração: NENHUMA.** Há diferenciação observada e nenhuma violação de janela/mate. A divergência tática pequena exige amostra maior antes de alterar pesos. Magnus/Judit inspirados coincidiram com positional/tactical nos mesmos budgets; Hans inspirado difere de aggressive em uma posição pelo orçamento advanced/intermediate. Comparação exclusivamente interna.
 
 Regressão final etapa 11: **270 frontend/37 arquivos**, build/typecheck aprovado; **1006 backend aprovados/60 LLM não selecionados**, nenhum skip/falha. Chrome headless isolado confirmou duas cores/dois turnos, reload/retomada, persona, replay e PGN; sem conta/banco real. Detalhes e limites no adendo da auditoria. Sem commit/deploy ou etapa 12.
+
+## Rating e progressão interna — etapa 12
+
+O rating do **Xadrez Multiagente** é uma pontuação interna de progressão, calculada exclusivamente pelo backend a partir de Games oficiais encerradas contra IA. **Não corresponde a rating FIDE, Elo real ou força calibrada dos jogadores/perfis.** Não usa avaliação Stockfish, persona, LLM, análise, exercícios ou lances isolados como pontuação.
+
+Versão 1: inicial **1200**, **K=32**, expectativa `E=1/(1+10^((oponente-jogador)/400))`; novo rating `round(jogador+32*(S-E))`, com S=1/0,5/0 para vitória/empate/derrota. `round` do Python arredonda ao inteiro mais próximo, com empate para o inteiro par. Empate pode aumentar, reduzir ou manter o rating; delta zero é exibido.
+
+| Dificuldade persistida do perfil | Rating interno v1 |
+| --- | --- |
+| beginner | 1000 |
+| intermediate | 1200 |
+| advanced | 1400 |
+
+Magnus/Hans/Judit inspirados usam advanced=1400; o alias stockfish resolve balanced/intermediate=1200. São parâmetros do produto, sem relação com os ratings FIDE dos jogadores retratados em Masters. Definições v1 devem permanecer disponíveis; versões novas exigem implementação correspondente.
+
+Migração aditiva cria `player_ratings` e `rating_events` no SQLite de progresso. Evento único por `game_id` registra antes/depois/delta, resultado/score, perfil/versão, rating do oponente, versão do sistema e data UTC. Conta vem da sessão e não é exposta. Encerramento oficial, evento e atualização do jogador usam a mesma transação `BEGIN IMMEDIATE`: falha reverte esse commit; concorrentes da mesma Game não duplicam, Games distintas da mesma conta não perdem atualizações. Motor roda fora da transação como antes.
+
+GET `/rating` inicializa a conta em 1200 quando necessário e lê sua pontuação. GET `/rating/history` lê apenas seus eventos, com limit padrão10 (1–50), offset0–10000 e ordem decrescente por data/ID. GETs, replay, PGN, análise, revisão, comentários, criação e partidas ativas não aplicam rating. `Game.rating_change` contém somente o evento persistido, ou null.
+
+POST `/games/{id}/rating`, corpo `{version}`, reconcilia um terminal sem evento de forma idempotente; exige sessão/propriedade/revisão, sem aceitar resultado/rating do cliente. Partidas antigas não são recalculadas automaticamente: podem ser reconciliadas explicitamente. Perfil/versão legado desconhecido permanece legível e sem pontuação inventada. O cálculo segue a ordem de aplicação dos eventos, inclusive reconciliações antigas, sem reordenar retroativamente a trajetória.
+
+Após login, o painel consulta rating e cinco eventos recentes; ao encerrar/retomar terminal, atualiza a leitura. Resultado mostra delta real e rating histórico daquela partida; o painel mostra o rating corrente. Falhas permitem tentar novamente, respostas atrasadas são descartadas e 401 conserva o fluxo de sessão expirada existente. Sem pontuação em localStorage.
+
+Validação etapa12: **1043 backend aprovados/60 LLM não selecionados**, **282 frontend aprovados/39 arquivos e build/typecheck aprovado** (JS435,37kB/gzip135,06; CSS84,71kB/gzip25,55). Chrome isolado confirmou 1200 →1216 (vitória), →1199 (derrota), →1207 (empate contra Hans inspirado), três eventos e persistência após reload. Bancos/contas exclusivamente temporários; nenhum dado real modificado. Benchmark Stockfish19 preservado: 16 posições/8 perfis/45 buscas,10,10s. Sem commit/deploy/etapa13.

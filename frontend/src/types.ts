@@ -192,6 +192,7 @@ export interface HintResponse { next_hint: ExerciseHint | null }
 // Partidas contra IA: servidor é autoridade; modo manual permanece independente.
 export type GameColor = "white" | "black";
 export interface Game {
+  rating_change?: RatingChange | null;
   id: string;
   initial_fen: string;
   current_fen: string;
@@ -250,3 +251,7 @@ export interface GameCommentary {
   persona_id: string; persona_version: number; text: string; status: "available" | "fallback";
   facts: { uci: string; san: string; capture: boolean; check: boolean; castling: boolean; promotion: boolean; terminal: boolean; winner: GameColor | null };
 }
+
+export interface RatingChange { before: number; after: number; delta: number; result: "win" | "draw" | "loss"; opponent_rating: number; rating_system_version: number }
+export interface PlayerRating { rating: number; initial_rating: number; games_rated: number; rating_system: string; rating_system_version: number }
+export interface RatingEvent extends RatingChange { opponent_name: string; game_id: string; opponent_agent_id: string; profile_version: number; score: number; created_at: string }

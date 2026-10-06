@@ -1,5 +1,5 @@
 import { sessionExpired } from "./auth/sessionEvents";
-import type { GameCommentary, GameReplay, GameReviewResult, AgentProfile, GameList, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
+import type { PlayerRating, RatingEvent, GameCommentary, GameReplay, GameReviewResult, AgentProfile, GameList, Game, GameColor, GameError, HumanMoveRequest, HintRequest, HintResponse } from "./types";
 // Todas as chamadas ao backend. A URL vem de VITE_API_URL (ver .env.example).
 //
 // Rotas legadas e progresso usam Resposta nos erros. /exercises usa code/message.
@@ -104,6 +104,9 @@ export interface MastersRatings {
 }
 
 export const api = {
+  rating: () => chamar<PlayerRating>("/rating", {}, false, true),
+  ratingHistory: () => chamar<RatingEvent[]>("/rating/history?limit=5", {}, false, true),
+  reconcileRating: (id: string, version: number) => chamar<Game>(`/games/${encodeURIComponent(id)}/rating`, post({ version }), false, true),
   gameCommentary: (id: string, version: number, ply: number) => chamar<GameCommentary>(`/games/${encodeURIComponent(id)}/commentary?version=${version}&ply=${ply}`, {}, false, true),
   gameReplay: (id: string) => chamar<GameReplay>(`/games/${encodeURIComponent(id)}/replay`, {}, false, true),
   gamePgn: (id: string) => chamar<string>(`/games/${encodeURIComponent(id)}/pgn`, {}, false, true, true),

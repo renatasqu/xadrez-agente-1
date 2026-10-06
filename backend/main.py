@@ -45,6 +45,7 @@ import documentos
 import guardrails
 import progresso
 import games
+import player_rating
 import conceitos
 from agents import analista, router
 from agents.licoes import LICOES
@@ -154,6 +155,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Xadrez Agente", lifespan=lifespan)
 app.include_router(exercises_router)
 app.include_router(games.router)
+app.include_router(player_rating.router)
 app.include_router(games.agents_router)
 app.include_router(auth_router)
 app.include_router(masters_router)

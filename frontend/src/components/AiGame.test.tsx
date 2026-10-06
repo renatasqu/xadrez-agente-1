@@ -246,3 +246,8 @@ it("remount retoma identidade/persona inspirada oficial sem nova criação",asyn
  render(<AiGame onPosition={vi.fn()}/>);fireEvent.click(await screen.findByRole("button",{name:/Continuar partida/}));await screen.findByTestId("official-fen");
  expect(get).toHaveBeenCalledTimes(2);expect(create).not.toHaveBeenCalled();expect(screen.getByText(/Persona v1 \(energético\)/)).toBeTruthy();expect(board.options?.position).toBe(saved.current_fen);
 });
+it.each([["win",16,"Vitória"],["loss",-16,"Derrota"],["draw",0,"Empate"]] as const)("Game terminal mostra %s e variação persistida",async(result,delta,label)=>{
+ await start(game([], {terminal:true,status:result==='draw'?'stalemate':'checkmate',rating_change:{before:1200,after:1200+delta,delta,result,opponent_rating:1200,rating_system_version:1}}));
+ const text=await screen.findByLabelText("Variação de rating");expect(text.textContent).toContain(label);expect(text.textContent).toContain(String(1200+delta));expect(text.textContent).toContain(delta>0?'+16':String(delta));
+ expect(screen.queryByText("Atualizar pontuação desta partida")).toBeNull();
+});
