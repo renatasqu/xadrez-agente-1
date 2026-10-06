@@ -53,6 +53,7 @@ function pageFromHash(): AppPage {
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [aiMode, setAiMode] = useState(window.location.hash !== "#explorar");
   const [aiVisited, setAiVisited] = useState(window.location.hash !== "#explorar");
+  const [aiGameActive, setAiGameActive] = useState(false);
   const [aiFen, setAiFen] = useState<string | null>(null);
   const [page, setPage] = useState<AppPage>(pageFromHash);
   const { layoutRef, mobile } = useMatchLayout(page === "match" && !aiMode);
@@ -297,7 +298,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
         </header>
         {page === "match" && !aiMode && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(true); }}>Jogar contra IA</button></div>}
-        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} />}</div>
+        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
@@ -398,7 +399,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         <InteractiveCard action="Abrir tutor" type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></InteractiveCard>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
       {desktopLessonsHost && createPortal(
         <InteractiveCard action="Abrir lições" type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></InteractiveCard>, desktopLessonsHost)}
-      <div className="floating-actions" aria-label="Atalhos" hidden={modal !== null}>
+      <div className="floating-actions" aria-label="Atalhos" hidden={modal !== null || (aiMode && aiGameActive)}>
         <FloatingAction title="Seu Tutor" label="Abrir tutor" icon={tutorIcon} onClick={event => openArea("tutor", event.currentTarget)} />
         <FloatingAction title="Lições" label="Abrir lições" icon={lessonsIcon} onClick={event => openArea("lessons", event.currentTarget)} />
       </div>

@@ -783,3 +783,107 @@ body:has(.auth-screen) { background: #f3ecdf; }
 @media (max-width: 600px) {
   .floating-actions { position: static; flex-direction: row; justify-content: flex-end; margin: 12px; }
 }
+
+/* Apresentação da Game oficial. Movimentos e autorização permanecem em AiGame. */
+.official-setup, .official-match { width: min(100% - 48px, 1200px); margin: 12px auto 32px; min-width: 0; }
+.official-setup { padding: clamp(20px, 3vw, 36px); background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 var(--border); }
+.official-setup h2, .official-match h2, .official-match h3, .official-setup h3 { font-family: var(--font-pixel); }
+.setup-heading { border-bottom: 2px solid var(--border); padding-bottom: 20px; margin-bottom: 24px; }
+.setup-heading h2 { font-size: clamp(26px, 3vw, 38px); margin: 4px 0 8px; }
+.setup-heading > p { font-size: 14px; }
+.setup-options { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px; }
+.setup-opponent > label { display: flex; flex-direction: column; gap: 10px; font-weight: 700; }
+.official-setup select { max-width: 100%; min-height: 46px; border: 2px solid var(--border); border-radius: 0; padding: 10px 14px; background: var(--bg); font: inherit; color: inherit; }
+.selected-opponent { display: flex; align-items: flex-start; gap: 16px; margin-top: 16px; padding: 20px; background: var(--magnus-soft); border: 2px solid var(--border); }
+.selected-opponent h3 { font-size: 26px; margin-bottom: 8px; }
+.selected-opponent p { font-size: 13px; line-height: 1.7; }
+.official-avatar { display: inline-flex; width: 48px; height: 48px; flex: 0 0 48px; image-rendering: pixelated; }
+.selected-opponent .official-avatar { width: 64px; height: 64px; flex-basis: 64px; }
+.setup-color h3 { margin-bottom: 12px; font-size: 22px; }
+.color-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.color-options button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 160px; border: 2px solid var(--border); background: var(--bg); font-family: var(--font-pixel); font-size: 23px; cursor: pointer; }
+.color-options button[aria-pressed="true"] { background: var(--board-light); box-shadow: 4px 4px 0 var(--border); border-color: var(--magnus-dark); }
+.color-options button > span { font: 48px/1 system-ui; }
+.color-options small { font: 11px/1.5 "Inter", sans-serif; }
+.official-setup .setup-start { display: block; margin: 24px 0 16px; background: var(--magnus-dark); color: white; font-size: 22px; padding: 12px 28px; }
+.official-setup > p { font-size: 13px; line-height: 1.6; }
+.saved-games { margin-top: 28px; padding-top: 20px; border-top: 2px solid var(--border); }
+.saved-games h3 { font-size: 24px; margin-bottom: 14px; }
+.saved-games > label { display: inline-flex; align-items: center; gap: 8px; margin-right: 16px; }
+.saved-games p { font-size: 12px; line-height: 1.7; }
+.saved-games ul { display: grid; gap: 12px; margin-top: 16px; }
+.saved-games li { padding: 16px; border: 2px solid var(--border); background: var(--bg); }
+.official-match button, .saved-games button { min-height: 40px; border: 2px solid var(--border); padding: 8px 12px; background: var(--bg); font-size: 12px; color: inherit; cursor: pointer; }
+.official-match button:disabled, .official-setup button:disabled { opacity: .5; cursor: not-allowed; }
+.official-match-context { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 20px; margin-bottom: 16px; border: 2px solid var(--border); background: var(--surface); box-shadow: 3px 3px 0 var(--border); }
+.official-match-context h2 { font-size: clamp(20px, 2.2vw, 30px); line-height: 1.3; }
+.official-match-context h2 > span { font: 14px "Inter", sans-serif; margin: 0 8px; }
+.official-match .eyebrow, .official-setup .eyebrow { display: block; font-size: 10px; font-weight: 700; letter-spacing: .1em; margin-bottom: 6px; }
+.match-state { border: 2px solid var(--border); background: var(--board-light); padding: 8px 14px; font-size: 12px; font-weight: 700; }
+.official-match-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.official-board-column { min-width: 0; }
+.official-player-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border: 2px solid var(--border); background: var(--hans-soft); margin-bottom: 12px; }
+.official-player-bar strong { display: block; font-family: var(--font-pixel); font-size: 22px; }
+.official-player-bar span:not(.official-avatar) { display: block; font-size: 12px; }
+.official-player-bar.human-player { background: var(--magnus-soft); margin: 14px 0 0; }
+.official-match .board-stage { padding: 12px; gap: 10px; }
+.official-match .moldura-tabuleiro { width: 100%; aspect-ratio: 1; box-sizing: border-box; }
+.official-match .board-stage > p { font: 12px/1.5 "Inter", sans-serif; }
+.official-match-sidebar { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.match-panel { background: var(--surface); border: 2px solid var(--border); box-shadow: 3px 3px 0 var(--border); padding: 16px; min-width: 0; }
+.match-panel h3 { font-size: 23px; line-height: 1.3; margin-bottom: 6px; }
+.match-panel p { font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.opponent-panel { border-top: 5px solid var(--hans); }
+.opponent-panel > p { margin: 6px 0; }
+.match-details { margin-top: 10px; font-size: 11px; }
+.match-details summary { cursor: pointer; text-decoration: underline; }
+.match-details p { margin-top: 10px; }
+.turn-panel { border-left: 5px solid var(--success); }
+.turn-panel > p { font-weight: 600; }
+.turn-panel button { margin-top: 10px; }
+.official-history > section { margin: 0; }
+.official-history [aria-label="Lances SAN"] { max-height: 200px; overflow-y: auto; padding: 4px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; background: var(--bg); }
+.official-history [aria-label="Lances SAN"] button { width: 100%; text-align: left; font-size: 14px; }
+.official-history [aria-current="step"] { background: var(--board-light); font-weight: 700; }
+.official-history textarea { width: 100%; font-size: 11px; overflow-wrap: anywhere; }
+.contextual-tutor > aside { padding: 0; border: 0; margin: 10px 0; border-radius: 0; }
+.contextual-tutor small { font-size: 10px; }
+.contextual-tutor > button { width: 100%; background: var(--magnus-soft); }
+@media (max-width: 899px) {
+  .official-match-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .official-match { max-width: 740px; }
+  .official-match-sidebar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .official-history { grid-column: 1 / -1; }
+  .contextual-tutor { grid-column: 1 / -1; }
+  .setup-options { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+}
+@media (max-width: 540px) {
+  .official-setup, .official-match { width: calc(100% - 24px); margin-top: 8px; }
+  .official-setup { padding: 18px; }
+  .official-match-context { padding: 12px; }
+  .official-match-sidebar { display: flex; }
+  .official-match .board-stage { padding: 6px; border-width: 2px; }
+  .official-match .moldura-tabuleiro { border-width: 4px; }
+  .official-player-bar { padding: 8px 12px; }
+  .official-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .selected-opponent { padding: 12px; gap: 10px; }
+  .selected-opponent .official-avatar { width: 40px; height: 40px; flex-basis: 40px; }
+  .selected-opponent h3 { font-size: 22px; }
+  .color-options button { min-height: 140px; font-size: 20px; }
+  .official-setup .setup-start { width: 100%; font-size: 19px; padding-inline: 8px; }
+  .saved-games > label { display: flex; margin: 0 0 12px; }
+}
+.setup-options > *, .selected-opponent > div { min-width: 0; }
+.setup-opponent select { width: 100%; }
+@media (max-width: 540px) {
+  .game-header .header-server-status { flex: 0 0 34px; }
+  .game-header .header-server-status details { position: relative; min-height: 34px; width: 34px; padding: 8px; }
+  .game-header .header-server-status summary { width: 14px; }
+  .game-header .header-server-status summary > span:last-child { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .game-header .header-server-status details ul { left: auto; right: 0; width: 220px; }
+}
+.official-match { max-width: 1124px; }
+.official-match .moldura-tabuleiro { max-width: 100%; }
+@media (max-width: 540px) {
+  .official-match-sidebar { align-items: stretch; }
+}

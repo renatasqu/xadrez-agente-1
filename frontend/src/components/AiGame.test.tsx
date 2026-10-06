@@ -420,3 +420,26 @@ it("reload e resume preservam humano preto e bloqueiam brancas", async () => {
   expect(send).not.toHaveBeenCalled();
   expect(board.options?.allowDragging).toBe(true);
 });
+
+it("escolha visual de pretas cria Game oficial e substitui setup pela arena", async () => {
+  render(<AiGame onPosition={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /PRETAS.*A IA faz a abertura/ }));
+  expect((screen.getByLabelText("Seu lado") as HTMLSelectElement).value).toBe("black");
+  await start(game(["e2e4"], { human_color: "black", awaiting_agent: false }));
+  expect(api.createGame).toHaveBeenCalledWith("black", "balanced", expect.any(String));
+  expect(document.querySelector(".official-setup")).toBeNull();
+  expect(document.querySelector(".official-board-column .board-stage")).toBeTruthy();
+  expect(screen.getByLabelText("Painel da partida").contains(screen.getByLabelText("Histórico oficial"))).toBe(true);
+});
+
+it("tutor contextual preserva a posição oficial e mantém configuração oculta", async () => {
+  const tutor = vi.fn();
+  render(<AiGame onPosition={vi.fn()} onTutor={tutor} />);
+  await start();
+  const position = board.options?.position;
+  const button = screen.getByRole("button", { name: "Conversar sobre esta posição" });
+  fireEvent.click(button);
+  expect(tutor).toHaveBeenCalledWith(button);
+  expect(board.options?.position).toBe(position);
+  expect(screen.queryByLabelText("Seu lado")).toBeNull();
+});

@@ -4,8 +4,15 @@ import type { AgentProfile, Game, GameColor, GameSummary, HumanMoveRequest } fro
 import { GameHistory } from "./GameHistory";
 import { AgentComment } from "./AgentComment";
 import { Board } from "./Board";
+import { Sprite } from "../pixel/Sprite";
+import { AVATARES } from "../pixel/sprites";
 
-export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
+function MatchAvatar({ human = false }: { human?: boolean }) {
+  const sprite = AVATARES[human ? "gelo" : "fogo"];
+  return <span className="official-avatar"><Sprite grade={sprite.grade} paleta={sprite.paleta} rotulo={human ? "Seu avatar" : "Avatar do agente"} /></span>;
+}
+
+export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void }) {
   const [savedGames, setSavedGames] = useState<GameSummary[]>([]);
   const [listError, setListError] = useState(false);
   const [listLoading, setListLoading] = useState(true);
@@ -85,6 +92,8 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
   const [color, setColor] = useState<GameColor>("white");
   const [replayPosition, setReplayPosition] = useState<{ ply: number; fen: string } | null>(null);
   const [game, setGame] = useState<Game | null>(null);
+  const gameActive = game !== null;
+  useEffect(() => { onGameActive?.(gameActive); }, [gameActive, onGameActive]);
   const currentProfile =
     game?.profile ??
     ((game?.opponent.profile_version ?? 1) === 1
@@ -180,8 +189,10 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
 
   if (!game) {
     return (
-      <section aria-label="Partida contra IA" className="board-workspace max-w-[680px] mx-auto p-4">
-        <h2>Partida contra IA</h2>
+      <section aria-label="Partida contra IA" className="official-setup">
+        <header className="setup-heading"><span className="eyebrow">SUA PRÓXIMA PARTIDA</span><h2>JOGAR CONTRA IA</h2><p>Escolha seu adversário e entre no tabuleiro.</p></header>
+        <div className="setup-options">
+        <div className="setup-opponent">
         <label>
           Adversário
           <select
@@ -199,23 +210,28 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
             ))}
           </select>
         </label>
-        <p>
+        <div className="selected-opponent"><MatchAvatar /><div><h3>{selectedProfile?.display_name ?? "Carregando adversários…"}</h3><p>
           {selectedProfile && `${difficultyLabels[selectedProfile.difficulty]} · estilo ${styleLabels[selectedProfile.style]}. ${selectedProfile.description}`}
           {selectedProfile && !selectedProfile.inspiration && " Estilos são heurísticos, sem imitação de jogadores reais."}
-        </p>
+        </p></div></div>
         {catalogError && (
           <p role="alert">
             Não foi possível carregar os adversários. <button onClick={() => setCatalogAttempt((n) => n + 1)}>Recarregar adversários</button>
           </p>
         )}
-        <label>
+        </div>
+        <div className="setup-color"><h3>JOGAR COMO</h3>
+        <label className="sr-only">
           Seu lado
           <select aria-label="Seu lado" value={color} disabled={busy || Boolean(creation.current)} onChange={(e) => setColor(e.target.value as GameColor)}>
             <option value="white">Brancas</option>
             <option value="black">Pretas</option>
           </select>
         </label>
+        <div className="color-options">{(["white", "black"] as const).map(side => <button key={side} type="button" aria-pressed={color === side} disabled={busy || Boolean(creation.current)} onClick={() => setColor(side)}><span aria-hidden="true">{side === "white" ? "♔" : "♚"}</span>{side === "white" ? "BRANCAS" : "PRETAS"}<small>{side === "white" ? "Você faz a abertura" : "A IA faz a abertura"}</small></button>)}</div>
+        </div></div>
         <button
+          className="setup-start botao-pixel"
           type="button"
           disabled={busy || loadingProfiles || catalogError || !profiles.some((p) => p.id === agent)}
           onClick={start}
@@ -226,7 +242,7 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
         {error && <p role="alert">{error}</p>}
         {creation.current && !busy && <p>Criação ainda não confirmada. Confirme usando a mesma solicitação para evitar duplicação.</p>}
 
-        <section aria-label="Suas partidas">
+        <section aria-label="Suas partidas" className="saved-games">
           <h3>Suas partidas</h3>
           <label>
             Mostrar
@@ -283,38 +299,18 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
     );
   }
 
+  const opponentName = currentProfile?.display_name ?? game.opponent.agent_id;
+  const humanSide = game.human_color === "white" ? "brancas" : "pretas";
+  const agentTurn = game.awaiting_agent || game.side_to_move !== game.human_color;
   return (
-    <section aria-label="Partida contra IA" className="board-workspace max-w-[680px] mx-auto p-4">
-      <h2>Partida contra IA</h2>
-      <p>Você: {game.human_color === "white" ? "brancas" : "pretas"} · Humano contra IA</p>
-      <p>
-        Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {currentProfile?.display_name ?? game.opponent.agent_id}
-        {currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}
-        {currentProfile?.persona && ` · Persona v${currentProfile.persona.version} (${currentProfile.persona.tone})`}
-      </p>
-      <p aria-live="polite">{busy ? "Aguardando o servidor e a resposta da IA…" : status}</p>
-      {error && <p role="alert">{error}</p>}
-      {!replayPosition && !game.terminal && game.awaiting_agent && (
-        <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>
-          Tentar novamente o turno da IA
-        </button>
-      )}
-      {!replayPosition && pending.current && !game.awaiting_agent && (
-        <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>
-          Confirmar estado do lance
-        </button>
-      )}
-      {game.terminal && game.rating_change && (
-        <p aria-label="Variação de rating">
-          {({ win: "Vitória", draw: "Empate", loss: "Derrota" })[game.rating_change.result]} · Rating nesta partida: {game.rating_change.after} · {game.rating_change.delta > 0 ? "+" : ""}{game.rating_change.delta}
-        </p>
-      )}
-      {game.terminal && !game.rating_change && (
-        <button disabled={busy} onClick={() => void run(() => api.reconcileRating(game.id, game.version))}>
-          Atualizar pontuação desta partida
-        </button>
-      )}
-      <AgentComment game={game} />
+    <section aria-label="Partida contra IA" className="official-match">
+      <header className="official-match-context">
+        <div><span className="eyebrow">{game.terminal ? "PARTIDA ENCERRADA" : replayPosition ? "REPLAY · SOMENTE LEITURA" : "PARTIDA CONTRA IA"}</span><h2>Você <span>vs.</span> {opponentName}</h2></div>
+        <span className="match-state" role="status">{game.terminal ? "Resultado final" : replayPosition ? `Lance ${replayPosition.ply}` : busy || agentTurn ? "Vez do agente" : "Sua vez"}</span>
+      </header>
+      <div className="official-match-grid">
+        <div className="official-board-column">
+          <div className="official-player-bar"><MatchAvatar /><div><strong>{opponentName}</strong><span>Agente · {game.human_color === "white" ? "pretas" : "brancas"}</span></div></div>
       <Board
         fen={replayPosition?.fen ?? game.current_fen}
         orientation={game.human_color}
@@ -330,6 +326,23 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
         onReiniciar={start}
         onAnalisar={() => {}}
       />
+          <div className="official-player-bar human-player"><MatchAvatar human /><div><strong>VOCÊ</strong><span>Você: {humanSide} · Humano contra IA</span></div></div>
+        </div>
+        <aside className="official-match-sidebar" aria-label="Painel da partida">
+          <section className="match-panel opponent-panel"><span className="eyebrow">ADVERSÁRIO</span><h3>{opponentName}</h3>
+            <p>{currentProfile && `${difficultyLabels[currentProfile.difficulty]} · ${styleLabels[currentProfile.style]}`}</p>
+            <p>{currentProfile?.description}</p>
+            <details className="match-details"><summary>Detalhes da partida</summary><p>Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {opponentName}{currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}{currentProfile?.persona && ` · Persona v${currentProfile.persona.version} (${currentProfile.persona.tone})`}</p></details>
+          </section>
+          <section className="match-panel turn-panel" aria-label="Estado da partida"><span className="eyebrow">{game.terminal ? "RESULTADO" : replayPosition ? "REPLAY" : "TURNO"}</span>
+            <p aria-live="polite">{replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : busy ? "Aguardando o servidor e a resposta da IA…" : status}</p>
+            {error && <p role="alert">{error}</p>}
+            {!replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
+            {!replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
+            {game.terminal && game.rating_change && <p aria-label="Variação de rating">{({ win: "Vitória", draw: "Empate", loss: "Derrota" })[game.rating_change.result]} · Rating nesta partida: {game.rating_change.after} · {game.rating_change.delta > 0 ? "+" : ""}{game.rating_change.delta}</p>}
+            {game.terminal && !game.rating_change && <button disabled={busy} onClick={() => void run(() => api.reconcileRating(game.id, game.version))}>Atualizar pontuação desta partida</button>}
+          </section>
+          <div className="match-panel official-history">
       <GameHistory
         key={game.id}
         game={game}
@@ -337,6 +350,12 @@ export function AiGame({ onPosition }: { onPosition: (fen: string) => void }) {
         selected={replayPosition?.ply ?? null}
         onSelect={(ply, fen) => setReplayPosition(ply === null ? null : { ply, fen: fen! })}
       />
+          </div>
+          <section className="match-panel contextual-tutor"><span className="eyebrow">COMENTÁRIO / TUTOR</span><AgentComment game={game} />
+            {onTutor && <button type="button" onClick={event => onTutor(event.currentTarget)}>Conversar sobre esta posição</button>}
+          </section>
+        </aside>
+      </div>
     </section>
   );
 }

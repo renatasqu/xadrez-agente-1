@@ -147,7 +147,7 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
   await screen.findByText("Histórico e revisão");
   expect(document.querySelector('[aria-label="Histórico oficial"]')).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Abrir tutor" }));
+  fireEvent.click(screen.getByRole("button", { name: "Conversar sobre esta posição" }));
   fireEvent.click(screen.getByLabelText("Anexar posição do tabuleiro"));
   fireEvent.change(screen.getByLabelText("Sua pergunta"), { target: { value: "Explique a posição" } });
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enviar" })); });
