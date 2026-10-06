@@ -1,5 +1,7 @@
 // Arena da partida; tutor e lições acessíveis sob demanda.
 
+import { HistoryOverview } from "./components/HistoryOverview";
+import { canonicalizeHash, pageFromHash, pageHashes, type AppPage } from "./navigation";
 import { RatingPanel } from "./components/RatingPanel";
 import { AiGame } from "./components/AiGame";
 import { createPortal } from "react-dom";
@@ -44,19 +46,14 @@ function tituloDaLicao(licao: InfoLicao, retomando = false): string {
   return `${retomando ? "Retomando · " : ""}Lição ${licao.numero}/${licao.total} · ${licao.modulo} · ${licao.titulo}`;
 }
 
-type AppPage = "masters" | "match" | "lessons" | "curiosities" | "about" | "home";
-function pageFromHash(): AppPage {
-  const pages: Record<string, AppPage> = { "#/masters": "masters", "#/licoes": "lessons", "#/curiosidades": "curiosities", "#/sobre": "about", "#/": "home" };
-  return pages[window.location.hash] ?? "match";
-}
 
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
-  const [aiMode, setAiMode] = useState(window.location.hash !== "#explorar");
-  const [aiVisited, setAiVisited] = useState(window.location.hash !== "#explorar");
+  const [aiMode, setAiMode] = useState(pageFromHash() !== "practice");
+  const [aiVisited, setAiVisited] = useState(pageFromHash() !== "practice");
   const [aiGameActive, setAiGameActive] = useState(false);
   const [aiFen, setAiFen] = useState<string | null>(null);
-  const [page, setPage] = useState<AppPage>(pageFromHash);
-  const { layoutRef, mobile } = useMatchLayout(page === "match" && !aiMode);
+  const [page, setPage] = useState<AppPage>(canonicalizeHash);
+  const { layoutRef, mobile } = useMatchLayout(page === "practice" && !aiMode);
   const [desktopTutorHost, setDesktopTutorHost] = useState<HTMLDivElement | null>(null);
   const [desktopLessonsHost, setDesktopLessonsHost] = useState<HTMLDivElement | null>(null);
   const [mobileAccessHost, setMobileAccessHost] = useState<HTMLDivElement | null>(null);
@@ -65,6 +62,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const [esperando, setEsperando] = useState<TipoDeEspera | null>(null);
   const [modal, setModal] = useState<"tutor" | "lessons" | "curiosities" | "comment" | "about" | "documentation" | null>(() => pageFromHash() === "about" ? "about" : null);
   const [boardContextHost, setBoardContextHost] = useState<HTMLDivElement | null>(null);
+  const currentPage = useRef(page);
+  const aboutOpener = useRef<HTMLElement | null>(null);
+  const aboutReturn = useRef<AppPage>("match");
   const modalOpener = useRef<HTMLElement | null>(null);
   const [lessonError, setLessonError] = useState<Resposta | null>(null);
   const [licao, setLicao] = useState<RespostaLicao | null>(null);
@@ -230,6 +230,13 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
 
   function openArea(area: "tutor" | "lessons" | "curiosities" | "comment" | "about" | "documentation", opener: HTMLElement) {
     modalOpener.current = opener;
+    if (area === "about" && page !== "about") {
+      aboutReturn.current = currentPage.current;
+      aboutOpener.current = opener;
+      setModal("about");
+      window.location.hash = pageHashes.about;
+      return;
+    }
     setModal(area);
   }
   function goHome() {
@@ -240,31 +247,36 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
     setDemo(null); setTocando(false);
     window.location.hash = "/";
   }
+  function closeAbout() {
+    setModal(null);
+    if (pageFromHash() === "about") window.location.hash = pageHashes[aboutReturn.current];
+  }
   useEffect(() => {
     const navigate = () => {
-      const next = pageFromHash();
+      const next = canonicalizeHash();
       if (next === "about") {
-        modalOpener.current = document.querySelector<HTMLElement>('a[href="#/sobre"]');
+        if (currentPage.current !== "about") aboutReturn.current = currentPage.current;
+        modalOpener.current = aboutOpener.current ?? document.querySelector<HTMLElement>('a[href="#/sobre"]');
         setModal("about");
+      } else {
+        aboutOpener.current = null;
+        setModal(previous => previous === "about" ? null : previous);
       }
-      if (next !== "match") {
+      if (next === "match") { setAiVisited(true); setAiMode(true); }
+      if (next === "practice") setAiMode(false);
+      if (next !== "practice") {
         setMatchPaused(true); setHistoryPlaying(false); setTocando(false);
       }
+      currentPage.current = next;
       setPage(next);
-      requestAnimationFrame(() => {
-        if (next !== "match") { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; return; }
-        const target = next === "match"
-          ? document.querySelector(window.location.hash === "#historico-partida" ? "#historico-partida" : window.location.hash === "#agentes" ? "#agentes" : ".match-context-strip")
-          : document.querySelector(`[data-page="${next}"]`);
-        target?.scrollIntoView?.({ block: "start" });
-      });
+      requestAnimationFrame(() => { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; });
     };
     window.addEventListener("hashchange", navigate);
-    if (pageFromHash() !== "match") { setMatchPaused(true); setHistoryPlaying(false); setTocando(false); }
+    navigate();
     return () => window.removeEventListener("hashchange", navigate);
   }, []);
-  function practiceFromArea(id: string) { window.location.hash = "partida"; abrirExercicio(id); }
-  function demonstrationFromArea(value: Demonstracao) { window.location.hash = "partida"; verNoTabuleiro(value); }
+  function practiceFromArea(id: string) { window.location.hash = pageHashes.practice; abrirExercicio(id); }
+  function demonstrationFromArea(value: Demonstracao) { window.location.hash = pageHashes.practice; verNoTabuleiro(value); }
   function retainOpener(element: HTMLButtonElement | null) {
     if (element && modalOpener.current?.dataset.modalTrigger === element.dataset.modalTrigger) modalOpener.current = element;
   }
@@ -297,9 +309,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             <StatusSaude />
           </div>
         </header>
-        {page === "match" && !aiMode && <div><button type="button" onClick={() => { setAiVisited(true); setAiMode(true); }}>Jogar contra IA</button></div>}
+        {page === "practice" && !aiMode && <div><button type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>}
         <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame onPosition={setAiFen} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
-        <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "match" || aiMode}>
+        <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "practice" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
             <div className="desktop-tutor-slot" ref={setDesktopTutorHost} />
@@ -381,6 +393,9 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
           <div className="mobile-access-row" ref={setMobileAccessHost} />
         </main>
+        <section className="standalone-page" data-page="history" aria-label="Histórico de partidas" hidden={page !== "history"}>
+          {page === "history" && <HistoryOverview />}
+        </section>
         <section className="masters-page" data-page="masters" role="region" aria-label="MASTERS:" aria-labelledby="masters-title" hidden={page !== "masters"}>
           <Masters visible={page === "masters"} />
         </section>
@@ -392,7 +407,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         </section>
 
         <section className="standalone-page" data-page="home" aria-label="Tela inicial" hidden={page !== "home"}>
-          <h2>Seu próximo grande lance.</h2><p>Explore. Aprenda. Jogue.</p><a className="botao-pixel" href="#partida">Iniciar partida</a>
+          <h2>Seu próximo grande lance.</h2><p>Explore. Aprenda. Jogue.</p><a className="botao-pixel" href="#/partida">Iniciar partida</a>
         </section>
       </div>
       {(mobile ? mobileAccessHost : desktopTutorHost) && createPortal(
@@ -415,7 +430,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       <ContentModal id="comment-modal" title="COMENTÁRIO / LIKE:" open={modal === "comment"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         <CommentLike />
       </ContentModal>
-      <ContentModal id="about-modal" title="SOBRE O PROJETO:" open={modal === "about"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
+      <ContentModal id="about-modal" title="SOBRE O PROJETO:" open={modal === "about"} onClose={closeAbout} returnFocusRef={modalOpener}>
         <Sobre section="about" />
       </ContentModal>
       <ContentModal id="documentation-modal" title="DOCUMENTAÇÃO:" open={modal === "documentation"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>

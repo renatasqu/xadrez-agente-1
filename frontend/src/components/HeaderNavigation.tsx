@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { pageFromHash, pageHashes } from "../navigation";
 
 const links = [
-  ["#partida", "Partida"], ["#historico-partida", "Histórico"],
+  ["#/partida", "Partida"], ["#/historico", "Histórico"],
   ["#/masters", "Masters"], ["#/licoes", "Lições"],
   ["#/sobre", "Sobre"],
 ] as const;
@@ -12,22 +13,18 @@ interface Props {
   onExit?: () => void;
 }
 export function HeaderNavigation({ onExit }: Props = {}) {
-  const [active, setActive] = useState(window.location.hash || "#partida");
+  const [active, setActive] = useState(pageHashes[pageFromHash()]);
   const [open, setOpen] = useState(false);
   const [preferences, setPreferences] = useState(false);
   useEffect(() => {
-    const update = () => { setActive(window.location.hash || "#partida"); setPreferences(false); };
+    const update = () => { setActive(pageHashes[pageFromHash()]); setPreferences(false); };
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
   }, []);
   return <div className="header-navigation">
     <button type="button" className="header-menu-toggle" aria-expanded={open} aria-controls="header-navigation-items" onClick={() => setOpen(!open)}><span aria-hidden="true">☰</span> Menu</button>
     <nav id="header-navigation-items" className={`header-navigation-items${open ? " is-open" : ""}`} aria-label="Navegação principal">
-      {links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); setPreferences(false);
-        if (href === "#historico-partida") {
-          const history = document.querySelector<HTMLDetailsElement>("#historico-partida details");
-          if (history) history.open = true;
-        } }}>{label}</a>)}
+      {links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); setPreferences(false); }}>{label}</a>)}
       <a href="#/" onClick={event => { setOpen(false); setPreferences(false); if (onExit) { event.preventDefault(); onExit(); } }}>Sair</a>
     </nav>
     {preferences && <section id="header-preferences" className="header-preferences" aria-label="Configurações">

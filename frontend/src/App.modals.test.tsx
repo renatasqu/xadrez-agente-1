@@ -89,7 +89,8 @@ it("novas entradas abrem páginas próprias e preservam rascunho e like ao reabr
   window.history.replaceState(null, "", "#/curiosidades");
   fireEvent(window, new Event("hashchange"));
   expect(await screen.findByRole("region", { name: "Curiosidades" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("link", { name: "Partida" }));
+  window.history.replaceState(null, "", "#/pratica");
+  fireEvent(window, new Event("hashchange"));
   await waitFor(() => expect(screen.getByRole("button", { name: /^DEIXE SEU COMENTÁRIO/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /^DEIXE SEU COMENTÁRIO/ }));
   expect(screen.getByRole("dialog", { name: "COMENTÁRIO / LIKE:" })).toBeTruthy();
@@ -151,7 +152,7 @@ it("atalhos usam os assets corretos e mostram tooltips no hover e no foco", () =
   }
 });
 
-it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem foco", () => {
+it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem foco", async () => {
   const { container } = start();
   expect(container.querySelector('.arena-shell .game-footer')).toBeNull();
   const sidebar = container.querySelector(".match-sidebar") as HTMLElement;
@@ -167,9 +168,11 @@ it("Sobre e Documentação preservam conteúdo sob demanda, fecham e devolvem fo
   expect(content.getByText(/A conta armazena nome e e-mail/)).toBeTruthy();
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() => expect(window.location.hash).toBe("#/pratica"));
   expect(document.activeElement).toBe(about);
   fireEvent.click(about);
   fireEvent.click(screen.getByRole("button", { name: "Fechar sobre o projeto" }));
+  await waitFor(() => expect(window.location.hash).toBe("#/pratica"));
   const documentation = screen.getByRole("button", { name: "DOCUMENTAÇÃO" });
   fireEvent.click(documentation);
   const docs = within(screen.getByRole("dialog", { name: "DOCUMENTAÇÃO:" }));
@@ -190,8 +193,9 @@ it("menu Sobre abre o modal e permite reabrir no mesmo destino", async () => {
   fireEvent.click(link);
   expect(await screen.findByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
   fireEvent.keyDown(document, { key: "Escape" });
+  await waitFor(() => expect(window.location.hash).toBe("#/pratica"));
   fireEvent.click(link);
-  expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
+  expect(await screen.findByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
 });
 
 it("repetição encerra partida; replay preserva resultado e reinício limpa histórico", () => {

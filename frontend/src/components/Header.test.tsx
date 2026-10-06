@@ -17,9 +17,9 @@ it("mantém branding, avatar, todos os destinos e status no header sem sidebar o
   expect(header.queryByText("XADREZ")).toBeNull();
   expect(header.queryByText("MULTIAGENTE")).toBeNull();
   const nav = within(header.getByRole("navigation", { name: "Navegação principal" }));
-  for (const [name, href] of [["Partida", "#partida"], ["Histórico", "#historico-partida"], ["Masters", "#/masters"], ["Sobre", "#/sobre"]]) {
+  for (const [name, href] of [["Partida", "#/partida"], ["Histórico", "#/historico"], ["Masters", "#/masters"], ["Sobre", "#/sobre"]]) {
     expect(nav.getByRole("link", { name }).getAttribute("href")).toBe(href);
-    expect(container.querySelector(href === "#/sobre" ? "[data-page=about]" : href === "#/masters" ? "[data-page=masters]" : href)).toBeTruthy();
+    expect(container.querySelector(href === "#/sobre" ? "[data-page=about]" : href === "#/masters" ? "[data-page=masters]" : href === "#/historico" ? "[data-page=history]" : "#partida")).toBeTruthy();
   }
   expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Partida", "Histórico", "Masters", "Lições", "Sobre", "Sair"]);
   for (const name of ["Agentes", "Curiosidades", "Configurações"]) expect(nav.queryByText(name)).toBeNull();
@@ -58,6 +58,8 @@ it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () =
   expect(within(gallery).queryByRole("button")).toBeNull();
   expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
   fireEvent.click(screen.getByRole("link", { name: "Partida" }));
-  await waitFor(() => expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(false));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Iniciar partida contra IA" })).toBeTruthy());
+  expect(window.location.hash).toBe("#/partida");
+  expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
   expect(container.querySelector("#match-board")).toBe(board);
 });

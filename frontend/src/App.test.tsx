@@ -142,7 +142,7 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   (window.history.replaceState(null, "", "#explorar"), render(<App />));
   const arena = document.getElementById("partida")!;
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
-  expect(arena.hidden).toBe(true);
+  await waitFor(() => expect(arena.hidden).toBe(true));
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
   await screen.findByText("Histórico e revisão");

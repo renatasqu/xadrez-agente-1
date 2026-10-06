@@ -170,7 +170,7 @@ it("histórico mobile começa recolhido e mantém contador e seleção ao abrir"
   expect(select).toHaveBeenCalledWith(1);
 });
 
-it("páginas próprias pausam sem remontar ou apagar a partida e o logo volta ao jogo", async () => {
+it("páginas próprias pausam sem apagar a posição pedagógica ao retornar à prática", async () => {
   health();
   const { container } = (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
@@ -193,7 +193,8 @@ it("páginas próprias pausam sem remontar ou apagar a partida e o logo volta ao
       expect(screen.getByRole("dialog", { name: "SOBRE O PROJETO:" })).toBeTruthy();
       fireEvent.keyDown(document, { key: "Escape" });
     }
-    fireEvent.click(screen.getByRole("link", { name: "XADREZ MULTIAGENTE" }));
+    window.history.replaceState(null, "", "#/pratica");
+    fireEvent(window, new Event("hashchange"));
     await waitFor(() => expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(false));
     expect(screen.getByLabelText("Tabuleiro")).toBe(boardElement);
     expect(boardElement.getAttribute("data-fen")).toBe(fen);

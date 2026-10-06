@@ -53,7 +53,7 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
         </div>
         <div className="documentation-actions">
           <span className="documentation-action">
-            <a href="#agentes" onClick={onAnalyses} aria-describedby="documentation-analyses-tip">Ver análises dos agentes</a>
+            <a href="#/pratica" onClick={onAnalyses} aria-describedby="documentation-analyses-tip">Ver análises dos agentes</a>
             <span id="documentation-analyses-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Consultar as análises de Magnus e Hans</span>
           </span>
           {onTutor && <span className="documentation-action">

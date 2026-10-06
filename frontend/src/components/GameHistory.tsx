@@ -73,23 +73,27 @@ export function GameHistory({ game, disabled, selected, onSelect }: {
     } catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : "Exportação indisponível."); }
     finally { exportLock.current = false; setExporting(false); }
   }
-  return <section aria-label="Histórico oficial" className="mt-4 space-y-3">
+  return <section aria-label="Histórico oficial" className="official-history-content mt-4 space-y-3">
     <h3 className="font-bold">Histórico e revisão</h3>
     {loadError ? <p role="alert">Histórico indisponível ou partida mudou. <button className={buttonStyle} onClick={() => setAttempt(n => n + 1)}>Recarregar histórico</button></p> : !history ? <p role="status">Carregando histórico…</p> : <>
       <p aria-live="polite">{selected !== null ? `Replay somente leitura · lance ${ply}/${history.steps.length}` : "Posição atual"} · Resultado: {history.result}</p>
-      <div className="flex flex-wrap gap-2">
-        <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(0)}>Início do histórico</button>
-        <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(ply-1)}>Lance anterior</button>
-        <button className={buttonStyle} disabled={disabled || ply === history.steps.length} onClick={() => navigate(ply+1)}>Próximo lance</button>
-        <button className={buttonStyle} disabled={disabled} onClick={() => navigate(history.steps.length)}>Fim do histórico</button>
-        {selected !== null && <button className={buttonStyle} disabled={disabled} onClick={() => onSelect(null)}>Voltar à posição atual</button>}
+      <div className="history-navigation flex flex-wrap gap-2" role="group" aria-label="Navegar pelo histórico">
+        <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(0)} title="Início do histórico"><span aria-hidden="true">⏮</span><span className="sr-only">Início do histórico</span></button>
+        <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(ply-1)} title="Lance anterior"><span aria-hidden="true">←</span><span className="sr-only">Lance anterior</span></button>
+        <button className={buttonStyle} disabled={disabled || ply === history.steps.length} onClick={() => navigate(ply+1)} title="Próximo lance"><span aria-hidden="true">→</span><span className="sr-only">Próximo lance</span></button>
+        <button className={buttonStyle} disabled={disabled} onClick={() => navigate(history.steps.length)} title="Fim do histórico"><span aria-hidden="true">⏭</span><span className="sr-only">Fim do histórico</span></button>
+        {selected !== null && <button className={buttonStyle} disabled={disabled} onClick={() => onSelect(null)}><span>Voltar à posição atual</span></button>}
       </div>
-      <ol aria-label="Lances SAN" className="flex flex-wrap gap-2">{history.steps.map(move => <li key={move.ply}>
-        <button className={buttonStyle} disabled={disabled} aria-current={ply === move.ply ? "step" : undefined} onClick={() => navigate(move.ply)}>{move.move_number}{move.color === "white" ? "." : "…"} {move.san}</button>
+      <ol aria-label="Lances SAN" className="history-pairs">{Array.from(new Set(history.steps.map(move => move.move_number))).map(number => <li key={number} className="history-pair">
+        <span className="history-move-number" aria-hidden="true">{number}.</span>
+        {(["white", "black"] as const).map(color => {
+          const move = history.steps.find(step => step.move_number === number && step.color === color);
+          return move ? <button key={move.ply} className={buttonStyle} disabled={disabled} aria-label={`${move.move_number}${move.color === "white" ? "." : "…"} ${move.san}`} aria-current={ply === move.ply ? "step" : undefined} onClick={() => navigate(move.ply)}>{move.san}</button> : <span key={color} className="history-missing" aria-label={color === "white" ? "Nenhum lance branco nesta jogada" : "Nenhum lance preto nesta jogada"}>—</span>;
+        })}
       </li>)}</ol>
-      <button className={buttonStyle} disabled={disabled || analyzing} onClick={() => void analyze()}>{analyzing ? "Stockfish analisando…" : "Analisar lance selecionado"}</button>
+      <button className={`${buttonStyle} history-analyze`} disabled={disabled || analyzing} onClick={() => void analyze()}>{analyzing ? "Stockfish analisando…" : "Analisar lance selecionado"}</button>
     </>}
-    <button className={buttonStyle} disabled={disabled || exporting} onClick={() => void exportPgn()}>{exporting ? "Exportando…" : "Exportar PGN"}</button>
+    <button className={`${buttonStyle} history-export`} disabled={disabled || exporting} onClick={() => void exportPgn()}>{exporting ? "Exportando…" : "Exportar PGN"}</button>
     {pgn && <textarea aria-label="PGN exportado" readOnly value={pgn} rows={8} className="w-full" />}
     {error && <p role="alert">{error}</p>}
     {review && <section aria-label="Revisão Stockfish" className="rounded border p-3 space-y-1">

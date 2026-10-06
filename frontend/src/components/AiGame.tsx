@@ -190,7 +190,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
   if (!game) {
     return (
       <section aria-label="Partida contra IA" className="official-setup">
-        <header className="setup-heading"><span className="eyebrow">SUA PRÓXIMA PARTIDA</span><h2>JOGAR CONTRA IA</h2><p>Escolha seu adversário e entre no tabuleiro.</p></header>
+        <header className="setup-heading"><span className="eyebrow">SUA PRÓXIMA PARTIDA</span><h2>JOGAR CONTRA IA</h2><p>Escolha seu adversário e seu lado.</p></header>
         <div className="setup-options">
         <div className="setup-opponent">
         <label>
@@ -229,7 +229,6 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
           </select>
         </label>
         <div className="color-options">{(["white", "black"] as const).map(side => <button key={side} type="button" aria-pressed={color === side} disabled={busy || Boolean(creation.current)} onClick={() => setColor(side)}><span aria-hidden="true">{side === "white" ? "♔" : "♚"}</span>{side === "white" ? "BRANCAS" : "PRETAS"}<small>{side === "white" ? "Você faz a abertura" : "A IA faz a abertura"}</small></button>)}</div>
-        </div></div>
         <button
           className="setup-start botao-pixel"
           type="button"
@@ -242,8 +241,10 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
         {error && <p role="alert">{error}</p>}
         {creation.current && !busy && <p>Criação ainda não confirmada. Confirme usando a mesma solicitação para evitar duplicação.</p>}
 
+        </div></div>
         <section aria-label="Suas partidas" className="saved-games">
-          <h3>Suas partidas</h3>
+          <header className="saved-games-heading"><div><h3>Suas partidas</h3><p>Retome uma partida ou reveja seus lances.</p></div></header>
+          <div className="saved-games-toolbar">
           <label>
             Mostrar
             <select
@@ -263,6 +264,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
           <button disabled={busy || listLoading} onClick={() => setListAttempt((n) => n + 1)}>
             Atualizar partidas
           </button>
+          </div>
           {listLoading ? (
             <p role="status">Carregando partidas…</p>
           ) : listError ? (
@@ -272,14 +274,13 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
           ) : (
             <ul>
               {savedGames.map((saved, index) => (
-                <li key={saved.id}>
-                  <p>
-                    {saved.profile?.display_name ?? saved.opponent.agent_id} · {saved.profile ? `${difficultyLabels[saved.profile.difficulty]} / ${styleLabels[saved.profile.style]}` : `perfil v${saved.opponent.profile_version ?? 1}`} · Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.terminal ? "Encerrada" : "Em andamento"}
-                    {index === 0 && listOffset === 0 ? " · Mais recente" : ""} · {saved.move_count} {saved.move_count === 1 ? "lance" : "lances"} · Turno: {saved.side_to_move === "white" ? "brancas" : "pretas"} · {({ playing: "Em jogo", check: "Xeque", checkmate: "Xeque-mate", stalemate: "Afogamento", insufficient_material: "Material insuficiente", repetition: "Repetição tripla", fifty_move: "Cinquenta lances", draw: "Empate" })[saved.status]} · Atualizada: {new Date(saved.updated_at).toLocaleString("pt-BR")}
-                  </p>
-                  <button disabled={busy || Boolean(creation.current)} onClick={() => resume(saved.id)}>
-                    {saved.terminal ? "Revisar partida" : "Continuar partida"} {saved.id.slice(0, 8)}
-                  </button>
+                <li key={saved.id} className="saved-game-card">
+                  <header><h4>{saved.profile?.display_name ?? saved.opponent.agent_id}</h4><span className="saved-game-state">{saved.terminal ? "Encerrada" : "Em andamento"}</span></header>
+                  <p className="saved-game-meta">Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.move_count} {saved.move_count === 1 ? "lance" : "lances"} · {saved.terminal ? "Resultado final" : saved.awaiting_agent || saved.side_to_move !== saved.human_color ? "Vez da IA" : "Sua vez"}</p>
+                  <footer><time dateTime={saved.updated_at} title={new Date(saved.updated_at).toLocaleString("pt-BR")}>Atualizada {new Date(saved.updated_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}{index === 0 && listOffset === 0 && <span> · Mais recente</span>}</time>
+                    <button title={saved.id} aria-label={`${saved.terminal ? "Revisar partida" : "Continuar partida"} ${saved.id.slice(0, 8)} · ${saved.profile?.display_name ?? saved.opponent.agent_id}`} disabled={busy || Boolean(creation.current)} onClick={() => resume(saved.id)}>{saved.terminal ? "Revisar partida" : "Continuar partida"}</button>
+                  </footer>
+                  <details className="saved-game-details"><summary>Informações</summary><p>{saved.profile ? `${difficultyLabels[saved.profile.difficulty]} / ${styleLabels[saved.profile.style]}` : `Perfil v${saved.opponent.profile_version ?? 1}`} · {({ playing: "Em jogo", check: "Xeque", checkmate: "Xeque-mate", stalemate: "Afogamento", insufficient_material: "Material insuficiente", repetition: "Repetição tripla", fifty_move: "Cinquenta lances", draw: "Empate" })[saved.status]} · Turno: {saved.side_to_move === "white" ? "brancas" : "pretas"} · {new Date(saved.updated_at).toLocaleString("pt-BR")} · ID: {saved.id}</p></details>
                 </li>
               ))}
             </ul>
@@ -305,12 +306,16 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
   return (
     <section aria-label="Partida contra IA" className="official-match">
       <header className="official-match-context">
-        <div><span className="eyebrow">{game.terminal ? "PARTIDA ENCERRADA" : replayPosition ? "REPLAY · SOMENTE LEITURA" : "PARTIDA CONTRA IA"}</span><h2>Você <span>vs.</span> {opponentName}</h2></div>
-        <span className="match-state" role="status">{game.terminal ? "Resultado final" : replayPosition ? `Lance ${replayPosition.ply}` : busy || agentTurn ? "Vez do agente" : "Sua vez"}</span>
+        <span className="eyebrow">{replayPosition ? "REPLAY · SOMENTE LEITURA" : game.terminal ? "PARTIDA ENCERRADA" : "PARTIDA CONTRA IA"}</span>
+        <div className="match-identities">
+          <div className="match-identity human-identity"><MatchAvatar human /><div><h2>VOCÊ</h2><p>Você: {humanSide}</p></div></div>
+          <span className="match-versus">vs.</span>
+          <div className="match-identity agent-identity"><MatchAvatar /><div><h2>{opponentName}</h2><p>Agente · {game.human_color === "white" ? "pretas" : "brancas"}</p></div></div>
+        </div>
+        <span className="match-state" role="status">{replayPosition ? `REPLAY · Lance ${replayPosition.ply}` : game.terminal ? "Resultado final" : busy || agentTurn ? "VEZ DA IA" : "SUA VEZ"}</span>
       </header>
       <div className="official-match-grid">
         <div className="official-board-column">
-          <div className="official-player-bar"><MatchAvatar /><div><strong>{opponentName}</strong><span>Agente · {game.human_color === "white" ? "pretas" : "brancas"}</span></div></div>
       <Board
         fen={replayPosition?.fen ?? game.current_fen}
         orientation={game.human_color}
@@ -326,20 +331,15 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
         onReiniciar={start}
         onAnalisar={() => {}}
       />
-          <div className="official-player-bar human-player"><MatchAvatar human /><div><strong>VOCÊ</strong><span>Você: {humanSide} · Humano contra IA</span></div></div>
         </div>
         <aside className="official-match-sidebar" aria-label="Painel da partida">
-          <section className="match-panel opponent-panel"><span className="eyebrow">ADVERSÁRIO</span><h3>{opponentName}</h3>
-            <p>{currentProfile && `${difficultyLabels[currentProfile.difficulty]} · ${styleLabels[currentProfile.style]}`}</p>
-            <p>{currentProfile?.description}</p>
-            <details className="match-details"><summary>Detalhes da partida</summary><p>Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {opponentName}{currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}{currentProfile?.persona && ` · Persona v${currentProfile.persona.version} (${currentProfile.persona.tone})`}</p></details>
-          </section>
-          <section className="match-panel turn-panel" aria-label="Estado da partida"><span className="eyebrow">{game.terminal ? "RESULTADO" : replayPosition ? "REPLAY" : "TURNO"}</span>
+          <section className={`match-panel turn-panel${!game.terminal && !game.awaiting_agent && !pending.current && !error && game.status !== "check" ? " turn-panel--quiet" : ""}`} aria-label="Estado da partida"><span className="eyebrow">{game.terminal ? "RESULTADO" : replayPosition ? "REPLAY" : "TURNO"}</span>
             <p aria-live="polite">{replayPosition ? `Replay somente leitura · lance ${replayPosition.ply}` : busy ? "Aguardando o servidor e a resposta da IA…" : status}</p>
             {error && <p role="alert">{error}</p>}
             {!replayPosition && !game.terminal && game.awaiting_agent && <button disabled={busy} onClick={() => { pending.current = null; void run(() => api.resumeAgent(game.id, game.version)); }}>Tentar novamente o turno da IA</button>}
             {!replayPosition && pending.current && !game.awaiting_agent && <button disabled={busy} onClick={() => void run(() => api.submitHumanMove(game.id, pending.current!))}>Confirmar estado do lance</button>}
             {game.terminal && game.rating_change && <p aria-label="Variação de rating">{({ win: "Vitória", draw: "Empate", loss: "Derrota" })[game.rating_change.result]} · Rating nesta partida: {game.rating_change.after} · {game.rating_change.delta > 0 ? "+" : ""}{game.rating_change.delta}</p>}
+            {game.terminal && <button type="button" disabled={busy || Boolean(creation.current)} onClick={start}>Nova partida</button>}
             {game.terminal && !game.rating_change && <button disabled={busy} onClick={() => void run(() => api.reconcileRating(game.id, game.version))}>Atualizar pontuação desta partida</button>}
           </section>
           <div className="match-panel official-history">
@@ -354,6 +354,7 @@ export function AiGame({ onPosition, onTutor, onGameActive }: { onPosition: (fen
           <section className="match-panel contextual-tutor"><span className="eyebrow">COMENTÁRIO / TUTOR</span><AgentComment game={game} />
             {onTutor && <button type="button" onClick={event => onTutor(event.currentTarget)}>Conversar sobre esta posição</button>}
           </section>
+          <details className="match-details match-profile-details"><summary>Detalhes da partida</summary><p>{currentProfile && `${difficultyLabels[currentProfile.difficulty]} · ${styleLabels[currentProfile.style]}`}</p><p>{currentProfile?.description}</p><p>Partida atual: {game.id} · Perfil v{game.opponent.profile_version ?? 1}. Adversário da partida: {opponentName}{currentProfile && ` · ${difficultyLabels[currentProfile.difficulty]} / ${styleLabels[currentProfile.style]}`}{currentProfile?.persona && ` · Persona v${currentProfile.persona.version} (${currentProfile.persona.tone})`}</p></details>
         </aside>
       </div>
     </section>
