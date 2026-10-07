@@ -23,6 +23,13 @@ it("navega início/anterior/próximo/fim e SAN sem análise automática",async()
  fireEvent.click(screen.getByRole("button", { name: "1. e4" }));expect(choose).toHaveBeenLastCalledWith(1,"first");
  fireEvent.click(screen.getByText("Voltar à posição atual"));expect(choose).toHaveBeenLastCalledWith(null);
  expect(api.reviewGame).not.toHaveBeenCalled();expect(api.gamePgn).not.toHaveBeenCalled();
+ const submit = vi.spyOn(api, "submitHumanMove"), reconcile = vi.spyOn(api, "reconcileRating");
+ const terminal = { ...game, terminal: true };
+ view.rerender(<GameHistory game={terminal} disabled selected={null} onSelect={choose}/>);
+ choose.mockClear();fireEvent.click(screen.getByRole("button", { name: "Rever partida" }));expect(choose).not.toHaveBeenCalled();
+ view.rerender(<GameHistory game={terminal} disabled={false} selected={null} onSelect={choose}/>);
+ fireEvent.click(screen.getByRole("button", { name: "Rever partida" }));expect(choose).toHaveBeenLastCalledWith(0,"initial");
+ expect(submit).not.toHaveBeenCalled();expect(reconcile).not.toHaveBeenCalled();
 });
 it("análise explícita controla duplicatas e apresenta dados estruturados",async()=>{
  let resolve!:(r:GameReviewResult)=>void;vi.mocked(api.reviewGame).mockImplementation(()=>new Promise(r=>resolve=r));render(<Harness/>);

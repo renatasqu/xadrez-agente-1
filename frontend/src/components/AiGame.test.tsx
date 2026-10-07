@@ -64,9 +64,14 @@ beforeEach(() => {
 });
 
 it("mostra apenas a configuração antes de iniciar a partida", async () => {
+  vi.spyOn(api, "createGame");
   render(<AiGame onPosition={vi.fn()} />);
   expect(screen.getByLabelText("Seu lado")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Iniciar partida contra IA" })).toBeTruthy();
+  expect(screen.getByLabelText("Conheça o Xadrez Multiagente")).toBeTruthy();
+  expect(screen.getByRole("link", { name: /Aprender/ }).getAttribute("href")).toBe("#/licoes");
+  expect(screen.getByRole("link", { name: /Praticar/ }).getAttribute("href")).toBe("#/pratica");
+  expect(api.createGame).not.toHaveBeenCalled();
 });
 
 it("esconde o setup assim que a partida ativa existe", async () => {
@@ -264,8 +269,8 @@ it("mostra a variação de rating no fim da partida sem ocultar o estado final",
     terminal: true,
     rating_change: { before: 1200, after: 1216, delta: 16, result: "win", opponent_rating: 1200, rating_system_version: 1 },
   }));
-  expect(screen.getByText(/Rating nesta partida: 1216/)).toBeTruthy();
-  expect(screen.getByText(/Vitória/)).toBeTruthy();
+  expect(screen.getByText(/Rating interno: 1200 → 1216/)).toBeTruthy();
+  expect(screen.getByText(/Vitória contra Equilibrado/)).toBeTruthy();
 });
 
 it("lista estados oficiais em português sem misturar palavras em inglês", async () => {
@@ -442,7 +447,7 @@ it("reload e resume preservam humano preto e bloqueiam brancas", async () => {
 
 it("escolha visual de pretas cria Game oficial e substitui setup pela arena", async () => {
   render(<AiGame onPosition={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /PRETAS.*A IA faz a abertura/ }));
+  fireEvent.click(screen.getByRole("button", { name: /PRETAS.*O agente faz o primeiro lance/ }));
   expect((screen.getByLabelText("Seu lado") as HTMLSelectElement).value).toBe("black");
   await start(game(["e2e4"], { human_color: "black", awaiting_agent: false }));
   expect(api.createGame).toHaveBeenCalledWith("black", "balanced", expect.any(String));

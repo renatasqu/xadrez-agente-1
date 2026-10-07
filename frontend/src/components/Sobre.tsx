@@ -17,16 +17,16 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
     <footer className="game-footer text-xs text-slate-600">
       {section !== "documentation" && <section className="about-project">
       <div className="about-project-intro">
-        <p>Xadrez Multiagente é uma experiência interativa que combina xadrez, agentes de inteligência artificial e aprendizagem.</p>
+        <p>Xadrez Multiagente é um ambiente educacional para jogar contra agentes, estudar posições e acompanhar sua evolução.</p>
         <h3>JOGAR</h3>
-        <p>Em Partida, escolha um agente e seu lado. Você move suas peças; o Stockfish calcula os lances do adversário. As partidas ficam no Histórico, com continuidade, revisão e exportação em PGN.</p>
+        <p>Em Partida, escolha um agente e seu lado. Você move suas peças; o Stockfish e a política do agente escolhem os lances do adversário. Cada estilo prefere candidatos diferentes entre lances aceitáveis. O servidor guarda e controla a partida oficial; o Histórico permite continuar, rever e exportar em PGN.</p>
         <h3>APRENDER E TREINAR</h3>
         <p>Lições oferece um percurso guiado. Em Prática, explore posições e resolva exercícios sem alterar uma partida oficial ou seu rating.</p>
         <h3>PEDIR AJUDA</h3>
-        <p>O Tutor explica o conteúdo e a posição que você está vendo. Masters apresenta os agentes e os estilos de treino. Os perfis inspirados são interpretações educacionais, sem imitação fiel ou endosso dos jogadores.</p>
+        <p>O Tutor explica o conteúdo e a posição que você está vendo, sem executar lances ou alterar a partida. Masters apresenta os agentes e os estilos de treino.</p>
+        <h3>RATING INTERNO E PERFIS</h3>
+        <p>A pontuação pertence ao Xadrez Multiagente: não é rating FIDE nem classificação oficial. Os perfis inspirados são interpretações educacionais, sem reprodução fiel, participação ou endosso dos jogadores reais.</p>
         <p>Este projeto nasceu de uma atividade acadêmica sobre inteligência artificial e aprendizagem de xadrez.</p>
-        <h3>OBJETIVO:</h3>
-        <p>Transformar uma partida de xadrez em uma experiência visual, interativa e pedagógica, aproximando o usuário dos conceitos do jogo e das análises realizadas pelos agentes.</p>
         <details><summary>Tecnologias do projeto</summary><p>React · TypeScript · FastAPI · Python · Stockfish · Anthropic · RAG · Embeddings</p></details>
       </div>
       <details><summary>Documentos da biblioteca</summary><p>As respostas vêm destes documentos:</p>

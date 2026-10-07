@@ -66,7 +66,7 @@ it("trata resposta sem cache e não consulta enquanto a página está oculta", a
   expect(request).not.toHaveBeenCalled();
   view.rerender(<Masters visible />);
   expect(await screen.findAllByText("Rating indisponível")).toHaveLength(3);
-  expect(screen.getByText("Dados indisponíveis")).toBeTruthy();
+  expect(screen.getByText("Dados FIDE indisponíveis. Consulte os perfis de jogo no catálogo acima.")).toBeTruthy();
 });
 
 it("conserva a última resposta se uma abertura posterior falhar", async () => {
@@ -95,7 +95,7 @@ it("usa catálogo oficial, separa treino/inspirados e escolha não escreve Game 
   const inspired = screen.getByRole("region", { name: "Perfis inspirados" });
   expect(within(inspired).getByText("Avançado")).toBeTruthy();
   expect(within(inspired).getByText("tático")).toBeTruthy();
-  const button = within(inspired).getByRole("button", { name: "Jogar contra este perfil: Perfil inspirado em Judit" });
+  const button = within(inspired).getByRole("button", { name: "Jogar com este perfil: Perfil inspirado em Judit" });
   expect(button.getAttribute("aria-pressed")).toBe("true"); fireEvent.click(button);
   expect(select).toHaveBeenCalledWith("judit_inspired");
   expect(create).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();

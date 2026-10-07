@@ -2,9 +2,11 @@
 
 ## Visão geral
 
-Aplicação de aprendizagem de xadrez em português, com tabuleiro interativo, tutor baseado em documentos, análise de posições com Stockfish, lições e exercícios curados. A interface usa pixel art e chama os lados brancos e pretos de **Magnus** e **Hans**.
+Aplicação educacional de xadrez em português para jogar contra agentes, aprender com lições e estudar posições com o Tutor. A identidade visual usa pixel art.
 
-**No modo manual, a pessoa movimenta os dois lados; em “Jogar contra IA”, enfrenta um adversário Stockfish funcional.** Magnus e Hans continuam sendo nomes visuais, sem personalidades próprias: seus painéis exibem análises solicitadas pelo usuário. Os papéis de linguagem realmente implementados no backend são Árbitro, Professor, Estrategista, Analista e Roteador.
+**Partida é a experiência principal:** o servidor controla a Game oficial, você move somente seu lado e o agente responde automaticamente. **Prática** é a área separada para exercícios e exploração dos dois lados, sem alterar a partida oficial ou o rating. Magnus e Hans aparecem como rótulos visuais de análises na exploração; os perfis de jogo inspirados são interpretações educacionais, sem participação ou endosso de jogadores reais.
+
+A descrição atual do produto está em [PRODUCT.md](PRODUCT.md). As etapas abaixo mantêm o histórico técnico do projeto.
 
 Projeto originado na atividade acadêmica “Recuperando documentos úteis para aprender um esporte”. Esta descrição foi conferida no código e no QA local em **06/10/2026**. O mapa técnico, evidências, limites de verificação e recomendações estão em [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 
@@ -29,31 +31,34 @@ A existência dessas implementações não comprova a disponibilidade atual de s
 
 ## Experiência do usuário
 
-1. O frontend consulta `/auth/session`. Sem sessão válida, mostra o login; a conta precisa ter sido provisionada localmente.
-2. Depois de entrar, abre a partida. A pessoa pode mover brancas e pretas, consultar o histórico e pedir uma análise.
-3. O tutor abre em modal; permite perguntar, anexar a posição atual ou pedir indicações de leitura. Cada chamada é independente: o histórico do chat não é enviado ao modelo.
-4. Uma resposta pode oferecer “Ver no tabuleiro” ou “Praticar este conceito”. Demonstrações e exercícios usam posições próprias e preservam a partida enquanto estão abertos.
-5. As lições avançam quando o backend entrega conteúdo com fontes; não exigem aprovação em exercícios para avançar.
-6. Masters e Lições também têm áreas próprias. Navegar para outra área pausa a partida; ao voltar, o botão Continuar retoma a interação.
-7. Sair encerra a sessão. Atualizar a página perde a partida manual e o chat em memória. Games contra IA e rating ficam no servidor; abra Jogar contra IA e escolha uma partida para retomar.
+1. Entre com uma conta previamente configurada; cadastro público desativado.
+2. Em Partida, escolha agente e cor e confirme o início, ou continue uma partida existente.
+3. O agente responde automaticamente. Escolher pretas faz o agente abrir. Navegar preserva a Game; após reload, retome pelo setup ou Histórico.
+4. Histórico permite continuar, rever em replay somente leitura, analisar e exportar PGN.
+5. Masters compara cinco agentes de treino e três perfis inspirados. A escolha apenas prepara o setup.
+6. Lições organiza 12 lições sequenciais. Prática oferece seis exercícios e exploração, sem alterar Game ou rating.
+7. O Tutor explica a lição ou posição exibida. Cada pergunta é independente; conversas de contextos anteriores são identificadas.
+8. O rating é interno, sem equivalência FIDE, e só muda pelo fluxo oficial do servidor. Sair revoga a sessão; chat e exploração ficam em memória.
 
 ## Páginas e seções
 
-As URLs usam fragmentos (`#`), tratados por `AuthGate.tsx` e `App.tsx`; não há React Router nem páginas do servidor para esses caminhos.
+As URLs usam fragmentos (`#`), tratados por `AuthGate.tsx` e `App.tsx`, sem roteador externo.
 
 | Entrada | Conteúdo atual |
 | --- | --- |
-| `/#/login` | Login com e-mail e senha. |
-| `/#/cadastro` | Formulário presente, mas envio recusado: cadastro desativado. |
-| `/#/partida` e `/#partida` | Arena, tabuleiro e controles. |
-| `/#historico-partida` | Histórico da partida em memória. |
-| `/#agentes` | Painéis das análises de Magnus/brancas e Hans/pretas. |
-| `/#/masters` | Três perfis, biografias locais e ratings FIDE via backend. |
-| `/#/licoes` | Lição atual, próxima lição e prática relacionada. |
-| `/#/sobre` | Abre o modal Sobre, atualizado no QA da etapa13. |
-| `/#/curiosidades` | Placeholder; o carrossel real fica na arena. Não há link no menu atual. |
-| `/#/` | Tela simples com “Iniciar partida”, quando autenticado. |
-| Botões da arena/flutuantes | Tutor, lições, comentários/like e documentação em modais, sem rota dedicada. |
+| `/#/login` | Login pessoal. |
+| `/#/cadastro` | Formulário com aviso de cadastro desativado. |
+| `/#/partida` | Setup, continuidade e arena da partida oficial contra IA. |
+| `/#/historico` | Partidas persistidas, filtros, paginação e abertura para continuar/rever. |
+| `/#/masters` | Oito perfis de agentes; biografias e FIDE em seção editorial separada. |
+| `/#/licoes` | Percurso, lição atual, Tutor e prática relacionada. |
+| `/#/pratica` | Exercícios, exploração e análises de treino. |
+| `/#/sobre` | Modal de apresentação do produto. |
+| `/#/curiosidades` | Página legada provisória, sem link no menu principal. |
+| `/#/` | Entrada legada simples para acessar Partida. |
+| Atalhos | Tutor, lições, comentários/like demonstrativos e documentação em modais. |
+
+Aliases antigos redirecionam para as áreas atuais. Consultar [PRODUCT.md](PRODUCT.md) para o mapa funcional vigente.
 
 ## Frontend
 

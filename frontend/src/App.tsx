@@ -358,7 +358,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
         </header>
         {page === "practice" && !aiMode && <section className="standalone-page practice-intro" aria-label="Prática de xadrez">
-          <header className="pedagogy-heading"><h1>Prática</h1><p>Esta é uma área de treino. Suas ações aqui não alteram uma partida oficial nem seu rating.</p></header>
+          <header className="pedagogy-heading"><h1>Prática</h1><p>Treine posições e exercícios sem alterar sua partida ou seu rating interno.</p></header>
           <div className="pedagogy-actions"><a href="#/licoes">Voltar às lições</a><button className="botao-pixel" type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>
           <h2>Exercícios</h2><p>Escolha um objetivo. Você receberá feedback e poderá tentar novamente.</p>
           <div className="practice-options">{Object.entries(EXERCISE_LABELS).map(([id, item]) => <button type="button" className="botao-pixel" key={id} disabled={exercicio.loading || esperando !== null} onClick={() => abrirExercicio(id)}>{item.nome}</button>)}</div>

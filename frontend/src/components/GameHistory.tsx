@@ -77,6 +77,7 @@ export function GameHistory({ game, disabled, selected, onSelect }: {
     <h3 className="font-bold">Histórico e revisão</h3>
     {loadError ? <p role="alert">Histórico indisponível ou partida mudou. <button className={buttonStyle} onClick={() => setAttempt(n => n + 1)}>Recarregar histórico</button></p> : !history ? <p role="status">Carregando histórico…</p> : <>
       <p aria-live="polite">{selected !== null ? `Replay somente leitura · lance ${ply}/${history.steps.length}` : "Posição atual"} · {history.result === "*" ? "Partida em andamento" : `Resultado: ${history.result}`}</p>
+      {game.terminal && selected === null && <button className={buttonStyle} disabled={disabled} onClick={() => navigate(0)}>Rever partida</button>}
       <div className="history-navigation flex flex-wrap gap-2" role="group" aria-label="Navegar pelo histórico">
         <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(0)} title="Início do histórico"><span aria-hidden="true">⏮</span><span className="sr-only">Início do histórico</span></button>
         <button className={buttonStyle} disabled={disabled || ply === 0} onClick={() => navigate(ply-1)} title="Lance anterior"><span aria-hidden="true">←</span><span className="sr-only">Lance anterior</span></button>

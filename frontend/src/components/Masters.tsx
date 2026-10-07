@@ -73,7 +73,7 @@ export function Masters({ visible = true, selectedId, onSelect }: { visible?: bo
     <header className="masters-heading">
       <span className="masters-pixels" aria-hidden="true" />
       <h1 id="masters-title">MASTERS:</h1>
-      <p>Conheça os estilos, compare os agentes e escolha seu próximo adversário.</p>
+      <p>Estes são os perfis de jogo disponíveis. Compare os estilos e escolha seu próximo adversário.</p>
       <p className="masters-identity">Os perfis usam Stockfish e heurísticas do projeto. Os inspirados são interpretações educacionais: não reproduzem fielmente jogadores reais e não implicam participação ou endosso.</p>
     </header>
     <section className="agent-catalog" aria-label="Catálogo de agentes">
@@ -88,7 +88,7 @@ export function Masters({ visible = true, selectedId, onSelect }: { visible?: bo
           <h4 id={`profile-${profile.id}`}>{profile.display_name}</h4>
           <dl><div><dt>Dificuldade</dt><dd>{difficultyLabels[profile.difficulty]}</dd></div><div><dt>Estilo</dt><dd>{styleLabels[profile.style]}</dd></div></dl>
           <p>{profile.description}</p>
-          {onSelect && <button type="button" className="botao-pixel" aria-pressed={selectedId === profile.id} onClick={() => onSelect(profile.id)} aria-label={`Jogar contra este perfil: ${profile.display_name}`}>{selectedId === profile.id ? "Selecionado · " : ""}Jogar contra este perfil</button>}
+          {onSelect && <button type="button" className="botao-pixel" aria-pressed={selectedId === profile.id} onClick={() => onSelect(profile.id)} aria-label={`Jogar com este perfil: ${profile.display_name}`}>{selectedId === profile.id ? "Selecionado · " : ""}Jogar com este perfil</button>}
         </article>)}</div>
       </section>)}
       <p className="catalog-help">Escolher um perfil prepara a Partida. Você ainda escolhe seu lado e confirma o início. Uma partida já aberta é preservada.</p>
@@ -108,7 +108,7 @@ export function Masters({ visible = true, selectedId, onSelect }: { visible?: bo
         </div>
       </article>)}
     </div>
-    <p className="masters-updated">{formattedDate ? `Ratings atualizados em: ${formattedDate}${ratings?.stale ? " · última atualização disponível" : ""}` : !loading ? "Dados indisponíveis" : "\u00a0"}</p>
+    <p className="masters-updated">{formattedDate ? `Ratings atualizados em: ${formattedDate}${ratings?.stale ? " · última atualização disponível" : ""}` : !loading ? "Dados FIDE indisponíveis. Consulte os perfis de jogo no catálogo acima." : "\u00a0"}</p>
     </details>
   </div>;
 }

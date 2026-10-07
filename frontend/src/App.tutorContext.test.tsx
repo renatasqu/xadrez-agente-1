@@ -213,7 +213,7 @@ it("escolhas de prática e CTA preservam Game e rating e retorno mantém o mesmo
   const rating = vi.spyOn(api, "reconcileRating");
   await start(game(["e2e4"], "black")); const before = options().position;
   await navigate("#/pratica");
-  expect(screen.getByText(/Suas ações aqui não alteram/)).toBeTruthy();
+  expect(screen.getByText(/Treine posições e exercícios sem alterar sua partida ou seu rating interno/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Movimento do cavalo" }));
   await screen.findByText(A1.prompt);
   fireEvent.click(screen.getByRole("button", { name: "Pedir ajuda ao Tutor" }));
@@ -271,7 +271,7 @@ it("Masters prepara o setup sem criar Game, permite escolher lado e respeita ide
   current = { ...game(["e2e4"], "black"), opponent: { type: "ai", agent_id: inspired.id, profile_version: 1 }, profile: inspired };
   vi.mocked(api.createGame).mockResolvedValue(current);
   mount("#/masters");
-  fireEvent.click(await screen.findByRole("button", { name: "Jogar contra este perfil: Perfil inspirado em Magnus" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Jogar com este perfil: Perfil inspirado em Magnus" }));
   await waitFor(() => expect((screen.getByLabelText("Adversário") as HTMLSelectElement).value).toBe(inspired.id));
   expect(window.location.hash).toBe("#/partida"); expect(api.createGame).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: /PRETAS/ }));
@@ -280,7 +280,7 @@ it("Masters prepara o setup sem criar Game, permite escolher lado e respeita ide
   expect(api.createGame).toHaveBeenCalledWith("black", inspired.id, expect.any(String));
   const before = options().position;
   await navigate("#/masters");
-  fireEvent.click(await screen.findByRole("button", { name: "Jogar contra este perfil: Equilibrado" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Jogar com este perfil: Equilibrado" }));
   await screen.findByText(/Sua partida atual foi preservada/);
   expect(screen.getByRole("heading", { name: inspired.display_name })).toBeTruthy();
   expect(options().position).toBe(before); expect(options().boardOrientation).toBe("black");
