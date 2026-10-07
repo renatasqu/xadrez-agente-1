@@ -57,11 +57,12 @@ it("abre Masters na ordem indicada e conserva o tabuleiro ao voltar", async () =
   const board = container.querySelector("#match-board");
   await followLink("Masters");
   const gallery = await screen.findByRole("region", { name: "MASTERS:" });
+  fireEvent.click(within(gallery).getByText("Sobre os enxadristas reais · conteúdo editorial e FIDE"));
   expect(window.location.hash).toBe("#/masters");
-  expect(within(gallery).getAllByRole("article").map(profile => profile.getAttribute("aria-labelledby"))).toEqual(["master-hans", "master-magnus", "master-judit"]);
+  expect([...gallery.querySelectorAll(".masters-editorial article")].map(profile => profile.getAttribute("aria-labelledby"))).toEqual(["master-hans", "master-magnus", "master-judit"]);
   expect(within(gallery).getAllByRole("img")).toHaveLength(3);
   expect(within(gallery).getAllByRole("heading", { name: "VOCÊ SABIA?" })).toHaveLength(3);
-  expect(within(gallery).queryByRole("button")).toBeNull();
+  expect(within(gallery.querySelector(".masters-editorial") as HTMLElement).queryByRole("button")).toBeNull();
   expect(container.querySelector("#partida")?.hasAttribute("hidden")).toBe(true);
   await followLink("Partida");
   await waitFor(() => expect(screen.getByRole("button", { name: "Iniciar partida contra IA" })).toBeTruthy());

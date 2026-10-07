@@ -1,0 +1,282 @@
+{
+  "metrics": [
+    {
+      "name": "masters-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1425,
+      "scroll": 1425
+    },
+    {
+      "name": "fide-unavailable-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1425,
+      "scroll": 1425
+    },
+    {
+      "name": "selected-setup-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1425,
+      "scroll": 1425
+    },
+    {
+      "name": "masters-1280",
+      "width": 1280,
+      "height": 900,
+      "client": 1265,
+      "scroll": 1265
+    },
+    {
+      "name": "fide-unavailable-1280",
+      "width": 1280,
+      "height": 900,
+      "client": 1265,
+      "scroll": 1265
+    },
+    {
+      "name": "selected-setup-1280",
+      "width": 1280,
+      "height": 900,
+      "client": 1265,
+      "scroll": 1265
+    },
+    {
+      "name": "masters-768",
+      "width": 768,
+      "height": 1024,
+      "client": 753,
+      "scroll": 753
+    },
+    {
+      "name": "fide-unavailable-768",
+      "width": 768,
+      "height": 1024,
+      "client": 753,
+      "scroll": 753
+    },
+    {
+      "name": "selected-setup-768",
+      "width": 768,
+      "height": 1024,
+      "client": 753,
+      "scroll": 753
+    },
+    {
+      "name": "masters-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "fide-unavailable-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "selected-setup-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "balanced-white-game",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "balanced-white-replay",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "balanced-white-replay-mobile",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "balanced-black-game",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "balanced-black-replay",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "balanced-black-replay-mobile",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "magnus_inspired-white-game",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "magnus_inspired-white-replay",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "magnus_inspired-white-replay-mobile",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "magnus_inspired-black-game",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "magnus_inspired-black-replay",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "magnus_inspired-black-replay-mobile",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "replay-identity-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "replay-identity-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "active-preserved-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    },
+    {
+      "name": "active-preserved-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1425,
+      "scroll": 1425
+    },
+    {
+      "name": "history-1440",
+      "width": 1440,
+      "height": 900,
+      "client": 1425,
+      "scroll": 1425
+    },
+    {
+      "name": "history-390",
+      "width": 390,
+      "height": 844,
+      "client": 375,
+      "scroll": 375
+    }
+  ],
+  "results": [
+    {
+      "agent_id": "balanced",
+      "profile_version": 1,
+      "human_color": "white",
+      "moves": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "g8f6"
+      ],
+      "reload": true,
+      "history": true,
+      "replay": true,
+      "active_game_preserved": true,
+      "opponent_side_blocked": true
+    },
+    {
+      "agent_id": "balanced",
+      "profile_version": 1,
+      "human_color": "black",
+      "moves": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6",
+        "f1b5"
+      ],
+      "reload": true,
+      "history": true,
+      "replay": true,
+      "active_game_preserved": true,
+      "opponent_side_blocked": true
+    },
+    {
+      "agent_id": "magnus_inspired",
+      "profile_version": 1,
+      "human_color": "white",
+      "moves": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6"
+      ],
+      "reload": true,
+      "history": true,
+      "replay": true,
+      "active_game_preserved": true,
+      "opponent_side_blocked": true
+    },
+    {
+      "agent_id": "magnus_inspired",
+      "profile_version": 1,
+      "human_color": "black",
+      "moves": [
+        "g1f3",
+        "e7e5",
+        "f3e5",
+        "b8c6",
+        "e5c6"
+      ],
+      "reload": true,
+      "history": true,
+      "replay": true,
+      "active_game_preserved": true,
+      "opponent_side_blocked": true
+    }
+  ]
+}

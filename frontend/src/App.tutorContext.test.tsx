@@ -261,3 +261,36 @@ it("concluir o percurso mantém o conteúdo e o progresso da última lição", a
   expect(screen.getByRole("progressbar").getAttribute("value")).toBe("12");
   expect(screen.getByLabelText("Conteúdo da lição").textContent).toContain("A oposição");
 });
+
+it("Masters prepara o setup sem criar Game, permite escolher lado e respeita identidade oficial", async () => {
+  const generic = { id: "balanced", display_name: "Equilibrado", description: "Treino", difficulty: "intermediate", style: "balanced", profile_version: 1 } as const;
+  const inspired = { id: "magnus_inspired", display_name: "Perfil inspirado em Magnus", description: "Interpretação educacional", difficulty: "advanced", style: "positional", inspiration: "Magnus", profile_version: 1 } as const;
+  vi.mocked(api.agents).mockResolvedValue([generic, inspired]);
+  vi.spyOn(api, "mastersRatings").mockResolvedValue({ masters: [], updated_at: null, stale: true, source: "FIDE" });
+  const rating = vi.spyOn(api, "reconcileRating");
+  current = { ...game(["e2e4"], "black"), opponent: { type: "ai", agent_id: inspired.id, profile_version: 1 }, profile: inspired };
+  vi.mocked(api.createGame).mockResolvedValue(current);
+  mount("#/masters");
+  fireEvent.click(await screen.findByRole("button", { name: "Jogar contra este perfil: Perfil inspirado em Magnus" }));
+  await waitFor(() => expect((screen.getByLabelText("Adversário") as HTMLSelectElement).value).toBe(inspired.id));
+  expect(window.location.hash).toBe("#/partida"); expect(api.createGame).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: /PRETAS/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
+  await screen.findByRole("button", { name: "Conversar sobre esta posição" });
+  expect(api.createGame).toHaveBeenCalledWith("black", inspired.id, expect.any(String));
+  const before = options().position;
+  await navigate("#/masters");
+  fireEvent.click(await screen.findByRole("button", { name: "Jogar contra este perfil: Equilibrado" }));
+  await screen.findByText(/Sua partida atual foi preservada/);
+  expect(screen.getByRole("heading", { name: inspired.display_name })).toBeTruthy();
+  expect(options().position).toBe(before); expect(options().boardOrientation).toBe("black");
+  expect(current.opponent.profile_version).toBe(1); expect(api.createGame).toHaveBeenCalledTimes(1);
+  expect(api.submitHumanMove).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();
+  await navigate("#/historico");
+  vi.mocked(api.listGames).mockResolvedValue({ games: [{ ...current, profile: current.profile ?? null, move_count: 1 }], next_offset: null });
+  await navigate("#/partida"); await navigate("#/historico");
+  fireEvent.click(await screen.findByRole("button", { name: /^Rever partida contra Perfil inspirado em Magnus/ }));
+  await screen.findByRole("button", { name: "Conversar sobre esta posição" });
+  expect(screen.getByRole("heading", { name: inspired.display_name })).toBeTruthy();
+  expect(api.createGame).toHaveBeenCalledTimes(1); expect(current.opponent.profile_version).toBe(1);
+});

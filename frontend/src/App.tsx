@@ -1,3 +1,4 @@
+import type { ProfileRequest } from "./agentPresentation";
 import { tutorContextLabel, type TutorPositionContext } from "./tutorContext";
 // Arena da partida; tutor e lições acessíveis sob demanda.
 
@@ -51,6 +52,7 @@ function tituloDaLicao(licao: InfoLicao, retomando = false): string {
 
 
 export function App({ onLogout }: { onLogout?: () => void } = {}) {
+  const [profileRequest, setProfileRequest] = useState<ProfileRequest | null>(null);
   const [aiMode, setAiMode] = useState(pageFromHash() !== "practice");
   const [aiVisited, setAiVisited] = useState(pageFromHash() !== "practice");
   const aiGameRef = useRef<AiGameHandle>(null);
@@ -364,7 +366,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           <p>{exercicio.exercise ? "Siga o objetivo abaixo do tabuleiro. O Tutor ajuda a entender a posição exibida." : "Mova os dois lados para estudar. Analise a posição ou peça ajuda ao Tutor."}</p>
           {!exercicio.exercise && <button type="button" className="botao-pixel" onClick={() => { fecharExercicio(); voltarAMinhaPosicao(); setSelectedPosition(null); setMatchPaused(false); document.getElementById("match-board")?.scrollIntoView({ block: "start" }); }}>Explorar no tabuleiro</button>}
         </section>}
-        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onTutorContext={onOfficialTutorContext} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
+        <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame profileRequest={profileRequest} ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onTutorContext={onOfficialTutorContext} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "practice" || aiMode}>
           <div className="match-upper-strip">
             <div className="agent-headers"><AgentHeaderCard study side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard study side="b" active={shownSide === "b"} seconds={activity.b} /></div>
@@ -451,7 +453,10 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           {page === "history" && <HistoryOverview onOpen={openSavedGame} />}
         </section>
         <section className="masters-page" data-page="masters" role="region" aria-label="MASTERS:" aria-labelledby="masters-title" hidden={page !== "masters"}>
-          <Masters visible={page === "masters"} />
+          <Masters visible={page === "masters"} selectedId={profileRequest?.id} onSelect={id => {
+              setProfileRequest(previous => ({ id, sequence: (previous?.sequence ?? 0) + 1 }));
+              setAiVisited(true); window.location.hash = pageHashes.match;
+            }} />
         </section>
         <section className="standalone-page" data-page="lessons" aria-label="Lições de xadrez" hidden={page !== "lessons"}>
           {page === "lessons" && modal !== "lessons" && lessonsContent}
@@ -468,7 +473,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         <InteractiveCard action="Abrir tutor" type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { setTutorLesson(null); modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></InteractiveCard>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
       {desktopLessonsHost && createPortal(
         <InteractiveCard action="Abrir lições" type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></InteractiveCard>, desktopLessonsHost)}
-      <div className={`floating-actions${page === "practice" || page === "lessons" ? " study-shortcuts" : ""}`} aria-label="Atalhos" hidden={modal !== null || (page === "match" && aiMode && aiGameActive)}>
+      <div className={`floating-actions${page === "practice" || page === "lessons" || page === "masters" ? " study-shortcuts" : ""}`} aria-label="Atalhos" hidden={modal !== null || (page === "match" && aiMode && aiGameActive)}>
         <FloatingAction title="Seu Tutor" label="Abrir tutor" icon={tutorIcon} onClick={event => openArea("tutor", event.currentTarget)} />
         <FloatingAction title="Lições" label="Abrir lições" icon={lessonsIcon} onClick={event => openArea("lessons", event.currentTarget)} />
       </div>

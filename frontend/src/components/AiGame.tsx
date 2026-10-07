@@ -1,3 +1,4 @@
+import { difficultyLabels, styleLabels, safeProfiles, type ProfileRequest } from "../agentPresentation";
 import type { TutorPositionContext } from "../tutorContext";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { api, ErroDePartida } from "../api";
@@ -15,7 +16,7 @@ function MatchAvatar({ human = false }: { human?: boolean }) {
 
 export interface AiGameHandle { loadSavedGame: (id: string, review?: boolean) => Promise<boolean> }
 
-export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive, onTutorContext }: { ref?: Ref<AiGameHandle>; visible?: boolean; onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void; onTutorContext?: (context: TutorPositionContext | null, positionKey: string) => void }) {
+export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive, onTutorContext, profileRequest }: { profileRequest?: ProfileRequest | null; ref?: Ref<AiGameHandle>; visible?: boolean; onPosition: (fen: string) => void; onTutor?: (opener: HTMLElement) => void; onGameActive?: (active: boolean) => void; onTutorContext?: (context: TutorPositionContext | null, positionKey: string) => void }) {
   const [savedGames, setSavedGames] = useState<GameSummary[]>([]);
   const [listError, setListError] = useState(false);
   const [listLoading, setListLoading] = useState(true);
@@ -57,18 +58,7 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
     api.agents()
       .then((data) => {
         if (!active) return;
-        const safe = Array.isArray(data)
-          ? data.filter(
-              (p) =>
-                p &&
-                typeof p.id === "string" &&
-                /^[a-z_]{1,64}$/.test(p.id) &&
-                typeof p.display_name === "string" &&
-                typeof p.description === "string" &&
-                ["beginner", "intermediate", "advanced"].includes(p.difficulty) &&
-                ["balanced", "aggressive", "positional", "tactical"].includes(p.style),
-            )
-          : [];
+        const safe = safeProfiles(data);
         setProfiles(safe);
         setCatalogError(safe.length === 0);
         setAgent(safe.find((p) => p.id === "balanced")?.id ?? safe[0]?.id ?? "balanced");
@@ -84,8 +74,6 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
     };
   }, [catalogAttempt]);
 
-  const difficultyLabels = { beginner: "Iniciante", intermediate: "Intermediário", advanced: "Avançado" };
-  const styleLabels = { balanced: "equilibrado", aggressive: "agressivo", positional: "posicional", tactical: "tático" };
   const selectedProfile = profiles.find((p) => p.id === agent);
   const [color, setColor] = useState<GameColor>("white");
   const [replayPosition, setReplayPosition] = useState<{ ply: number; fen: string } | null>(null);
@@ -110,6 +98,13 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
   const lock = useRef(false);
   const pending = useRef<HumanMoveRequest | null>(null);
   const creation = useRef<{ color: GameColor; agent: string; key: string } | null>(null);
+
+  const requestedName = profiles.find(p => p.id === profileRequest?.id)?.display_name;
+  const requestBlocked = Boolean(profileRequest && game && game.opponent.agent_id !== profileRequest.id);
+  useEffect(() => {
+    if (!profileRequest || game || lock.current || creation.current || pending.current) return;
+    if (profiles.some(p => p.id === profileRequest.id)) setAgent(profileRequest.id);
+  }, [profileRequest, profiles, game]);
 
   function accept(next: Game) {
     if (next.terminal) window.dispatchEvent(new Event("xadrez:rating-updated"));
@@ -201,6 +196,9 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
     return (
       <section aria-label="Partida contra IA" className="official-setup">
         <header className="setup-heading"><span className="eyebrow">SUA PRÓXIMA PARTIDA</span><h2>JOGAR CONTRA IA</h2><p>Escolha seu adversário e seu lado.</p></header>
+        {profileRequest && requestedName && agent === profileRequest.id && <p role="status" className="profile-selection-note">Perfil preparado a partir de Masters: {requestedName}. Escolha seu lado e inicie quando quiser.</p>}
+        {profileRequest && !loadingProfiles && !requestedName && <p role="status">O perfil escolhido em Masters não está disponível. Escolha outro adversário.</p>}
+        <p className="setup-profile-guide">Dificuldade indica a força aproximada no projeto; estilo indica preferências entre lances aceitáveis. Esses níveis não correspondem a Elo/FIDE.</p>
         <div className="setup-options">
         <div className="setup-opponent">
         <label>
@@ -271,12 +269,13 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
   const agentTurn = game.awaiting_agent || game.side_to_move !== game.human_color;
   return (
     <section aria-label="Partida contra IA" className="official-match">
+      {requestBlocked && <p role="status" className="profile-selection-note">Você escolheu {requestedName ?? "outro perfil"} em Masters. Sua partida atual foi preservada; o adversário dela continua o mesmo.</p>}
       <header className="official-match-context">
         <span className="eyebrow">{replayPosition ? "REPLAY · SOMENTE LEITURA" : game.terminal ? "PARTIDA ENCERRADA" : "PARTIDA CONTRA IA"}</span>
         <div className="match-identities">
           <div className="match-identity human-identity"><MatchAvatar human /><div><h2>VOCÊ</h2><p>Você: {humanSide}</p></div></div>
           <span className="match-versus">vs.</span>
-          <div className="match-identity agent-identity"><MatchAvatar /><div><h2>{opponentName}</h2><p>Agente · {game.human_color === "white" ? "pretas" : "brancas"}</p></div></div>
+          <div className="match-identity agent-identity"><MatchAvatar /><div><h2>{opponentName}</h2><p>{currentProfile?.inspiration ? "Perfil educacional inspirado" : "Agente de treino"} · {game.human_color === "white" ? "pretas" : "brancas"}</p></div></div>
         </div>
         <span className="match-state" role="status">{replayPosition ? `REPLAY · Lance ${replayPosition.ply}` : game.terminal ? "Resultado final" : busy || agentTurn ? "VEZ DA IA" : "SUA VEZ"}</span>
       </header>
