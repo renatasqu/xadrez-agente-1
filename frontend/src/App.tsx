@@ -348,6 +348,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         if (link && window.location.hash === "#/sobre") openArea("about", link);
       }}>
         <header className="game-header">
+          <div className="header-content">
           <BrandLogo />
           <div className="header-main-group">
             <HeaderNavigation onExit={onLogout ?? goHome} />
@@ -355,6 +356,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           </div>
           <div className="header-server-status">
             <StatusSaude />
+          </div>
           </div>
         </header>
         {page === "practice" && !aiMode && <section className="standalone-page practice-intro" aria-label="Prática de xadrez">

@@ -1,0 +1,460 @@
+[
+  {
+    "name": "login",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "headerBackground": null,
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "login",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1280,
+    "scrollWidth": 1280,
+    "headerBackground": null,
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "setup",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 80,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 80,
+      "left": 102.5
+    },
+    "main": {
+      "x": 102.5,
+      "y": 105,
+      "width": 1220,
+      "height": 750.40625,
+      "top": 105,
+      "right": 1322.5,
+      "bottom": 855.40625,
+      "left": 102.5
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "setup",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 80,
+      "top": 0,
+      "right": 1241,
+      "bottom": 80,
+      "left": 24
+    },
+    "main": {
+      "x": 24,
+      "y": 105,
+      "width": 1217,
+      "height": 750.40625,
+      "top": 105,
+      "right": 1241,
+      "bottom": 855.40625,
+      "left": 24
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "setup-selected",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 80,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 80,
+      "left": 102.5
+    },
+    "main": {
+      "x": 102.5,
+      "y": 105,
+      "width": 1220,
+      "height": 750.40625,
+      "top": 105,
+      "right": 1322.5,
+      "bottom": 855.40625,
+      "left": 102.5
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "setup-selected",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 80,
+      "top": 0,
+      "right": 1241,
+      "bottom": 80,
+      "left": 24
+    },
+    "main": {
+      "x": 24,
+      "y": 105,
+      "width": 1217,
+      "height": 750.40625,
+      "top": 105,
+      "right": 1241,
+      "bottom": 855.40625,
+      "left": 24
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "game-start",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 80,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 80,
+      "left": 102.5
+    },
+    "main": {
+      "x": 102.5,
+      "y": 97,
+      "width": 1220,
+      "height": 803.984375,
+      "top": 97,
+      "right": 1322.5,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "board": {
+      "x": 102.5,
+      "y": 183.390625,
+      "width": 717.59375,
+      "height": 717.59375,
+      "top": 183.390625,
+      "right": 820.09375,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "panel": {
+      "x": 844.09375,
+      "y": 183.390625,
+      "width": 478.390625,
+      "height": 402.625,
+      "top": 183.390625,
+      "right": 1322.484375,
+      "bottom": 586.015625,
+      "left": 844.09375
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "game-start",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 80,
+      "top": 0,
+      "right": 1241,
+      "bottom": 80,
+      "left": 24
+    },
+    "main": {
+      "x": 24,
+      "y": 97,
+      "width": 1217,
+      "height": 802.1875,
+      "top": 97,
+      "right": 1241,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "board": {
+      "x": 24,
+      "y": 183.390625,
+      "width": 715.796875,
+      "height": 715.796875,
+      "top": 183.390625,
+      "right": 739.796875,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "panel": {
+      "x": 763.796875,
+      "y": 183.390625,
+      "width": 477.203125,
+      "height": 402.625,
+      "top": 183.390625,
+      "right": 1241,
+      "bottom": 586.015625,
+      "left": 763.796875
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "game-moves",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 80,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 80,
+      "left": 102.5
+    },
+    "main": {
+      "x": 102.5,
+      "y": 97,
+      "width": 1220,
+      "height": 803.984375,
+      "top": 97,
+      "right": 1322.5,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "board": {
+      "x": 102.5,
+      "y": 183.390625,
+      "width": 717.59375,
+      "height": 717.59375,
+      "top": 183.390625,
+      "right": 820.09375,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "panel": {
+      "x": 844.09375,
+      "y": 183.390625,
+      "width": 478.390625,
+      "height": 558.5625,
+      "top": 183.390625,
+      "right": 1322.484375,
+      "bottom": 741.953125,
+      "left": 844.09375
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "game-moves",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 80,
+      "top": 0,
+      "right": 1241,
+      "bottom": 80,
+      "left": 24
+    },
+    "main": {
+      "x": 24,
+      "y": 97,
+      "width": 1217,
+      "height": 802.1875,
+      "top": 97,
+      "right": 1241,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "board": {
+      "x": 24,
+      "y": 183.390625,
+      "width": 715.796875,
+      "height": 715.796875,
+      "top": 183.390625,
+      "right": 739.796875,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "panel": {
+      "x": 763.796875,
+      "y": 183.390625,
+      "width": 477.203125,
+      "height": 558.5625,
+      "top": 183.390625,
+      "right": 1241,
+      "bottom": 741.953125,
+      "left": 763.796875
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "replay",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 80,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 80,
+      "left": 102.5
+    },
+    "main": {
+      "x": 102.5,
+      "y": 97,
+      "width": 1220,
+      "height": 803.984375,
+      "top": 97,
+      "right": 1322.5,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "board": {
+      "x": 102.5,
+      "y": 183.390625,
+      "width": 717.59375,
+      "height": 717.59375,
+      "top": 183.390625,
+      "right": 820.09375,
+      "bottom": 900.984375,
+      "left": 102.5
+    },
+    "panel": {
+      "x": 844.09375,
+      "y": 183.390625,
+      "width": 478.390625,
+      "height": 610.5625,
+      "top": 183.390625,
+      "right": 1322.484375,
+      "bottom": 793.953125,
+      "left": 844.09375
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "name": "replay",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 80,
+      "top": 0,
+      "right": 1241,
+      "bottom": 80,
+      "left": 24
+    },
+    "main": {
+      "x": 24,
+      "y": 97,
+      "width": 1217,
+      "height": 802.1875,
+      "top": 97,
+      "right": 1241,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "board": {
+      "x": 24,
+      "y": 183.390625,
+      "width": 715.796875,
+      "height": 715.796875,
+      "top": 183.390625,
+      "right": 739.796875,
+      "bottom": 899.1875,
+      "left": 24
+    },
+    "panel": {
+      "x": 763.796875,
+      "y": 183.390625,
+      "width": 477.203125,
+      "height": 610.5625,
+      "top": 183.390625,
+      "right": 1241,
+      "bottom": 793.953125,
+      "left": 763.796875
+    },
+    "headerBackground": "rgb(255, 250, 243)",
+    "pageBackground": "rgb(243, 236, 223)",
+    "assets": true
+  },
+  {
+    "smoke": "PASS with real backend and Stockfish",
+    "gameId": "67b25737-1ff0-468e-b2ba-36ae820e6a62",
+    "human_color": "white",
+    "agent_id": "balanced",
+    "moves": [
+      "e2e4",
+      "e7e5",
+      "g1f3",
+      "g8f6"
+    ],
+    "agent_status": "moved",
+    "version": 4,
+    "pgnExported": true,
+    "replayGeometryPreserved": true,
+    "gameIdentityPreserved": true,
+    "logout": true
+  }
+]

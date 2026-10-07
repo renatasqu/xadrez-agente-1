@@ -24,8 +24,8 @@ export function HeaderNavigation({ onExit }: Props = {}) {
   return <div className="header-navigation">
     <button type="button" className="header-menu-toggle" aria-expanded={open} aria-controls="header-navigation-items" onClick={() => setOpen(!open)}><span aria-hidden="true">☰</span> Menu</button>
     <nav id="header-navigation-items" className={`header-navigation-items${open ? " is-open" : ""}`} aria-label="Navegação principal">
-      {links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); setPreferences(false); }}>{label}</a>)}
-      <a href="#/" onClick={event => { setOpen(false); setPreferences(false); if (onExit) { event.preventDefault(); onExit(); } }}>Sair</a>
+      <div className="header-navigation-links">{links.map(([href, label]) => <a key={href} href={href} aria-current={!preferences && active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); setPreferences(false); }}>{label}</a>)}</div>
+      <a className="header-exit" href="#/" onClick={event => { setOpen(false); setPreferences(false); if (onExit) { event.preventDefault(); onExit(); } }}>Sair</a>
     </nav>
     {preferences && <section id="header-preferences" className="header-preferences" aria-label="Configurações">
       <h2>Configurações</h2>

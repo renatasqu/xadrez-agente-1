@@ -74,7 +74,7 @@ export function GameHistory({ game, disabled, selected, onSelect }: {
     finally { exportLock.current = false; setExporting(false); }
   }
   return <section aria-label="Histórico oficial" className="official-history-content mt-4 space-y-3">
-    <h3 className="font-bold">Histórico e revisão</h3>
+    <h3 className="history-heading">{selected !== null ? "Revisão" : "Partida"}</h3>
     {loadError ? <p role="alert">Histórico indisponível ou partida mudou. <button className={buttonStyle} onClick={() => setAttempt(n => n + 1)}>Recarregar histórico</button></p> : !history ? <p role="status">Carregando histórico…</p> : <>
       <p aria-live="polite">{selected !== null ? `Replay somente leitura · lance ${ply}/${history.steps.length}` : "Posição atual"} · {history.result === "*" ? "Partida em andamento" : `Resultado: ${history.result}`}</p>
       {game.terminal && selected === null && <button className={buttonStyle} disabled={disabled} onClick={() => navigate(0)}>Rever partida</button>}

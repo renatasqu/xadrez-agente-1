@@ -1,5 +1,7 @@
 import "@fontsource/press-start-2p";
 import "./index.css";
+import "./visual-foundation.css";
+import "./match-presentation.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

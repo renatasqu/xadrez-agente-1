@@ -1,0 +1,126 @@
+/* Retro Chess Club. Shared presentation only; board geometry and game states stay local. */
+:root {
+  --color-ink: #12355b;
+  --color-cream: #f3ecdf;
+  --color-paper: #fffaf3;
+  --color-primary: #1565d8;
+  --color-primary-hover: #0d3d8f;
+  --color-info: #dcebff;
+  --color-highlight: #f3d98b;
+  --color-danger: #b93a32;
+  --color-danger-soft: #fff0ee;
+  --color-success: #237448;
+  --color-success-soft: #e7f5eb;
+  --color-muted: #405564;
+  --color-line: #bccbd6;
+  --color-separator: #dce1df;
+  --color-disabled: #ece8e0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --shadow-soft: 0 2px 8px rgb(18 53 91 / 5%);
+  --shadow-hard: 3px 3px 0 var(--color-ink);
+  --container-max: 1220px;
+  --page-gutter: 24px;
+  --font-display: "Pixelify Sans", "Press Start 2P", ui-monospace, monospace;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-body: var(--font-ui);
+  --text-small: .8125rem;
+  --text-body: .9375rem;
+  --text-ui: .875rem;
+  --text-display: clamp(1.75rem, 3vw, 2.25rem);
+  --line-body: 1.65;
+  --control-height: 44px;
+  --focus-ring: 3px solid var(--color-primary-hover);
+  --focus-offset: 3px;
+  --transition-ui: 140ms ease;
+}
+body { background: var(--color-cream); color: var(--color-ink); font-family: var(--font-body); }
+:where(button, input, select, textarea) { font-family: var(--font-ui); }
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: var(--focus-ring); outline-offset: var(--focus-offset);
+}
+:where(button, input, select, textarea):disabled { cursor: not-allowed; opacity: .55; }
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea),
+.auth-field input, .official-setup select, .game-archive select {
+  min-height: var(--control-height); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line); border-radius: var(--radius-sm);
+  background: var(--color-paper); color: var(--color-ink);
+  font: 400 1rem/1.5 var(--font-body); box-shadow: none;
+  transition: border-color var(--transition-ui), background-color var(--transition-ui);
+}
+:where(input, select, textarea):disabled { background: var(--color-disabled); }
+:where(input, select, textarea)[aria-invalid="true"], .auth-field input[aria-invalid="true"] { border-color: var(--color-danger); }
+:where(label), .auth-field label { font-family: var(--font-ui); font-weight: 600; }
+/* Existing functional CTAs inherit the secondary recipe. Pixel stays in display and branded CTAs. */
+.botao-pixel, .club-button, .game-archive button, .saved-games button,
+.official-match button, .practice-cta, .source-button {
+  min-height: var(--control-height); border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);
+  background: var(--color-paper); color: var(--color-ink);
+  font: 600 var(--text-ui)/1.5 var(--font-ui); box-shadow: none;
+  cursor: pointer; transition: background-color var(--transition-ui), border-color var(--transition-ui), transform var(--transition-ui);
+}
+:where(.botao-pixel, .club-button, .practice-cta, .source-button):hover:not(:disabled) {
+  background: var(--color-info); border-color: var(--color-primary); filter: none;
+}
+:where(.botao-pixel, .club-button):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.club-button--primary, .setup-start, .game-archive .archive-open {
+  background: var(--color-primary); border-color: var(--color-primary); color: white;
+  font: 600 var(--text-ui)/1.5 var(--font-ui); border-radius: var(--radius-sm);
+}
+.club-button--primary:hover:not(:disabled), .setup-start:hover:not(:disabled), .game-archive .archive-open:hover:not(:disabled) { background: var(--color-primary-hover); color: white; filter: none; }
+.club-button--secondary { background: var(--color-paper); color: var(--color-ink); }
+.club-button--ghost, .auth-password-toggle { background: transparent; border-color: transparent; color: var(--color-primary-hover); box-shadow: none; }
+.club-button--danger { background: var(--color-danger); border-color: var(--color-danger); color: white; }
+.club-button--danger:hover:not(:disabled) { background: var(--color-danger); color: white; filter: brightness(.9); }
+.club-card, .caixa-pixel, .auth-card, .agent-profile-card, .archive-card, .archive-empty, .saved-game-card {
+  background: var(--color-paper); border: 1px solid var(--color-line);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-soft);
+}
+.club-card--selected { background: var(--color-info); border-color: var(--color-primary); }
+.club-surface--info, .auth-demo-note { background: var(--color-info); color: var(--color-ink); border-radius: var(--radius-sm); box-shadow: none; }
+.club-surface--alert { background: var(--color-danger-soft); color: var(--color-danger); border-left: 3px solid var(--color-danger); padding: var(--space-3); }
+.club-empty { padding: var(--space-5); color: var(--color-muted); text-align: center; }
+.game-layout.arena-layout { max-width: var(--container-max); padding-inline: var(--page-gutter); }
+body:has(.auth-screen), .auth-screen { background: var(--color-cream); }
+.auth-screen { max-width: var(--container-max); gap: var(--space-7); padding: var(--space-6) var(--page-gutter); }
+.auth-brand { --auth-logo-width: min(100%, 504px); }
+.auth-brand > p, .auth-subtitle { color: var(--color-muted); line-height: var(--line-body); }
+.auth-card { padding: var(--space-6); }
+.auth-card h2 { font: 700 var(--text-display)/1.25 var(--font-display); }
+.auth-demo-note { padding: var(--space-3); font-size: var(--text-small); line-height: 1.5; border: 0; }
+.auth-field { margin-top: var(--space-4); }
+.auth-field label { font-size: var(--text-ui); margin-bottom: var(--space-2); }
+.auth-password-toggle { min-height: var(--control-height); padding: var(--space-2); border-radius: var(--radius-sm); font: 600 var(--text-small)/1.5 var(--font-ui); }
+.auth-password-toggle:hover { background: var(--color-info); filter: none; }
+.auth-field-error, .auth-validation { color: var(--color-danger); font-size: var(--text-small); }
+.auth-submit.auth-submit-image, .auth-submit.auth-submit-image:hover { background: transparent; }
+.auth-submit-image img { filter: drop-shadow(3px 3px 0 rgb(18 53 91 / 12%)); }
+.auth-submit.auth-submit-image:hover:not(:disabled) { transform: translateY(-1px); }
+.auth-submit.auth-submit-image:disabled { transform: none; }
+.auth-art, .auth-pixels { margin-top: var(--space-5); }
+.piscando { animation: none; }
+@media (max-width: 760px) {
+  .auth-screen { max-width: 540px; padding: var(--space-5) var(--page-gutter); gap: var(--space-5); }
+  .auth-brand { --auth-logo-width: min(100%, 357px); }
+  .auth-card { padding: var(--space-5); }
+}
+@media (max-width: 540px) {
+  :root { --page-gutter: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+.standalone-page { max-width: var(--container-max); }
+.game-archive button:hover:not(:disabled), .saved-games button:hover:not(:disabled), .official-match button:hover:not(:disabled) {
+  background: var(--color-info); border-color: var(--color-primary); filter: none;
+}
+.game-archive .archive-open:hover:not(:disabled) { background: var(--color-primary-hover); color: white; }

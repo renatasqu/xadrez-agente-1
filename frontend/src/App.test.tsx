@@ -126,7 +126,7 @@ it("esconde o setup da IA quando a partida ativa já existe", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
-  await screen.findByText("Histórico e revisão");
+  await within(await screen.findByLabelText("Histórico oficial")).findByRole("heading", { name: "Partida" });
   expect(screen.queryByRole("button", { name: "Jogar contra IA" })).toBeNull();
   expect(screen.queryByLabelText("Seu lado")).toBeNull();
   expect(screen.getByText("Vez das brancas no treino.")).toBeTruthy();
@@ -146,7 +146,7 @@ it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tu
   await waitFor(() => expect(arena.hidden).toBe(true));
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" })); });
-  await screen.findByText("Histórico e revisão");
+  await within(await screen.findByLabelText("Histórico oficial")).findByRole("heading", { name: "Partida" });
   expect(document.querySelector('[aria-label="Histórico oficial"]')).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Conversar sobre esta posição" }));
   fireEvent.click(screen.getByLabelText("Anexar posição do tabuleiro"));

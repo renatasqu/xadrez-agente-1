@@ -48,4 +48,4 @@
 .masters-identity, .catalog-help { margin-top: 1rem !important; line-height: 1.6; }
 .masters-editorial summary { cursor: pointer; font-weight: bold; padding: 1rem 0; }
 .masters-editorial > p { margin: .75rem 0; }
-.profile-selection-note, .setup-profile-guide { margin: .75rem 0; line-height: 1.6; padding: .75rem; background: #eef6ff; border-radius: 8px; }
+.masters-page .profile-selection-note { margin: .75rem 0; line-height: 1.6; padding: .75rem; background: #eef6ff; border-radius: 8px; }

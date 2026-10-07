@@ -330,7 +330,7 @@ it("mantém o histórico carregado e a análise disponível sem desmontar a aren
     termination: "playing",
   });
   await start();
-  expect(screen.getByText(/Histórico e revisão/)).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Partida" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Exportar PGN" })).toBeTruthy();
 });
 

@@ -1,0 +1,359 @@
+[
+  {
+    "name": "login-1440",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "login-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "setup-1440",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "header": {
+      "x": 102.5,
+      "y": 0,
+      "width": 1220,
+      "height": 100.96875,
+      "top": 0,
+      "right": 1322.5,
+      "bottom": 100.96875,
+      "left": 102.5
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "setup-1280",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1265,
+    "scrollWidth": 1265,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 1217,
+      "height": 100.96875,
+      "top": 0,
+      "right": 1241,
+      "bottom": 100.96875,
+      "left": 24
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "setup-768",
+    "width": 768,
+    "height": 1024,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 720,
+      "height": 96.96875,
+      "top": 0,
+      "right": 744,
+      "bottom": 96.96875,
+      "left": 24
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "setup-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "header": {
+      "x": 12,
+      "y": 0,
+      "width": 366,
+      "height": 144.640625,
+      "top": 0,
+      "right": 378,
+      "bottom": 144.640625,
+      "left": 12
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "game-1440",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "header": {
+      "x": 110,
+      "y": 0,
+      "width": 1220,
+      "height": 100.96875,
+      "top": 0,
+      "right": 1330,
+      "bottom": 100.96875,
+      "left": 110
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "game-1280",
+    "width": 1280,
+    "height": 900,
+    "clientWidth": 1280,
+    "scrollWidth": 1280,
+    "header": {
+      "x": 30,
+      "y": 0,
+      "width": 1220,
+      "height": 100.96875,
+      "top": 0,
+      "right": 1250,
+      "bottom": 100.96875,
+      "left": 30
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "game-768",
+    "width": 768,
+    "height": 1024,
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "header": {
+      "x": 24,
+      "y": 0,
+      "width": 720,
+      "height": 96.96875,
+      "top": 0,
+      "right": 744,
+      "bottom": 96.96875,
+      "left": 24
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "game-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "header": {
+      "x": 12,
+      "y": 0,
+      "width": 366,
+      "height": 144.640625,
+      "top": 0,
+      "right": 378,
+      "bottom": 144.640625,
+      "left": 12
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "game-return-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "header": {
+      "x": 12,
+      "y": 0,
+      "width": 366,
+      "height": 144.640625,
+      "top": 0,
+      "right": 378,
+      "bottom": 144.640625,
+      "left": 12
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "keyboard-focus-1440",
+    "width": 1440,
+    "height": 900,
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "header": {
+      "x": 110,
+      "y": 0,
+      "width": 1220,
+      "height": 100.96875,
+      "top": 0,
+      "right": 1330,
+      "bottom": 100.96875,
+      "left": 110
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "menu-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "header": {
+      "x": 12,
+      "y": 0,
+      "width": 366,
+      "height": 262.640625,
+      "top": 0,
+      "right": 378,
+      "bottom": 262.640625,
+      "left": 12
+    },
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "name": "login-focus-390",
+    "width": 390,
+    "height": 844,
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "pixel": "\"Pixelify Sans\", \"Press Start 2P\", ui-monospace, monospace",
+    "body": "Inter, system-ui, sans-serif",
+    "assets": true
+  },
+  {
+    "smoke": "PASS with mocked API",
+    "gamePreserved": true,
+    "gameMutationRequests": 0,
+    "requests": [
+      {
+        "path": "/auth/session",
+        "method": "GET"
+      },
+      {
+        "path": "/auth/session",
+        "method": "GET"
+      },
+      {
+        "path": "/auth/login",
+        "method": "POST"
+      },
+      {
+        "path": "/rating",
+        "method": "GET"
+      },
+      {
+        "path": "/rating/history",
+        "method": "GET"
+      },
+      {
+        "path": "/health",
+        "method": "GET"
+      },
+      {
+        "path": "/games",
+        "method": "GET"
+      },
+      {
+        "path": "/agents",
+        "method": "GET"
+      },
+      {
+        "path": "/licao/atual",
+        "method": "GET"
+      },
+      {
+        "path": "/rating",
+        "method": "GET"
+      },
+      {
+        "path": "/rating/history",
+        "method": "GET"
+      },
+      {
+        "path": "/health",
+        "method": "GET"
+      },
+      {
+        "path": "/games",
+        "method": "GET"
+      },
+      {
+        "path": "/agents",
+        "method": "GET"
+      },
+      {
+        "path": "/games/qa-preserved-game",
+        "method": "GET"
+      },
+      {
+        "path": "/games/qa-preserved-game/replay",
+        "method": "GET"
+      },
+      {
+        "path": "/games/qa-preserved-game/commentary",
+        "method": "GET"
+      },
+      {
+        "path": "/games",
+        "method": "GET"
+      },
+      {
+        "path": "/games/qa-preserved-game/replay",
+        "method": "GET"
+      },
+      {
+        "path": "/games/qa-preserved-game/commentary",
+        "method": "GET"
+      },
+      {
+        "path": "/games",
+        "method": "GET"
+      },
+      {
+        "path": "/games",
+        "method": "GET"
+      },
+      {
+        "path": "/agents",
+        "method": "GET"
+      },
+      {
+        "path": "/masters/ratings",
+        "method": "GET"
+      },
+      {
+        "path": "/auth/logout",
+        "method": "POST"
+      }
+    ]
+  }
+]

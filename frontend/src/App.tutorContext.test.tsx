@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Chess } from "chess.js";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -32,7 +32,7 @@ async function start(next = game()) {
   mount();
   await waitFor(() => expect((screen.getByRole("button", { name: "Iniciar partida contra IA" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Iniciar partida contra IA" }));
-  await screen.findByText("Histórico e revisão");
+  await within(await screen.findByLabelText("Histórico oficial")).findByRole("heading", { name: "Partida" });
   await waitFor(() => expect(screen.queryByText("Carregando histórico…")).toBeNull());
 }
 async function open() {
