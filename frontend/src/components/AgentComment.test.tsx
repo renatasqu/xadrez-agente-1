@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AgentComment } from "./AgentComment";
 import { api } from "../api";
@@ -27,4 +27,15 @@ it("resposta tardia de Game anterior é descartada",async()=>{
 it("texto com UCI diferente/HTML é exibido sem executar nem injetar",async()=>{
  vi.spyOn(api,"gameCommentary").mockResolvedValue({...comment,text:"<script>e2e5 g1f3</script>"});const move=vi.spyOn(api,"submitHumanMove");render(<AgentComment game={game}/>);
  await screen.findByText("<script>e2e5 g1f3</script>");expect(document.querySelector('aside script')).toBeNull();expect(move).not.toHaveBeenCalled();
+});
+
+it("metadados do comentário ficam em detalhe expansível sem solicitar movimentos",async()=>{
+ vi.spyOn(api,"gameCommentary").mockResolvedValue(comment);
+ const move=vi.spyOn(api,"submitHumanMove"), retry=vi.spyOn(api,"resumeAgent");
+ render(<AgentComment game={game}/>);await screen.findByText(comment.text);
+ const metadata=screen.getByText("Comentário local · Persona structure v1 · Lance 2");
+ const disclosure=metadata.closest("details")!;expect(disclosure.open).toBe(false);
+ fireEvent.click(screen.getByText("Detalhes do comentário"));expect(disclosure.open).toBe(true);
+ expect(screen.getByText("Comentário sobre o lance oficial 2.")).toBeTruthy();
+ expect(move).not.toHaveBeenCalled();expect(retry).not.toHaveBeenCalled();
 });

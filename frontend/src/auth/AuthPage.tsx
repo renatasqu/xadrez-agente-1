@@ -62,7 +62,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
       <img className="auth-logo" src={`${import.meta.env.BASE_URL}images/logo-xadrez-multiagente.png`} alt="Xadrez Multiagente" width="1983" height="793" />
       <span className="auth-eyebrow">CHESS. SMOOTHIE. BURRITOS</span>
       <h1>Seu próximo<br />grande lance.</h1>
-      <p>Uma homenagem aos meus grandes mestres favoritos: Hans e Judit. O projeto também reúne informações sobre xadrez, AlphaZero, Transformers, Stockfish e outros temas, além de oferecer um tabuleiro online interativo, um tutor de estratégias e diversas curiosidades. Por enquanto, é isso!</p>
+      <p>Aprenda com lições, treine em posições de estudo e jogue contra agentes de IA. O Tutor ajuda a entender o xadrez, com explicações e fontes para consultar.</p>
       <div className="auth-art" aria-hidden="true">
         <img src={authIllustration} alt="" width="1672" height="941" />
       </div>
@@ -70,8 +70,8 @@ export function AuthPage({ register = false }: { register?: boolean }) {
     </section>
     <section className="auth-card" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`} ref={heading} tabIndex={-1}>{register ? "Criar sua conta:" : "Entrar na arena:"}</h2>
-      <p className="auth-subtitle">{register ? "É uma demo. Não vai ter spam. Juro!" : "Não é uma arena. É um tabuleiro."}</p>
-      <p className="auth-demo-note">Acesso pessoal de teste. Entre com seu e-mail e senha configurados.</p>
+      <p className="auth-subtitle">{register ? "Cadastro indisponível neste acesso pessoal." : "Entre para jogar, aprender e treinar."}</p>
+      <p className="auth-demo-note">{register ? "O cadastro está desativado. Use uma conta já configurada para entrar." : "Acesso pessoal de teste. Use seu e-mail e senha configurados."}</p>
       <form onSubmit={submit} noValidate>
         {register && field("name", "Nome:", "text", "name")}
         {field("email", "E-mail:", "email", "email")}

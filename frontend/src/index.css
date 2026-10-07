@@ -1036,3 +1036,81 @@ body:has(.auth-screen) { background: #f3ecdf; }
 .lesson-outline summary { cursor: pointer; padding: .65rem 0; font-weight: bold; }
 .lesson-outline summary:focus-visible { outline: 3px solid #0e1018; outline-offset: 3px; }
 .lesson-outline .lesson-catalog { margin-top: .5rem; }
+
+/* Polimento do produto: somente apresentação, sem alterar dimensões do tabuleiro. */
+:root { --content-width: 1120px; --ui-line: #c4d2de; --ui-shadow: 0 4px 14px #173f600a; --ui-radius: 12px; }
+:where(button, a, input, textarea, select, summary):focus-visible { outline: 3px solid var(--magnus-dark); outline-offset: 3px; }
+.standalone-page, .official-setup {
+  width: min(calc(100% - 48px), var(--content-width)); margin: 24px auto;
+  padding: clamp(20px, 2.5vw, 28px); border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); background: var(--surface);
+}
+.standalone-page:not([hidden]) { display: block; }
+.masters-page { background: var(--bg); padding: 24px 24px 48px; }
+.masters-page .masters-gallery { max-width: var(--content-width); }
+.masters-heading { margin-bottom: 24px; }
+.masters-heading h1, .pedagogy-heading h1, .archive-heading h2, .setup-heading h2 {
+  font: 700 clamp(28px, 3vw, 36px)/1.25 var(--font-pixel);
+  letter-spacing: .01em; margin: 0 0 8px; color: var(--text);
+}
+.pedagogy-heading { margin-bottom: 20px; }
+.pedagogy-heading p, .masters-heading p, .archive-heading p { font: 400 15px/1.65 "Inter", sans-serif; }
+.pedagogy-heading p { margin: 8px 0; }
+.standalone-page h2, .agent-catalog h2 { font: 700 25px/1.35 var(--font-pixel); }
+.practice-intro > h2 { margin: 24px 0 8px; }
+.practice-intro > p { margin: 8px 0 14px; font-size: 14px; line-height: 1.65; }
+.practice-intro .pedagogy-actions { margin: 16px 0; }
+.practice-intro .practice-options { margin: 12px 0 20px; }
+.standalone-page .pedagogy-actions a { padding: 8px 0; min-height: 44px; }
+.lesson-track { padding: 18px; }
+.lesson-content { margin-top: 24px; }
+.lesson-content > p { margin: 8px 0 12px; line-height: 1.65; }
+.lesson-track progress { accent-color: var(--magnus); height: 10px; }
+.agent-profile-card, .archive-card, .archive-empty, .saved-game-card {
+  border: 1px solid var(--ui-line); border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow); background: var(--surface);
+}
+.agent-profile-card { border-top: 3px solid var(--magnus-soft); }
+.agent-profile-card:has(.support-label:first-child) { color: var(--text); }
+.archive-state { border: 1px solid #c8b77c; border-radius: 6px; padding: 5px 9px; background: var(--board-light); }
+.archive-card[data-status="finished"] .archive-state { background: #e7f5eb; border-color: #a3c5b0; color: #175234; }
+.archive-card footer { padding-top: 12px; border-top: 1px solid #e2e8eb; }
+.game-archive .archive-open { background: var(--magnus-dark); color: white; border-color: var(--magnus-dark); }
+.game-archive :is(button, select), .official-setup select, .official-match button, .saved-games button {
+  border-width: 1px; border-color: var(--ui-line); border-radius: 8px; min-height: 44px;
+}
+.game-archive .archive-open:focus-visible { outline-color: var(--magnus); }
+.selected-opponent { border: 1px solid #9bbde6; border-left: 3px solid var(--magnus); border-radius: 8px; }
+.color-options button { border-radius: 8px; }
+.profile-selection-note, .setup-profile-guide { border-left: 3px solid #9bbde6; font-size: 13px; line-height: 1.6; }
+.setup-profile-guide { margin-bottom: 18px; }
+.official-match-context, .official-match-sidebar { border: 1px solid var(--ui-line); border-radius: 8px; box-shadow: var(--ui-shadow); }
+.official-match-sidebar .contextual-tutor, .match-profile-details { border-top-color: var(--ui-line); }
+.official-match .match-state { border: 1px solid #c8b77c; border-radius: 6px; }
+.official-match [aria-label="Variação de rating"] { padding: 12px; border-left: 3px solid var(--success); background: #e7f5eb; font-size: 14px; }
+.official-match .history-navigation button { font-size: 18px; }
+.comment-details { margin-top: 6px; color: #526574; font-size: 11px; }
+.comment-details summary { cursor: pointer; padding: 6px 0; }
+.match-modal .tutor-heading h3 { font: 700 22px/1.3 var(--font-pixel); }
+.match-modal [aria-label="Contexto do Tutor"] { padding: 6px 8px; border-left: 3px solid var(--magnus); background: #ffffffa0; font-weight: 600; }
+.match-modal .game-footer { margin: 0; padding: 0; border: 0; }
+.about-project-intro { max-width: 70ch; }
+.about-project-intro h3 { margin-top: 20px; font: 700 22px/1.3 var(--font-pixel); }
+.about-project-intro p { margin-top: 10px; line-height: 1.7; }
+.about-project details { margin: 16px 0; }
+.auth-card { border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); background: var(--surface); }
+.auth-field input { box-shadow: none; border-color: var(--ui-line); }
+.auth-brand > p { max-width: 52ch; }
+.floating-actions { position: static; flex-direction: row; justify-content: flex-end; max-width: var(--content-width); margin: 16px auto; padding: 0 24px; }
+@media (max-width: 899px) {
+  .masters-page { padding: 20px 16px 32px; }
+  .masters-heading h1, .pedagogy-heading h1, .archive-heading h2, .setup-heading h2 { font-size: 28px; }
+}
+@media (max-width: 540px) {
+  .standalone-page, .official-setup { width: calc(100% - 24px); margin: 16px auto; padding: 16px; }
+  .masters-page { padding: 16px 12px 28px; }
+  .archive-card, .archive-empty { padding: 16px; }
+  .auth-art { margin: 12px 0; }
+  .auth-art img { max-width: 260px; }
+  .floating-actions { padding-inline: 12px; }
+}

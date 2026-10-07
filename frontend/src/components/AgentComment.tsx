@@ -24,7 +24,7 @@ export function AgentComment({ game }: { game: Game }) {
   }, [game.id, game.version, game.human_color, game.initial_fen]);
   return <aside aria-label="Comentário pedagógico" className="my-3 rounded border p-3">
     {loading ? <p role="status">Preparando comentário…</p> : comment ? <>
-      <p>{comment.text}</p><small>Comentário local · Persona {comment.persona_id} v{comment.persona_version} · Lance {comment.ply}</small>
+      <p>{comment.text}</p><small>Comentário sobre o lance oficial {comment.ply}.</small><details className="comment-details"><summary>Detalhes do comentário</summary><small>Comentário local · Persona {comment.persona_id} v{comment.persona_version} · Lance {comment.ply}</small></details>
     </> : <p>Comentário pedagógico indisponível nesta posição.</p>}
   </aside>;
 }

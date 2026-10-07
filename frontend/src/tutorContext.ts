@@ -7,6 +7,6 @@ export type TutorPositionContext =
 export function tutorContextLabel(context: TutorPositionContext | null): string {
   if (!context) return "Pergunta sem posição";
   if (context.source === "game") return "Posição atual da partida";
-  if (context.source === "replay") return `Revisão · ply ${context.ply}`;
+  if (context.source === "replay") return `Revisão · lance ${context.ply}`;
   return context.source === "exercise" ? "Exercício" : "Posição de estudo";
 }

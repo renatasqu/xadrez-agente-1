@@ -72,7 +72,7 @@ export function HistoryOverview({ onOpen }: { onOpen: (id: string, review: boole
       const date = dateLabel(game.updated_at);
       const outcome = result(game);
       const action = game.terminal ? "Rever partida" : "Continuar partida";
-      return <li key={game.id} className="archive-card">
+      return <li key={game.id} className="archive-card" data-status={game.terminal ? "finished" : "active"}>
         <header><h3>{agent}</h3><span className="archive-state">{game.terminal ? "Finalizada" : "Em andamento"}</span></header>
         <p className="archive-color">Você: <strong>{color}</strong></p>
         {game.terminal && <p className="archive-result">{outcome ?? "Resultado não informado"}{reasons[game.status] && reasons[game.status] !== outcome && <span> · {reasons[game.status]}</span>}</p>}

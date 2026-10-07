@@ -255,7 +255,7 @@ export function AiGame({ ref, visible = true, onPosition, onTutor, onGameActive,
           {listLoading ? <p role="status">Carregando partidas…</p> : listError ? <p role="alert">Não foi possível consultar a partida mais recente. <button disabled={busy} onClick={() => setListAttempt(n => n + 1)}>Tentar novamente</button></p>
             : savedGames.length === 0 ? <p>Nenhuma partida em andamento.</p> : savedGames.map(saved => <div key={saved.id} className="saved-game-card">
               <h4>{saved.profile?.display_name ?? profiles.find(profile => profile.id === saved.opponent.agent_id)?.display_name ?? "Agente da partida"}</h4>
-              <p>Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.move_count} lances{saved.status === "check" && " · Xeque"}</p>
+              <p>Você: {saved.human_color === "white" ? "brancas" : "pretas"} · {saved.move_count} {saved.move_count === 1 ? "lance" : "lances"}{saved.status === "check" && " · Xeque"}</p>
               <button disabled={busy || Boolean(creation.current)} onClick={() => void resume(saved.id)}>Continuar partida</button>
             </div>)}
           <a href="#/historico">Ver todas as partidas no Histórico</a>

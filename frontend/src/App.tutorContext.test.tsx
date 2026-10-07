@@ -82,7 +82,7 @@ it("replay acompanha ply 0/intermediário/final e volta ao presente sem permitir
   await start();
   for (const [button, ply] of [["Início do histórico", 0], ["Próximo lance", 1], ["Fim do histórico", 4]] as const) {
     fireEvent.click(screen.getByRole("button", { name: button }));
-    await open(); expect(screen.getByLabelText("Contexto do Tutor").textContent).toBe(`Revisão · ply ${ply}`);
+    await open(); expect(screen.getByLabelText("Contexto do Tutor").textContent).toBe(`Revisão · lance ${ply}`);
     await send(); expected({ source: "replay", game_id: current.id, ply }); close();
     expect(options().allowDragging).toBe(false);
     act(() => { options().onPieceDrop?.({ sourceSquare: "e2", targetSquare: "e4", piece: { pieceType: "wP", position: "e2" } }); });

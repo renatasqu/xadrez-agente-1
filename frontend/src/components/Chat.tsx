@@ -57,12 +57,11 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice,
 
   return (
     <section aria-label="Conversa" className="tutor-panel caixa-pixel">
-      <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p><p aria-label="Contexto do Tutor">{topic ? `Lição · ${topic}` : tutorContextLabel(context)}</p></header>
+      <header className="tutor-heading"><h3 className="font-pixel">{topic ? "Sobre esta lição" : context ? "Sobre esta posição" : "Sua conversa"}</h3><p>Uma pergunta, uma descoberta.</p><p aria-label="Contexto do Tutor">{topic ? `Lição · ${topic}` : tutorContextLabel(context)}</p></header>
       <div ref={mensagens} className="chat-messages flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
         {itens.length === 0 && (
           <p className="text-sm text-slate-600">
-            Pergunte sobre regras, aberturas, táticas ou finais. As respostas vêm só dos livros e citam a fonte.
-            Mexa as peças e toque em <strong>Analisar posição</strong> para ouvir o Stockfish e o Estrategista.
+            Pergunte sobre regras, aberturas, táticas ou finais. O Tutor explica o contexto indicado acima e apresenta fontes quando disponíveis.
           </p>
         )}
         {itens.map((item) => (

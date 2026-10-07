@@ -18,15 +18,16 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
       {section !== "documentation" && <section className="about-project">
       <div className="about-project-intro">
         <p>Xadrez Multiagente é uma experiência interativa que combina xadrez, agentes de inteligência artificial e aprendizagem.</p>
-        <p>Na partida manual, você movimenta os dois lados, apresentados como Magnus e Hans. Em Jogar contra IA, enfrenta um perfil de treino ou um perfil inspirado, com lances calculados pelo Stockfish.</p>
-        <p>O projeto também reúne recursos de aprendizagem, como tutor, lições, exercícios, curiosidades e documentos de referência, criando uma experiência que vai além de simplesmente jogar uma partida.</p>
-        <p>A análise das posições combina Stockfish, recuperação de informações e modelos de linguagem, com o objetivo de tornar conceitos e decisões do xadrez mais fáceis de explorar e compreender.</p>
-        <p>Você pode explorar posições, jogar contra IA e usar a partida como ponto de partida para o aprendizado. Perfis inspirados são interpretações educacionais, sem imitação fiel ou endosso dos jogadores.</p>
-        <p>O projeto também surgiu a partir de uma atividade acadêmica relacionada à inteligência artificial e acabou evoluindo para uma experiência mais ampla.</p>
+        <h3>JOGAR</h3>
+        <p>Em Partida, escolha um agente e seu lado. Você move suas peças; o Stockfish calcula os lances do adversário. As partidas ficam no Histórico, com continuidade, revisão e exportação em PGN.</p>
+        <h3>APRENDER E TREINAR</h3>
+        <p>Lições oferece um percurso guiado. Em Prática, explore posições e resolva exercícios sem alterar uma partida oficial ou seu rating.</p>
+        <h3>PEDIR AJUDA</h3>
+        <p>O Tutor explica o conteúdo e a posição que você está vendo. Masters apresenta os agentes e os estilos de treino. Os perfis inspirados são interpretações educacionais, sem imitação fiel ou endosso dos jogadores.</p>
+        <p>Este projeto nasceu de uma atividade acadêmica sobre inteligência artificial e aprendizagem de xadrez.</p>
         <h3>OBJETIVO:</h3>
         <p>Transformar uma partida de xadrez em uma experiência visual, interativa e pedagógica, aproximando o usuário dos conceitos do jogo e das análises realizadas pelos agentes.</p>
-        <h3>TECNOLOGIAS:</h3>
-        <p>React · TypeScript · FastAPI · Python · Stockfish · Anthropic · RAG · Embeddings</p>
+        <details><summary>Tecnologias do projeto</summary><p>React · TypeScript · FastAPI · Python · Stockfish · Anthropic · RAG · Embeddings</p></details>
       </div>
       <details><summary>Documentos da biblioteca</summary><p>As respostas vêm destes documentos:</p>
       <ul className="my-2 list-inside list-disc">
@@ -54,7 +55,7 @@ export function Sobre({ onTutor, section, onAnalyses }: { onTutor?: (opener: HTM
         <div className="documentation-actions">
           <span className="documentation-action">
             <a href="#/pratica" onClick={onAnalyses} aria-describedby="documentation-analyses-tip">Ver análises dos agentes</a>
-            <span id="documentation-analyses-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Consultar as análises de Magnus e Hans</span>
+            <span id="documentation-analyses-tip" role="tooltip" className="card-action-tooltip documentation-action-tooltip">Consultar análises de posições de treino</span>
           </span>
           {onTutor && <span className="documentation-action">
             <button type="button" onClick={event => onTutor(event.currentTarget)} aria-describedby="documentation-sources-tip"
