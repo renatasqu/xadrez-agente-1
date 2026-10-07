@@ -26,7 +26,7 @@ it("mantém branding, avatar, todos os destinos e status no header sem sidebar o
     expect(nav.getByRole("link", { name }).getAttribute("href")).toBe(href);
     expect(container.querySelector(href === "#/sobre" ? "[data-page=about]" : href === "#/masters" ? "[data-page=masters]" : href === "#/historico" ? "[data-page=history]" : "#partida")).toBeTruthy();
   }
-  expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Partida", "Histórico", "Masters", "Lições", "Sobre", "Sair"]);
+  expect(nav.getAllByRole("link").map(link => link.textContent)).toEqual(["Partida", "Histórico", "Masters", "Lições", "Prática", "Sobre", "Sair"]);
   for (const name of ["Agentes", "Curiosidades", "Configurações"]) expect(nav.queryByText(name)).toBeNull();
   expect(container.querySelector(".arena-sidebar, .arena-header-tag")).toBeNull();
   expect(header.queryByText(/MAGNUS|HANS/)).toBeNull();

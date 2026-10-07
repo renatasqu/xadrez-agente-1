@@ -38,6 +38,7 @@ it("associações só no envelope da lição chegam ao objeto do chat", async ()
     concept_ids: ["movimento_cavalo"], related_exercise_ids: [A1.id] });
   (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Começar lições" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
   expect(capture.items[0]).toMatchObject({ resposta: {
@@ -49,6 +50,7 @@ it("lição/cache antigo recebe listas vazias", async () => {
     conteudo: { resposta: "Antiga", fontes: [], agente: "arbitro", confianca: 0 } });
   (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Começar lições" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   await waitFor(() => expect(capture.items).toHaveLength(1));
   expect(capture.items[0]).toMatchObject({ resposta: { concept_ids: [], related_exercise_ids: [] } });

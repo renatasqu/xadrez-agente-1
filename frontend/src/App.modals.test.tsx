@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { api } from "./api";
+import { api, ErroDaApi } from "./api";
 import { apagarUsuarioId } from "./armazenamento";
 
 vi.mock("./pixel/Sprite", () => ({ Sprite: ({ rotulo }: { rotulo: string }) => <span role={rotulo ? "img" : undefined} aria-label={rotulo || undefined} /> }));
@@ -9,6 +9,7 @@ vi.mock("./pixel/Sprite", () => ({ Sprite: ({ rotulo }: { rotulo: string }) => <
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, "", "/"); });
 function start() {
   apagarUsuarioId();
+  vi.spyOn(api, "licaoAtual").mockRejectedValue(new ErroDaApi("Sem lição", 404));
   vi.spyOn(api, "saude").mockResolvedValue({ status: "ok", stockfish: true, indices: {}, chave_api: true, llm_provider: "anthropic" });
   return (window.history.replaceState(null, "", "#explorar"), render(<App />));
 }
@@ -57,6 +58,7 @@ it("lições mantêm texto, fontes, progresso e navegação no próprio modal", 
   });
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   const lessons = within(screen.getByRole("dialog", { name: "LIÇÕES" }));
+  await waitFor(() => expect((lessons.getByRole("button", { name: "Começar lições" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(lessons.getByRole("button", { name: "Começar lições" }));
   expect(await lessons.findByText("O rei se move uma casa.")).toBeTruthy();
   expect(lessons.getByRole("button", { name: "Próxima lição" })).toBeTruthy();
@@ -217,5 +219,5 @@ it("repetição encerra partida; replay preserva resultado e reinício limpa his
   fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
   expect(screen.queryByText("Empate por repetição tripla.")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Reiniciar" }));
-  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+  expect(screen.getByText("Vez das brancas no treino.")).toBeTruthy();
 });

@@ -67,6 +67,7 @@ it("próxima lição guarda o id novo", async () => {
   servidor({ "/health": [200, SAUDE], "/licao/proxima": [200, LICAO] });
   (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Começar lições" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Começar lições" }));
   if (!screen.queryByRole("dialog", { name: "LIÇÕES" })) fireEvent.click(screen.getByRole("button", { name: /^LIÇÕES/ }));
   expect(await within(screen.getByRole("dialog", { name: "LIÇÕES" })).findByText("O en passant é...")).toBeTruthy();
@@ -86,7 +87,7 @@ it("mostra os dois lados no cabeçalho, com aria-label nos avatares", () => {
   (window.history.replaceState(null, "", "#explorar"), render(<App />));
   expect(screen.getByRole("img", { name: "avatar do Magnus" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "avatar do Hans" })).toBeTruthy();
-  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+  expect(screen.getByText("Vez das brancas no treino.")).toBeTruthy();
 });
 
 it("modo Qual documento me ajuda? chama /recomendar e mostra os trechos", async () => {
@@ -128,7 +129,7 @@ it("esconde o setup da IA quando a partida ativa já existe", async () => {
   await screen.findByText("Histórico e revisão");
   expect(screen.queryByRole("button", { name: "Jogar contra IA" })).toBeNull();
   expect(screen.queryByLabelText("Seu lado")).toBeNull();
-  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+  expect(screen.getByText("Vez das brancas no treino.")).toBeTruthy();
 });
 
 it("alterna para IA sem desmontar a arena manual e anexa posição oficial ao tutor", async () => {

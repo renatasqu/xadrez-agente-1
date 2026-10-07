@@ -28,9 +28,11 @@ interface Props {
   onHint?: () => void;
   onClose: () => void;
   onRetry: () => void;
+  onChoose?: () => void;
+  onTutor?: (opener: HTMLElement) => void;
   onPreview: (position: Exibicao | null) => void;
 }
-export function ExercisePanel({ state, visual, onAction, onHint, onClose, onRetry, onPreview }: Props) {
+export function ExercisePanel({ state, visual, onAction, onHint, onClose, onRetry, onPreview, onTutor, onChoose }: Props) {
   const status = statusDoPainel(state);
   const [passo, setPasso] = useState<number | null>(null);
   const [progress, setProgress] = useState<ExerciseProgress | null>(null);
@@ -97,6 +99,12 @@ export function ExercisePanel({ state, visual, onAction, onHint, onClose, onRetr
           <button type="button" className="botao-pixel bg-gelo text-slate-900" onClick={() => ir(null)}>Voltar ao exercício</button>
         </div>
       </>}
+    </div>}
+    {exercise && <div className="pedagogy-actions">
+      {onTutor && <button type="button" className="botao-pixel" onClick={event => onTutor(event.currentTarget)}>Pedir ajuda ao Tutor</button>}
+      {state.concluido && <button type="button" className="botao-pixel" disabled={state.loading} onClick={onRetry}>Praticar novamente</button>}
+      {state.concluido && onChoose && <button type="button" className="botao-pixel" onClick={onChoose}>Escolher outro exercício</button>}
+      <a href="#/licoes">Voltar às lições</a>
     </div>}
     {progress && <p className="mt-3 text-xs">Progresso: {progress.status === "completed" ? "concluído" : "não concluído"} · Tentativas: {progress.attempts}</p>}
     {progressError && <p className="mt-3 text-xs">Não foi possível consultar o progresso.</p>}

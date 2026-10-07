@@ -4,6 +4,8 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { api, ErroDaApi } from "./api";
 import type { Game, Resposta } from "./types";
+import { textoPedagogico } from "./idioma";
+import { CENARIOS } from "./testes/pedagogia";
 import { A1 } from "./testes/exercises";
 
 vi.mock("react-chessboard", () => ({ Chessboard: ({ options }: { options: any }) =>
@@ -183,4 +185,79 @@ it("exploração envia a posição histórica exibida em vez da posição final"
   const historicalFen = manual().position; expect(historicalFen).not.toBe(finalFen);
   fireEvent.click(screen.getByRole("button", { name: /^CHAME TUTOR/ })); await send();
   expected({ source: "exploration", fen: historicalFen });
+});
+
+it("Lições apresenta currículo real, progresso entregue e ajuda visível sem posição falsa", async () => {
+  const lesson = { usuario_id: "f63e63f2-4ed6-494d-bf86-2fa2f95110fd", concluido: false,
+    licao: { numero: 2, total: 12, titulo: "O roque", modulo: "regras" }, conteudo: response };
+  vi.mocked(api.licaoAtual).mockResolvedValue(lesson);
+  const advance = vi.spyOn(api, "proximaLicao").mockResolvedValue({ ...lesson, licao: { ...lesson.licao, numero: 3, titulo: "En passant" } });
+  mount("#/licoes");
+  await screen.findByText("Lições entregues: 2/12");
+  fireEvent.click(screen.getByText("Ver as 12 lições do percurso"));
+  expect(screen.getByRole("list", { name: "Lista de lições" }).querySelectorAll("li")).toHaveLength(12);
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("2");
+  expect(screen.getByText("Como funciona o roque?")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Abrir conversa do tutor" }));
+  expect((screen.getByLabelText("Sua pergunta") as HTMLTextAreaElement).value).toBe("Explique a lição “O roque”.");
+  fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await waitFor(() => expect(chat).toHaveBeenLastCalledWith("Explique a lição “O roque”.", undefined, undefined));
+  close(); fireEvent.click(screen.getByRole("button", { name: "Próxima lição" }));
+  await screen.findByText("Lições entregues: 3/12"); expect(advance).toHaveBeenCalledTimes(1);
+  expect(api.createGame).not.toHaveBeenCalled();
+});
+
+it("escolhas de prática e CTA preservam Game e rating e retorno mantém o mesmo ID", async () => {
+  vi.spyOn(api, "exercicio").mockResolvedValue(A1);
+  vi.spyOn(api, "progressoExercicios").mockResolvedValue([]);
+  const rating = vi.spyOn(api, "reconcileRating");
+  await start(game(["e2e4"], "black")); const before = options().position;
+  await navigate("#/pratica");
+  expect(screen.getByText(/Suas ações aqui não alteram/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Movimento do cavalo" }));
+  await screen.findByText(A1.prompt);
+  fireEvent.click(screen.getByRole("button", { name: "Pedir ajuda ao Tutor" }));
+  await send(); expected({ source: "exercise", fen: A1.fen }); close();
+  fireEvent.click(screen.getByRole("button", { name: "Jogar contra IA" }));
+  await screen.findByRole("button", { name: "Conversar sobre esta posição" });
+  expect(options().position).toBe(before); expect(options().boardOrientation).toBe("black");
+  await open(); await send(); expected({ source: "game", game_id: current.id }); close();
+  expect(api.createGame).toHaveBeenCalledTimes(1);
+  expect(api.submitHumanMove).not.toHaveBeenCalled(); expect(api.resumeAgent).not.toHaveBeenCalled(); expect(rating).not.toHaveBeenCalled();
+});
+
+
+it("Tutor acompanha a posição visível na refutação e volta ao exercício sem game_id", async () => {
+  const fixture = CENARIOS.e1;
+  vi.spyOn(api, "exercicio").mockResolvedValue(fixture.exercise);
+  vi.spyOn(api, "progressoExercicios").mockResolvedValue([]);
+  vi.spyOn(api, "validarExercicio").mockResolvedValue(fixture.results.incorrect);
+  mount("#/pratica");
+  fireEvent.click(screen.getByRole("button", { name: "Segurança material" }));
+  await screen.findByText(textoPedagogico(fixture.exercise.prompt));
+  const manual = () => (document.querySelector('#partida [data-testid="tutor-board"]') as any).options;
+  act(() => manual().onPieceDrop({ sourceSquare: "e1", targetSquare: "f2", piece: { pieceType: "wK", position: "e1" } }));
+  await screen.findByText("Tente novamente.");
+  fireEvent.click(screen.getByRole("button", { name: "Ver sequência de refutação" }));
+  fireEvent.click(screen.getByRole("button", { name: "Próximo na refutação" }));
+  const preview = manual().position;
+  expect(preview).not.toBe(fixture.exercise.fen);
+  fireEvent.click(screen.getByRole("button", { name: "Pedir ajuda ao Tutor" }));
+  await send(); expected({ source: "exercise", fen: preview }); close();
+  fireEvent.click(screen.getByRole("button", { name: "Voltar ao exercício" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pedir ajuda ao Tutor" }));
+  await send(); expected({ source: "exercise", fen: manual().position }); close();
+  expect(api.createGame).not.toHaveBeenCalled(); expect(api.submitHumanMove).not.toHaveBeenCalled();
+});
+
+it("concluir o percurso mantém o conteúdo e o progresso da última lição", async () => {
+  const last = { usuario_id: "f63e63f2-4ed6-494d-bf86-2fa2f95110fd", concluido: false,
+    licao: { numero: 12, total: 12, titulo: "A oposição", modulo: "finais" }, conteudo: response };
+  vi.mocked(api.licaoAtual).mockResolvedValue(last);
+  vi.spyOn(api, "proximaLicao").mockResolvedValue({ usuario_id: last.usuario_id, concluido: true, licao: null, conteudo: null });
+  mount("#/licoes"); await screen.findByText("Lições entregues: 12/12");
+  fireEvent.click(screen.getByRole("button", { name: "Próxima lição" }));
+  await screen.findByText("Você concluiu todas as lições!");
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("12");
+  expect(screen.getByLabelText("Conteúdo da lição").textContent).toContain("A oposição");
 });

@@ -21,6 +21,7 @@ export interface Exibicao {
 }
 
 interface BaseProps {
+  study?: boolean;
   visible?: boolean; // Evita animar posições enquanto a arena está oculta.
   hideControls?: boolean;
   onMoveIntent?: (uci: string) => void;
@@ -165,11 +166,11 @@ export function Board(props: BoardProps) {
 
   const context = <>
       <div className={"board-context board-context--" + modo} aria-label="Contexto do tabuleiro">
-        <span className="font-pixel">{emExercicio ? "EXERCÍCIO" : emDemo ? "DEMONSTRAÇÃO" : "PARTIDA"}</span>
+        <span className="font-pixel">{emExercicio ? "EXERCÍCIO" : emDemo ? "DEMONSTRAÇÃO" : props.study ? "PRÁTICA" : "PARTIDA"}</span>
         <span>{emExercicio ? "Missão de prática" : emDemo ? "Observe a sequência" : props.onMoveIntent ? "Você contra a IA" : "Explore uma posição"}</span>
       </div>
       <p className="text-center font-pixel text-[0.6rem] leading-relaxed" aria-live="polite">
-        {emDemo ? "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : props.estadoTexto ?? situacao(fen)}
+        {emDemo ? props.study ? "Demonstração: sua posição de estudo está guardada." : "Demonstração: a sua partida está guardada." : emExercicio ? "Exercício" : props.estadoTexto ?? situacao(fen)}
       </p>
   </>;
 

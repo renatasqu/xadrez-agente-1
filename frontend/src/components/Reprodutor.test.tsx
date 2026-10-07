@@ -86,14 +86,14 @@ it("tocar avança sozinho até o fim e pausar para", async () => {
 it("durante a demonstração não dá para mexer nem analisar", async () => {
   await abrirDemo(ROQUE);
   expect((screen.getByRole("button", { name: "Analisar posição" }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByText("Demonstração: a sua partida está guardada.")).toBeTruthy();
+  expect(screen.getByText("Demonstração: sua posição de estudo está guardada.")).toBeTruthy();
 });
 
 it("voltar à minha posição restaura a partida da pessoa", async () => {
   await abrirDemo(ROQUE);
   fireEvent.click(screen.getByRole("button", { name: "Voltar à minha posição" }));
   expect(screen.queryByRole("region", { name: "Demonstração no tabuleiro" })).toBeNull();
-  expect(screen.getByText("Vez do Magnus (brancas).")).toBeTruthy();
+  expect(screen.getByText("Vez das brancas no treino.")).toBeTruthy();
   expect(casa("e2").querySelector('[aria-label="peão branco"]')).toBeTruthy(); // posição inicial de volta
 });
 

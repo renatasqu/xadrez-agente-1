@@ -80,14 +80,14 @@ it("controles acionam navegação, pausa e ações atuais", () => {
 it("navegação preserva a partida, pausa bloqueia input e desfazer continua disponível", async () => {
   health(); (window.history.replaceState(null, "", "#explorar"), render(<App />));
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
-  expect(screen.getByRole("region", { name: "Hans — Pretas" }).getAttribute("data-active")).toBe("true");
+  expect(screen.getByRole("region", { name: "Pretas — Treino" }).getAttribute("data-active")).toBe("true");
   const current = screen.getByLabelText("Tabuleiro").getAttribute("data-fen");
   fireEvent.click(screen.getByRole("button", { name: "Primeira posição" }));
   expect(screen.getByLabelText("Tabuleiro").getAttribute("data-fen")).toBe(FEN_INICIAL);
   expect(screen.getByRole("button", { name: "Ver posição após e4, jogada 1" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Voltar à posição atual" }));
   expect(screen.getByLabelText("Tabuleiro").getAttribute("data-fen")).toBe(current);
-  fireEvent.click(screen.getByRole("button", { name: "Pausar partida" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pausar exploração" }));
   expect((screen.getByRole("button", { name: "Mover peça de teste" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
   fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
@@ -130,9 +130,9 @@ it("relógio mede atividade do lado atual, para durante pausa e reinicia", async
   await act(async () => { (window.history.replaceState(null, "", "#explorar"), render(<App />)); });
   fireEvent.click(screen.getByRole("button", { name: "Mover peça de teste" }));
   await act(async () => vi.advanceTimersByTime(2100));
-  const hans = within(screen.getByRole("region", { name: "Hans — Pretas" }));
+  const hans = within(screen.getByRole("region", { name: "Pretas — Treino" }));
   expect(hans.getByText("00:02")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Pausar partida" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pausar exploração" }));
   await act(async () => vi.advanceTimersByTime(3000));
   expect(hans.getByText("00:02")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Reiniciar" }));
@@ -213,5 +213,5 @@ it("cancelar Sair mantém a página, a posição e os controles da partida", () 
   expect(confirm).toHaveBeenCalledWith("Deseja sair da partida?");
   expect(screen.getByLabelText("Tabuleiro").getAttribute("data-fen")).toBe(fen);
   expect(screen.queryByRole("region", { name: "Tela inicial" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Pausar partida" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Pausar exploração" })).toBeTruthy();
 });

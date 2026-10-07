@@ -13,12 +13,12 @@ export const PixelAvatar = memo(function PixelAvatar({ side, size = 64, context 
   const sprite = AVATARES[agent[side].sprite];
   return <span className="pixel-avatar" style={{ width: size, height: size }}><Sprite grade={sprite.grade} paleta={sprite.paleta} rotulo={`avatar do ${agent[side].nome}${context ? ` ${context}` : ""}`} /></span>;
 });
-export function AgentHeaderCard({ side, active, seconds }: { side: MatchSide; active: boolean; seconds: number }) {
+export function AgentHeaderCard({ side, active, seconds, study = false }: { side: MatchSide; active: boolean; seconds: number; study?: boolean }) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
-  return <section className={`agent-header agent--${side} ${active ? "agent-active" : ""}`} aria-label={`${agent[side].nome} — ${agent[side].lado}`} data-active={active}>
+  return <section className={`agent-header agent--${side} ${active ? "agent-active" : ""}`} aria-label={study ? `${agent[side].lado} — Treino` : `${agent[side].nome} — ${agent[side].lado}`} data-active={active}>
     <PixelAvatar side={side} />
-    <div><h2>{agent[side].nome}</h2><p>{agent[side].lado} {active && <span className="turn-tag">· Sua vez</span>}</p></div>
-    <div className="agent-clock" title="Tempo de atividade por lado nesta partida; não é um relógio de competição"><strong>{minutes}:{(seconds % 60).toString().padStart(2, "0")}</strong><small>Tempo de atividade</small></div>
+    <div><h2>{study ? agent[side].lado : agent[side].nome}</h2><p>{study ? "Você explora este lado" : agent[side].lado} {active && <span className="turn-tag">· Sua vez</span>}</p></div>
+    <div className="agent-clock" title="Tempo de atividade por lado; não é um relógio de competição"><strong>{minutes}:{(seconds % 60).toString().padStart(2, "0")}</strong><small>Tempo de atividade</small></div>
   </section>;
 }
 export function CurrentTurn({ side, label }: { side: MatchSide; label?: string }) {

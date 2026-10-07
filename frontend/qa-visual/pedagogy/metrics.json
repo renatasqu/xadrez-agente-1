@@ -1,0 +1,330 @@
+[
+  {
+    "name": "lessons-overview-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": []
+  },
+  {
+    "name": "lesson-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": []
+  },
+  {
+    "name": "curriculum-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": []
+  },
+  {
+    "name": "lesson-tutor-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1440,
+    "scroll": 1440,
+    "board": []
+  },
+  {
+    "name": "practice-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": [
+      724.03125
+    ]
+  },
+  {
+    "name": "exercise-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": [
+      724.03125
+    ]
+  },
+  {
+    "name": "exercise-tutor-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1440,
+    "scroll": 1440,
+    "board": [
+      724.03125
+    ]
+  },
+  {
+    "name": "feedback-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1425,
+    "scroll": 1425,
+    "board": [
+      724.03125
+    ]
+  },
+  {
+    "name": "lessons-overview-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": []
+  },
+  {
+    "name": "lesson-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": []
+  },
+  {
+    "name": "curriculum-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": []
+  },
+  {
+    "name": "lesson-tutor-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1280,
+    "scroll": 1280,
+    "board": []
+  },
+  {
+    "name": "practice-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": [
+      719.0625
+    ]
+  },
+  {
+    "name": "exercise-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": [
+      719.0625
+    ]
+  },
+  {
+    "name": "exercise-tutor-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1280,
+    "scroll": 1280,
+    "board": [
+      719.0625
+    ]
+  },
+  {
+    "name": "feedback-1280",
+    "width": 1280,
+    "height": 900,
+    "client": 1265,
+    "scroll": 1265,
+    "board": [
+      719.0625
+    ]
+  },
+  {
+    "name": "lessons-overview-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": []
+  },
+  {
+    "name": "lesson-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": []
+  },
+  {
+    "name": "curriculum-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": []
+  },
+  {
+    "name": "lesson-tutor-768",
+    "width": 768,
+    "height": 1024,
+    "client": 768,
+    "scroll": 768,
+    "board": []
+  },
+  {
+    "name": "practice-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": [
+      722.28125
+    ]
+  },
+  {
+    "name": "exercise-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": [
+      722.28125
+    ]
+  },
+  {
+    "name": "exercise-tutor-768",
+    "width": 768,
+    "height": 1024,
+    "client": 768,
+    "scroll": 768,
+    "board": [
+      722.28125
+    ]
+  },
+  {
+    "name": "feedback-768",
+    "width": 768,
+    "height": 1024,
+    "client": 753,
+    "scroll": 753,
+    "board": [
+      722.28125
+    ]
+  },
+  {
+    "name": "lessons-overview-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": []
+  },
+  {
+    "name": "lesson-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": []
+  },
+  {
+    "name": "curriculum-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": []
+  },
+  {
+    "name": "lesson-tutor-390",
+    "width": 390,
+    "height": 844,
+    "client": 390,
+    "scroll": 390,
+    "board": []
+  },
+  {
+    "name": "practice-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": [
+      351
+    ]
+  },
+  {
+    "name": "exercise-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": [
+      351
+    ]
+  },
+  {
+    "name": "exercise-tutor-390",
+    "width": 390,
+    "height": 844,
+    "client": 390,
+    "scroll": 390,
+    "board": [
+      351
+    ]
+  },
+  {
+    "name": "feedback-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": [
+      351
+    ]
+  },
+  {
+    "name": "white-return-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1440,
+    "scroll": 1440,
+    "board": [
+      660
+    ]
+  },
+  {
+    "name": "white-return-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": [
+      351
+    ]
+  },
+  {
+    "name": "black-return-1440",
+    "width": 1440,
+    "height": 900,
+    "client": 1440,
+    "scroll": 1440,
+    "board": [
+      660
+    ]
+  },
+  {
+    "name": "black-return-390",
+    "width": 390,
+    "height": 844,
+    "client": 375,
+    "scroll": 375,
+    "board": [
+      351
+    ]
+  }
+]

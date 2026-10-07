@@ -18,6 +18,8 @@ export type ModoDoChat = "perguntar" | "recomendar";
 
 interface Props {
   itens: ItemDoChat[];
+  allowPosition?: boolean;
+  topic?: string | null;
   context?: TutorPositionContext | null;
   contextKey?: string;
   esperando: TipoDeEspera | null;
@@ -31,7 +33,7 @@ const MODOS: [ModoDoChat, string][] = [
   ["recomendar", "Qual documento me ajuda?"],
 ];
 
-export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice, context = null, contextKey }: Props) {
+export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice, context = null, contextKey, topic, allowPosition = true }: Props) {
   const [texto, setTexto] = useState("");
   const [anexar, setAnexar] = useState(false);
   const [modo, setModo] = useState<ModoDoChat>("perguntar");
@@ -43,7 +45,7 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice,
     if (painel) painel.scrollTo?.({ top: painel.scrollHeight, behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [itens.length, esperando]);
 
-  useEffect(() => { setTexto(""); setAnexar(false); }, [contextKey]);
+  useEffect(() => { setTexto(topic ? `Explique a lição “${topic}”.` : ""); setAnexar(false); }, [contextKey, topic]);
 
   function enviar(evento: FormEvent) {
     evento.preventDefault();
@@ -55,7 +57,7 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice,
 
   return (
     <section aria-label="Conversa" className="tutor-panel caixa-pixel">
-      <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p><p aria-label="Contexto do Tutor">{tutorContextLabel(context)}</p></header>
+      <header className="tutor-heading"><h2 className="font-pixel">SEU TUTOR</h2><p>Uma pergunta, uma descoberta.</p><p aria-label="Contexto do Tutor">{topic ? `Lição · ${topic}` : tutorContextLabel(context)}</p></header>
       <div ref={mensagens} className="chat-messages flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
         {itens.length === 0 && (
           <p className="text-sm text-slate-600">
@@ -108,7 +110,7 @@ export function Chat({ itens, esperando, onEnviar, onVerNoTabuleiro, onPractice,
           className="w-full resize-none border-2 border-slate-900 bg-white p-2 text-sm text-slate-900"
         />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          {modo === "perguntar" && (
+          {modo === "perguntar" && allowPosition && (
             <label className="flex items-center gap-2 text-xs">
               <input type="checkbox" checked={Boolean(context) || anexar} disabled={Boolean(context)} onChange={(e) => setAnexar(e.target.checked)} />
               Anexar posição do tabuleiro

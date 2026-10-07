@@ -1011,3 +1011,28 @@ body:has(.auth-screen) { background: #f3ecdf; }
   .archive-toolbar label { flex-wrap: wrap; }
   .archive-empty { padding: 20px; }
 }
+
+/* Fluxo pedagógico com os componentes pixel existentes. */
+.pedagogy-heading { margin-bottom: 1.25rem; }
+.pedagogy-heading h1 { font-family: "Press Start 2P", monospace; font-size: clamp(1rem, 2vw, 1.4rem); line-height: 1.8; }
+.pedagogy-heading p, .practice-intro > p { margin: .75rem 0; max-width: 65ch; }
+.pedagogy-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin: 1rem 0; }
+.pedagogy-actions a { text-decoration: underline; padding: .6rem 0; }
+.lesson-track > .lesson-catalog { flex-basis: 100%; }
+.lesson-catalog { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: .75rem; padding: 0; list-style: none; }
+.lesson-catalog li { padding: .75rem; background: #ffffff80; border-left: 4px solid #64748b; }
+.lesson-catalog li[aria-current] { border-color: #65bfc5; background: #fff; }
+.lesson-catalog h3 { font-weight: bold; margin: .3rem 0; }
+.lesson-catalog p { font-size: .8rem; }
+.lesson-track progress { display: block; width: 100%; max-width: 28rem; margin: .5rem 0; }
+.lesson-content h2, .practice-intro h2 { font-weight: bold; margin: 1rem 0 .5rem; }
+.practice-intro .practice-options { margin: 1rem 0; }
+.practice-intro button { min-height: 44px; white-space: normal; }
+.pedagogy-actions :focus-visible, .practice-intro button:focus-visible { outline: 3px solid #0e1018; outline-offset: 4px; }
+
+.floating-actions.study-shortcuts { position: static; flex-direction: row; justify-content: flex-end; margin: 1rem; }
+
+.lesson-outline { flex-basis: 100%; min-width: 0; }
+.lesson-outline summary { cursor: pointer; padding: .65rem 0; font-weight: bold; }
+.lesson-outline summary:focus-visible { outline: 3px solid #0e1018; outline-offset: 3px; }
+.lesson-outline .lesson-catalog { margin-top: .5rem; }

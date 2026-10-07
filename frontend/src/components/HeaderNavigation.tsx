@@ -4,7 +4,7 @@ import { pageFromHash, pageHashes } from "../navigation";
 const links = [
   ["#/partida", "Partida"], ["#/historico", "Histórico"],
   ["#/masters", "Masters"], ["#/licoes", "Lições"],
-  ["#/sobre", "Sobre"],
+  ["#/pratica", "Prática"], ["#/sobre", "Sobre"],
 ] as const;
 
 interface Props {

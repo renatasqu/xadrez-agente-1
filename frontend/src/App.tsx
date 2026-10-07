@@ -10,7 +10,7 @@ import { useMatchLayout } from "./match/useMatchLayout";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ErroDaApi, api } from "./api";
 import { apagarUsuarioId, gravarUsuarioId, lerUsuarioId } from "./armazenamento";
-import { AgentHeaderCard, AgentThinking, CurrentTurn, MoveHistory, recordedMoves, type MatchSide } from "./match/MatchArena";
+import { AgentHeaderCard, AgentThinking, MoveHistory, recordedMoves, type MatchSide } from "./match/MatchArena";
 import { MatchControls } from "./match/MatchControls";
 import { useExercise } from "./exercises/useExercise";
 import { ExercisePanel } from "./components/ExercisePanel";
@@ -22,6 +22,8 @@ import { CommentLike } from "./components/CommentLike";
 import { ContentModal } from "./components/ContentModal";
 import { RespostaDoAgente } from "./components/Mensagem";
 import { Carregando } from "./components/Carregando";
+import { EXERCISE_LABELS } from "./exercises/pedagogia";
+import { lessonCatalog } from "./lessonCatalog";
 import { Licao } from "./components/Licao";
 import { Masters } from "./components/Masters";
 import { Sobre } from "./components/Sobre";
@@ -72,6 +74,8 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   const aboutOpener = useRef<HTMLElement | null>(null);
   const aboutReturn = useRef<AppPage>("match");
   const modalOpener = useRef<HTMLElement | null>(null);
+  const [tutorLesson, setTutorLesson] = useState<string | null>(null);
+  const [lessonLoading, setLessonLoading] = useState(true);
   const [lessonError, setLessonError] = useState<Resposta | null>(null);
   const [licao, setLicao] = useState<RespostaLicao | null>(null);
   const exercicio = useExercise();
@@ -123,6 +127,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   }, [tocando, passo, passos.length, exercicio.exercise]);
 
   function abrirExercicio(id: string) {
+    setTutorLesson(null);
     setAiMode(false);
     setModal(null);
     exerciseId.current = id;
@@ -130,12 +135,17 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
     setDemo(null); setTocando(false); setRefutacao(null);
     void exercicio.carregar(id);
   }
+  useEffect(() => {
+    if (exercicio.exercise && page === "practice") document.getElementById("match-board")?.scrollIntoView?.({ block: "start" });
+  }, [exercicio.exercise?.id, page]);
+
   function fecharExercicio() {
     setRefutacao(null);
     exercicio.fechar();
   }
 
   function verNoTabuleiro(nova: Demonstracao) {
+    setTutorLesson(null);
     setAiMode(false);
     setModal(null);
     fecharExercicio();
@@ -162,13 +172,15 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
 
   function aplicarLicao(dados: RespostaLicao, retomando = false) {
     gravarUsuarioId(dados.usuario_id);
-    setLicao(dados);
+    setLicao(previous => dados.concluido && !dados.licao && previous ? {
+      ...previous, concluido: true,
+    } : dados);
     if (dados.conteudo) {
       const titulo = dados.licao ? tituloDaLicao(dados.licao, retomando) : undefined;
       mostrarResposta({ ...dados.conteudo,
         concept_ids: dados.conteudo.concept_ids ?? dados.concept_ids ?? [],
         related_exercise_ids: dados.conteudo.related_exercise_ids ?? dados.related_exercise_ids ?? [],
-      }, false, titulo);
+      }, false, titulo, JSON.stringify(["lesson", dados.licao?.numero]), `Lição · ${dados.licao?.titulo ?? "Percurso"}`);
     }
   }
 
@@ -195,14 +207,14 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       .then((dados) => aplicarLicao(dados, true))
       .catch((erro) => {
         if (erro instanceof ErroDaApi && erro.status === 400) apagarUsuarioId(); // id inválido
-        // 404: ainda não começou; sem servidor: a luz de status já avisa
-      });
+        if (erro instanceof ErroDaApi && erro.status !== 404) setLessonError(erro.resposta);
+      }).finally(() => setLessonLoading(false));
   }, []);
 
   async function perguntar(texto: string, anexarPosicao: boolean, modo: ModoDoChat) {
     const key = tutorKey;
     const contextLabel = tutorContextLabel(tutorContext);
-    const context = tutorContext ?? (anexarPosicao ? { source: "exploration" as const, fen: shownFen } : undefined);
+    const context = tutorContext ?? (anexarPosicao && page === "practice" && !tutorLesson ? { source: "exploration" as const, fen: shownFen } : undefined);
     adicionar({ tipo: "pergunta", texto: modo === "recomendar" ? `Qual documento me ajuda? ${texto}` : texto, contextKey: key, contextLabel });
     setEsperando(modo === "recomendar" ? "recomendar" : "chat");
     try {
@@ -242,13 +254,14 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           fen: historico[historyIndex], de: moves[historyIndex - 1]?.source ?? null, para: moves[historyIndex - 1]?.destination ?? null,
         } } : { modo: "normal" };
   const shownFen = (exercicio.exercise ? refutacao?.fen : null) ?? exercicio.resulting_fen ?? (demo ? passos[passo]?.fen : historico[historyIndex]) ?? fen;
-  const tutorContext: TutorPositionContext | null = page === "match" && aiMode ? officialTutor.context
-    : page === "practice" ? { source: exercicio.exercise ? "exercise" : "exploration", fen: shownFen } : null;
-  const tutorKey = JSON.stringify([page, tutorContext, page === "match" ? officialTutor.key : exercicio.exercise?.id ?? null]);
+  const tutorContext: TutorPositionContext | null = tutorLesson ? null : page === "match" && aiMode ? officialTutor.context
+    : page === "practice" && modal !== "lessons" ? { source: exercicio.exercise ? "exercise" : "exploration", fen: shownFen } : null;
+  const tutorKey = tutorLesson ? JSON.stringify(["lesson", licao?.licao?.numero]) : JSON.stringify([page, tutorContext, page === "match" ? officialTutor.key : exercicio.exercise?.id ?? null]);
 
   const shownSide: MatchSide = shownFen.split(" ")[1] === "b" ? "b" : "w";
 
   function openArea(area: "tutor" | "lessons" | "curiosities" | "comment" | "about" | "documentation", opener: HTMLElement) {
+    setTutorLesson(null);
     modalOpener.current = opener;
     if (area === "about" && page !== "about") {
       aboutReturn.current = currentPage.current;
@@ -295,6 +308,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
       if (next !== "practice") {
         setMatchPaused(true); setHistoryPlaying(false); setTocando(false);
       }
+      setTutorLesson(null);
       currentPage.current = next;
       setPage(next);
       requestAnimationFrame(() => { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; });
@@ -310,15 +324,19 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
   }
 
   const lessonsContent = <>
-        <Licao licao={licao?.licao ?? null} concluido={licao?.concluido ?? false} ocupado={esperando !== null} onProxima={proximaLicao}
+        <header className="pedagogy-heading"><h1>Lições de xadrez</h1><p>Aprendizado guiado, das regras aos finais. Avance no seu ritmo.</p></header>
+        <Licao licao={licao?.licao ?? null} concluido={licao?.concluido ?? false} ocupado={lessonLoading || esperando !== null} onProxima={proximaLicao}
           relatedExerciseIds={licao?.related_exercise_ids ?? licao?.conteudo?.related_exercise_ids ?? []} onPractice={practiceFromArea} />
-        {esperando === "licao" && <Carregando tipo="licao" />}
-        {licao?.conteudo && <div className="lesson-content"><RespostaDoAgente resposta={{ ...licao.conteudo,
+        {(lessonLoading || esperando === "licao") && <Carregando tipo="licao" />}
+        {licao?.conteudo && <div className="lesson-content" aria-label="Conteúdo da lição">
+          <h2>{licao.licao?.titulo ?? "Conteúdo da lição"}</h2>
+          {licao.licao && <p><strong>Objetivo: </strong>{lessonCatalog[licao.licao.numero - 1]?.objetivo ?? `Entender ${licao.licao.titulo}.`}</p>}<RespostaDoAgente resposta={{ ...licao.conteudo,
           concept_ids: licao.conteudo.concept_ids ?? licao.concept_ids ?? [],
           related_exercise_ids: licao.conteudo.related_exercise_ids ?? licao.related_exercise_ids ?? [],
         }} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} /></div>}
         {lessonError && <RespostaDoAgente resposta={lessonError} erro />}
-        <button type="button" className="modal-tutor-link" onClick={() => setModal("tutor")}>Abrir conversa do tutor</button>
+        <div className="pedagogy-actions"><a href="#/pratica" onClick={() => setModal(null)}>Ir para Prática</a><a href="#/partida" onClick={() => setModal(null)}>Jogar contra IA</a></div>
+        <button type="button" className="modal-tutor-link" onClick={event => { if (modal !== "lessons") modalOpener.current = event.currentTarget; setTutorLesson(licao?.licao?.titulo ?? null); setModal("tutor"); }}>Abrir conversa do tutor</button>
   </>;
 
   return (
@@ -337,11 +355,19 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             <StatusSaude />
           </div>
         </header>
-        {page === "practice" && !aiMode && <div><button type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>}
+        {page === "practice" && !aiMode && <section className="standalone-page practice-intro" aria-label="Prática de xadrez">
+          <header className="pedagogy-heading"><h1>Prática</h1><p>Esta é uma área de treino. Suas ações aqui não alteram uma partida oficial nem seu rating.</p></header>
+          <div className="pedagogy-actions"><a href="#/licoes">Voltar às lições</a><button className="botao-pixel" type="button" onClick={() => { window.location.hash = pageHashes.match; }}>Jogar contra IA</button></div>
+          <h2>Exercícios</h2><p>Escolha um objetivo. Você receberá feedback e poderá tentar novamente.</p>
+          <div className="practice-options">{Object.entries(EXERCISE_LABELS).map(([id, item]) => <button type="button" className="botao-pixel" key={id} disabled={exercicio.loading || esperando !== null} onClick={() => abrirExercicio(id)}>{item.nome}</button>)}</div>
+          <h2>{exercicio.exercise ? "Treino guiado no tabuleiro" : demo ? "Demonstração no tabuleiro" : "Exploração de posições"}</h2>
+          <p>{exercicio.exercise ? "Siga o objetivo abaixo do tabuleiro. O Tutor ajuda a entender a posição exibida." : "Mova os dois lados para estudar. Analise a posição ou peça ajuda ao Tutor."}</p>
+          {!exercicio.exercise && <button type="button" className="botao-pixel" onClick={() => { fecharExercicio(); voltarAMinhaPosicao(); setSelectedPosition(null); setMatchPaused(false); document.getElementById("match-board")?.scrollIntoView({ block: "start" }); }}>Explorar no tabuleiro</button>}
+        </section>}
         <div hidden={page !== "match" || !aiMode}>{aiVisited && <AiGame ref={aiGameRef} visible={page === "match" && aiMode} onPosition={setAiFen} onTutorContext={onOfficialTutorContext} onGameActive={setAiGameActive} onTutor={opener => openArea("tutor", opener)} />}</div>
         <main className="game-layout arena-layout" id="partida" ref={layoutRef} hidden={page !== "practice" || aiMode}>
           <div className="match-upper-strip">
-            <div className="agent-headers"><AgentHeaderCard side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard side="b" active={shownSide === "b"} seconds={activity.b} /></div>
+            <div className="agent-headers"><AgentHeaderCard study side="w" active={shownSide === "w"} seconds={activity.w} /><AgentHeaderCard study side="b" active={shownSide === "b"} seconds={activity.b} /></div>
             <div className="desktop-tutor-slot" ref={setDesktopTutorHost} />
             <MoveHistory moves={moves} selected={historyIndex} disabled={Boolean(exercicio.exercise || demo)} onSelect={index => { setSelectedPosition(index); setHistoryPlaying(false); }} />
           </div>
@@ -349,13 +375,13 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
           <div className="match-central">
             <div className="match-game-column">
             <div className="board-workspace arena-board-main" id="match-board">
-              <Board
+              <Board study
                 key={exercicio.exercise?.id ?? "partida"}
                 {...tabuleiro}
                 hideControls
                 contextContainer={boardContextHost}
                 fen={fen}
-                estadoTexto={textoEstado(estado)}
+                estadoTexto={estado.ended ? estado.winner ? `Xeque-mate! Vitória das ${estado.winner === "w" ? "brancas" : "pretas"} no treino.` : textoEstado(estado) : `${estado.status === "check" ? "Xeque! " : ""}Vez das ${shownSide === "w" ? "brancas" : "pretas"} no treino.`}
                 terminado={estado.ended}
                 ocupado={esperando !== null || exercicio.loading || (matchPaused && !exercicio.exercise && !demo)}
                 podeDesfazer={historico.length > 1}
@@ -368,7 +394,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
                 onHint={() => { setRefutacao(null); void exercicio.pedirDica(); }}
                 onAction={(action) => { setRefutacao(null); void exercicio.tentar(action); }}
                 onClose={fecharExercicio} onPreview={setRefutacao}
-                onRetry={() => { if (exerciseId.current) abrirExercicio(exerciseId.current); }} />
+                onRetry={() => { if (exerciseId.current) abrirExercicio(exerciseId.current); }} onTutor={opener => openArea("tutor", opener)} onChoose={() => { fecharExercicio(); document.querySelector(".practice-intro")?.scrollIntoView?.({ block: "start" }); }} />
               {!exercicio.exercise && demo && passos.length > 0 && (
                 <Reprodutor
                   descricao={demo.descricao}
@@ -390,7 +416,7 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             </div>
           <div className="match-lower-strip">
             <div className="arena-control-strip">
-              <MatchControls index={historyIndex} total={historico.length - 1}
+              <MatchControls study index={historyIndex} total={historico.length - 1}
                 paused={selectedPosition !== null ? !historyPlaying : matchPaused}
                 disabled={esperando !== null || exercicio.loading || Boolean(exercicio.exercise || demo)}
                 onFirst={() => { setSelectedPosition(0); setHistoryPlaying(false); }}
@@ -403,12 +429,12 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
             </div>
           </div>
             </div>
-            <aside className="match-sidebar" aria-label="Acompanhamento da partida">
-              <CurrentTurn side={shownSide} label={exercicio.exercise ? "Turno do exercício" : demo || selectedPosition !== null ? "Posição em exibição" : matchPaused ? "Partida pausada" : undefined} />
+            <aside className="match-sidebar" aria-label="Acompanhamento do treino">
+              <section className="current-turn" aria-label="Turno atual"><span className="eyebrow">{exercicio.exercise ? "Turno do exercício" : "Posição de estudo"}</span><p>{shownSide === "w" ? "Brancas" : "Pretas"} jogam{matchPaused && !exercicio.exercise && !demo ? " · exploração pausada" : ""}</p></section>
               <div className="desktop-lessons-slot" ref={setDesktopLessonsHost} />
               <CuriositiesCard />
               <div className="arena-reasoning" id="agentes">
-                <div className="reasoning-title"><span className="eyebrow">Dois lados. Novas perspectivas.</span><h2>Análises da partida:</h2></div>
+                <div className="reasoning-title"><span className="eyebrow">Dois lados. Novas perspectivas.</span><h2>Análises da posição:</h2></div>
                 <AgentThinking side="w" analysis={analyses.w?.resposta} stale={Boolean(analyses.w && analyses.w.fen !== fen)} busy={esperando === "analise" && matchSide === "w"} />
                 <AgentThinking side="b" analysis={analyses.b?.resposta} stale={Boolean(analyses.b && analyses.b.fen !== fen)} busy={esperando === "analise" && matchSide === "b"} />
               </div>
@@ -439,15 +465,15 @@ export function App({ onLogout }: { onLogout?: () => void } = {}) {
         </section>
       </div>
       {(mobile ? mobileAccessHost : desktopTutorHost) && createPortal(
-        <InteractiveCard action="Abrir tutor" type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></InteractiveCard>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
+        <InteractiveCard action="Abrir tutor" type="button" data-modal-trigger="tutor" ref={retainOpener} className="content-trigger tutor-trigger" aria-haspopup="dialog" aria-controls="tutor-modal" onClick={event => { setTutorLesson(null); modalOpener.current = event.currentTarget; setModal("tutor"); }}><span>CHAME TUTOR</span><small>Perguntas, análises e fontes</small></InteractiveCard>, (mobile ? mobileAccessHost : desktopTutorHost)!)}
       {desktopLessonsHost && createPortal(
         <InteractiveCard action="Abrir lições" type="button" data-modal-trigger="lessons" ref={retainOpener} className="content-trigger lessons-trigger" aria-haspopup="dialog" aria-controls="lessons-modal" onClick={event => { modalOpener.current = event.currentTarget; setModal("lessons"); }}><span>LIÇÕES</span><small>{licao?.licao ? `Lição ${licao.licao.numero}/${licao.licao.total}` : licao?.concluido ? "Percurso concluído" : "Seu percurso de aprendizagem"}</small></InteractiveCard>, desktopLessonsHost)}
-      <div className="floating-actions" aria-label="Atalhos" hidden={modal !== null || (aiMode && aiGameActive)}>
+      <div className={`floating-actions${page === "practice" || page === "lessons" ? " study-shortcuts" : ""}`} aria-label="Atalhos" hidden={modal !== null || (page === "match" && aiMode && aiGameActive)}>
         <FloatingAction title="Seu Tutor" label="Abrir tutor" icon={tutorIcon} onClick={event => openArea("tutor", event.currentTarget)} />
         <FloatingAction title="Lições" label="Abrir lições" icon={lessonsIcon} onClick={event => openArea("lessons", event.currentTarget)} />
       </div>
-      <ContentModal id="tutor-modal" title="SEU TUTOR" open={modal === "tutor"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
-        <Chat context={tutorContext} contextKey={tutorKey} itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
+      <ContentModal id="tutor-modal" title="SEU TUTOR" open={modal === "tutor"} onClose={() => { setTutorLesson(null); setModal(null); }} returnFocusRef={modalOpener}>
+        <Chat allowPosition={Boolean(tutorContext) || (page === "practice" && !tutorLesson)} topic={tutorLesson} context={tutorContext} contextKey={tutorKey} itens={itens} esperando={esperando} onEnviar={perguntar} onVerNoTabuleiro={demonstrationFromArea} onPractice={practiceFromArea} />
       </ContentModal>
       <ContentModal id="lessons-modal" title="LIÇÕES" open={modal === "lessons"} onClose={() => setModal(null)} returnFocusRef={modalOpener}>
         {(page !== "lessons" || modal === "lessons") && lessonsContent}

@@ -91,7 +91,7 @@ it("navegar preserva Game, posição, cor e replay sem operações de escrita", 
   expect(options().canDragPiece({ square: "e7" })).toBe(false);
   expect(options().canDragPiece({ square: "e2" })).toBe(true);
   const position = element.getAttribute("data-fen");
-  for (const hash of ["#/historico", "#/masters", "#/licoes", "#/sobre"]) {
+  for (const hash of ["#/historico", "#/masters", "#/licoes", "#/pratica", "#/sobre"]) {
     await navigate(hash);
     expect(screen.queryByRole("region", { name: "Partida contra IA" })).toBeNull();
     if (hash === "#/sobre") {

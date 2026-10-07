@@ -170,6 +170,6 @@ it("abrir prática encerra demo e fechar restaura exatamente a partida já jogad
   fireEvent.click(screen.getByRole("button", { name: "Fechar exercício e voltar à minha posição" }));
   await waitFor(() => expect(casa("e4").querySelector('[aria-label="peão branco"]')).toBeTruthy());
   expect(casa("e2").querySelector('[aria-label="peão branco"]')).toBeNull();
-  expect(screen.getByText("Vez do Hans (pretas).")).toBeTruthy();
+  expect(screen.getByText("Vez das pretas no treino.")).toBeTruthy();
   expect((screen.getByRole("button", { name: "Desfazer" }) as HTMLButtonElement).disabled).toBe(false);
 }, 10_000); // Partida, demonstração, modal e exercício no mesmo fluxo de integração.
